@@ -982,6 +982,11 @@ const nl: Record<string, string> = {
   'reservations.span.end': 'Einde',
   'reservations.span.ongoing': 'Lopend',
   'reservations.validation.endBeforeStart': 'Einddatum/-tijd moet na de startdatum/-tijd liggen',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': 'Budget',

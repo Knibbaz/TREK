@@ -967,6 +967,11 @@ const br: Record<string, string | { name: string; category: string }[]> = {
   'reservations.span.end': 'Fim',
   'reservations.span.ongoing': 'Em andamento',
   'reservations.validation.endBeforeStart': 'A data/hora final deve ser posterior à data/hora inicial',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': 'Orçamento',

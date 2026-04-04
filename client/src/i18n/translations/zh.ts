@@ -982,6 +982,11 @@ const zh: Record<string, string> = {
   'reservations.span.end': '结束',
   'reservations.span.ongoing': '进行中',
   'reservations.validation.endBeforeStart': '结束日期/时间必须晚于开始日期/时间',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': '预算',

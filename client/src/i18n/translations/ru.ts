@@ -982,6 +982,11 @@ const ru: Record<string, string> = {
   'reservations.span.end': 'Конец',
   'reservations.span.ongoing': 'Продолжается',
   'reservations.validation.endBeforeStart': 'Дата/время окончания должны быть позже даты/времени начала',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': 'Бюджет',

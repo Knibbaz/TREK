@@ -983,6 +983,11 @@ const hu: Record<string, string | { name: string; category: string }[]> = {
   'reservations.span.end': 'Vége',
   'reservations.span.ongoing': 'Folyamatban',
   'reservations.validation.endBeforeStart': 'A befejezés dátuma/időpontja a kezdés utáni kell legyen',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Költségvetés
   'budget.title': 'Költségvetés',

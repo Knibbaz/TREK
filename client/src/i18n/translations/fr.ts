@@ -982,6 +982,11 @@ const fr: Record<string, string> = {
   'reservations.span.end': 'Fin',
   'reservations.span.ongoing': 'En cours',
   'reservations.validation.endBeforeStart': 'La date/heure de fin doit être postérieure à la date/heure de début',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': 'Budget',

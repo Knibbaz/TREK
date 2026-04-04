@@ -986,6 +986,11 @@ const ar: Record<string, string | { name: string; category: string }[]> = {
   'reservations.span.end': 'النهاية',
   'reservations.span.ongoing': 'جارٍ',
   'reservations.validation.endBeforeStart': 'يجب أن يكون تاريخ/وقت الانتهاء بعد تاريخ/وقت البدء',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': 'الميزانية',

@@ -984,6 +984,11 @@ const cs: Record<string, string | { name: string; category: string }[]> = {
   'reservations.span.end': 'Konec',
   'reservations.span.ongoing': 'Probíhá',
   'reservations.validation.endBeforeStart': 'Datum/čas konce musí být po datu/čase začátku',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Rozpočet (Budget)
   'budget.title': 'Rozpočet',

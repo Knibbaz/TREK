@@ -983,6 +983,11 @@ const it: Record<string, string | { name: string; category: string }[]> = {
   'reservations.span.end': 'Fine',
   'reservations.span.ongoing': 'In corso',
   'reservations.validation.endBeforeStart': 'La data/ora di fine deve essere successiva alla data/ora di inizio',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // Budget
   'budget.title': 'Budget',

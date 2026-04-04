@@ -1489,6 +1489,11 @@ const es: Record<string, string> = {
   'reservations.meta.fromDay': 'Desde',
   'reservations.meta.toDay': 'Hasta',
   'reservations.meta.selectDay': 'Seleccionar día',
+  'reservations.price': 'Price',
+  'reservations.budgetCategory': 'Budget category',
+  'reservations.budgetCategoryPlaceholder': 'e.g. Transport, Accommodation',
+  'reservations.budgetCategoryAuto': 'Auto (from booking type)',
+  'reservations.budgetHint': 'A budget entry will be created automatically when saving.',
 
   // OIDC-only mode (2.6.2)
   'admin.oidcOnlyMode': 'Desactivar autenticación por contraseña',
