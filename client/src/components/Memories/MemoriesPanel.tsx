@@ -598,7 +598,7 @@ export default function MemoriesPanel({ tripId, startDate, endDate }: MemoriesPa
                           outline: isSelected ? '3px solid var(--text-primary)' : 'none',
                           outlineOffset: -3,
                         }}>
-                        <ProviderImg baseUrl={`/api/integrations/${asset.provider}/assets/${asset.id}/thumbnail?userId=${currentUser!.id}`} provider={asset.provider} loading="lazy"
+                        <ProviderImg baseUrl={`/api/integrations/${asset.provider}/assets//${tripId}/${asset.id}/${currentUser!.id}/thumbnail`} provider={asset.provider} loading="lazy"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                         {isSelected && (
                           <div style={{
