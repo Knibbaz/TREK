@@ -121,7 +121,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
 
       if (result.places?.length > 0) {
         const importedIds: number[] = result.places.map((p: { id: number }) => p.id)
-        pushUndo?.(t('undo.importKmlKmz'), async () => {
+        pushUndo?.(t('undo.importKeyholeMarkup'), async () => {
           for (const id of importedIds) {
             try { await placesApi.delete(tripId, id) } catch {}
           }
@@ -239,7 +239,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
               cursor: 'pointer', fontFamily: 'inherit',
             }}
           >
-            <Upload size={11} strokeWidth={2} /> {t('places.importKmlKmz')}
+            <Upload size={11} strokeWidth={2} /> {t('places.importKeyholeMarkup')}
           </button>
           <button
             onClick={() => setGoogleListOpen(true)}
@@ -597,7 +597,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
             style={{ background: 'var(--bg-card)', borderRadius: 16, width: '100%', maxWidth: 520, padding: 24, boxShadow: '0 8px 32px rgba(0,0,0,0.2)' }}
           >
             <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>
-              {t('places.importKmlKmz')}
+              {t('places.importKeyholeMarkup')}
             </div>
             <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 14, lineHeight: 1.45 }}>
               {t('places.kmlKmzHint')}

@@ -1,4 +1,4 @@
-const en: Record<string, string | { name: string; category: string }[]> = {
+﻿const en: Record<string, string | { name: string; category: string }[]> = {
   // Common
   'common.save': 'Save',
   'common.cancel': 'Cancel',
@@ -829,7 +829,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   // Places Sidebar
   'places.addPlace': 'Add Place/Activity',
   'places.importGpx': 'GPX',
-  'places.importKmlKmz': 'KMZ / KML',
+  'places.importKeyholeMarkup': 'KMZ / KML',
   'places.gpxImported': '{count} places imported from GPX',
   'places.kmlKmzImported': '{count} places imported from KMZ/KML',
   'places.urlResolved': 'Place imported from URL',
@@ -1602,7 +1602,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'undo.moveDay': 'Place moved to another day',
   'undo.lock': 'Place lock toggled',
   'undo.importGpx': 'GPX import',
-  'undo.importKmlKmz': 'KMZ/KML import',
+  'undo.importKeyholeMarkup': 'KMZ/KML import',
   'undo.importGoogleList': 'Google Maps import',
   'undo.addPlace': 'Place added',
   'undo.done': 'Undone: {action}',
