@@ -46,4 +46,14 @@ export const tripsHandlers = [
   http.get('/api/trips/:id/accommodations', () => {
     return HttpResponse.json({ accommodations: [] });
   }),
+
+  http.delete('/api/trips/:id', () => {
+    return HttpResponse.json({ success: true });
+  }),
+
+  http.post('/api/trips/:id/copy', async ({ params, request }) => {
+    const body = await request.json() as Record<string, unknown>;
+    const trip = buildTrip({ id: Number(params.id) + 1000, ...body });
+    return HttpResponse.json({ trip });
+  }),
 ];

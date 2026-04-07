@@ -194,7 +194,7 @@ describe('App — on-mount effects', () => {
   it('FE-COMP-APP-015: loadUser is called on mount for non-shared paths', async () => {
     const loadUser = vi.fn().mockResolvedValue(undefined)
     useAuthStore.setState({ isLoading: false, isAuthenticated: false, loadUser })
-    renderApp('/login')
+    renderApp('/dashboard')
     expect(loadUser).toHaveBeenCalled()
   })
 
