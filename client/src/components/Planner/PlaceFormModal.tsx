@@ -25,7 +25,24 @@ interface PlaceFormData {
   website: string
 }
 
-const GOOGLE_MAPS_URL_RE = /^https?:\/\/(www\.)?(google\.[a-z]{2,3}(\.[a-z]{2})?\/maps|maps\.google\.[a-z]{2,3}(\.[a-z]{2})?(\/|$)|maps\.app\.goo\.gl|goo\.gl\/maps)/i
+function isGoogleMapsUrl(input: string): boolean {
+  try {
+    const { hostname, pathname } = new URL(input.trim())
+    const h = hostname.toLowerCase()
+    // maps.app.goo.gl, goo.gl/maps
+    if (h === 'maps.app.goo.gl') return true
+    if (h === 'goo.gl' && pathname.startsWith('/maps')) return true
+    // maps.google.* (e.g. maps.google.com, maps.google.co.uk)
+    // Must be maps.google.<tld> or maps.google.<sld>.<tld> — reject maps.google.evil.com
+    if (/^maps\.google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(h)) return true
+    // google.*/maps (e.g. google.com/maps, www.google.co.uk/maps)
+    const bare = h.startsWith('www.') ? h.slice(4) : h
+    if (/^google\.[a-z]{2,3}(\.[a-z]{2})?$/.test(bare) && pathname.startsWith('/maps')) return true
+    return false
+  } catch {
+    return false
+  }
+}
 
 const DEFAULT_FORM: PlaceFormData = {
   name: '',
@@ -122,7 +139,7 @@ export default function PlaceFormModal({
     if (acDebounceRef.current) clearTimeout(acDebounceRef.current)
 
     const trimmed = mapsSearch.trim()
-    if (trimmed.length < 2 || GOOGLE_MAPS_URL_RE.test(trimmed)) {
+    if (trimmed.length < 2 || isGoogleMapsUrl(trimmed)) {
       setAcSuggestions([])
       setAcHighlight(-1)
       return
@@ -154,7 +171,7 @@ export default function PlaceFormModal({
     try {
       // Detect Google Maps URLs and resolve them directly
       const trimmed = mapsSearch.trim()
-      if (trimmed.match(GOOGLE_MAPS_URL_RE)) {
+      if (isGoogleMapsUrl(trimmed)) {
         const resolved = await mapsApi.resolveUrl(trimmed)
         if (resolved.lat && resolved.lng) {
           setForm(prev => ({
