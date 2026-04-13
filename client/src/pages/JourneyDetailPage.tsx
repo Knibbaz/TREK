@@ -814,11 +814,23 @@ function GalleryView({ entries, journeyId, userId, trips, onPhotoClick, onRefres
   }
 
   const handleDeletePhoto = async (photoId: number) => {
+    // Optimistic update — remove photo from local state immediately
+    const store = useJourneyStore.getState()
+    if (store.current) {
+      const updated = {
+        ...store.current,
+        entries: store.current.entries.map(e => ({
+          ...e,
+          photos: e.photos.filter(p => p.id !== photoId),
+        })).filter(e => e.type !== 'entry' || e.title !== 'Gallery' || e.photos.length > 0 || e.story),
+      }
+      useJourneyStore.setState({ current: updated })
+    }
     try {
       await journeyApi.deletePhoto(photoId)
-      onRefresh()
     } catch {
       toast.error(t('common.error'))
+      onRefresh() // Revert on error
     }
   }
 
@@ -869,7 +881,7 @@ function GalleryView({ entries, journeyId, userId, trips, onPhotoClick, onRefres
               onClick={() => onPhotoClick(entry.photos, entry.photos.indexOf(photo))}
             >
               <img
-                src={photoUrl(photo, 'original')}
+                src={photoUrl(photo, 'thumbnail')}
                 alt={photo.caption || ''}
                 className="w-full h-full object-cover transition-transform group-hover:scale-105"
                 loading="lazy"
@@ -927,12 +939,10 @@ function GalleryView({ entries, journeyId, userId, trips, onPhotoClick, onRefres
               } catch { return }
             }
             let added = 0
-            for (const assetId of assetIds) {
-              try {
-                await journeyApi.addProviderPhoto(targetId, pickerProvider!, assetId)
-                added++
-              } catch {}
-            }
+            try {
+              const result = await journeyApi.addProviderPhotos(targetId, pickerProvider!, assetIds)
+              added = result.added || 0
+            } catch {}
             if (added > 0) {
               toast.success(t('journey.photosAdded', { count: added }))
               onRefresh()
@@ -1268,7 +1278,7 @@ function CheckinCard({ entry, onClick }: { entry: JourneyEntry; onClick: () => v
 }
 
 function PhotoImg({ photo, className, style, onClick }: { photo: JourneyPhoto; className?: string; style?: React.CSSProperties; onClick?: () => void }) {
-  const src = photoUrl(photo, 'original')
+  const src = photoUrl(photo, 'thumbnail')
   return (
     <img
       src={src}
@@ -1631,14 +1641,13 @@ function ProviderPicker({ provider, userId, entries, trips, existingAssetIds, on
           </div>
         </div>
 
-        {/* Photo grid */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {/* Select all toggle */}
-          {!loading && photos.length > 0 && (() => {
-            const selectable = photos.filter((a: any) => !existingAssetIds.has(a.id))
-            const allSelected = selectable.length > 0 && selectable.every((a: any) => selected.has(a.id))
-            if (selectable.length === 0) return null
-            return (
+        {/* Select all bar — sticky above grid */}
+        {!loading && photos.length > 0 && (() => {
+          const selectable = photos.filter((a: any) => !existingAssetIds.has(a.id))
+          const allSelected = selectable.length > 0 && selectable.every((a: any) => selected.has(a.id))
+          if (selectable.length === 0) return null
+          return (
+            <div className="px-4 py-2 border-b border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900">
               <button
                 onClick={() => {
                   if (allSelected) {
@@ -1647,7 +1656,7 @@ function ProviderPicker({ provider, userId, entries, trips, existingAssetIds, on
                     setSelected(new Set(selectable.map((a: any) => a.id)))
                   }
                 }}
-                className="mb-3 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
+                className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-medium border border-zinc-200 dark:border-zinc-700 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-50 dark:hover:bg-zinc-800"
               >
                 <div className={`w-3.5 h-3.5 rounded border flex items-center justify-center ${
                   allSelected
@@ -1658,8 +1667,12 @@ function ProviderPicker({ provider, userId, entries, trips, existingAssetIds, on
                 </div>
                 {allSelected ? t('journey.picker.deselectAll') : t('journey.picker.selectAll')} ({selectable.length})
               </button>
-            )
-          })()}
+            </div>
+          )
+        })()}
+
+        {/* Photo grid */}
+        <div className="flex-1 overflow-y-auto p-4">
           {loading ? (
             <div className="flex justify-center py-12">
               <div className="w-6 h-6 border-2 border-zinc-300 border-t-zinc-900 rounded-full animate-spin" />

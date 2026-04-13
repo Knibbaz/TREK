@@ -258,18 +258,34 @@ export async function listAlbums(
   if (!creds) return { error: 'Immich not configured', status: 400 };
 
   try {
-    const resp = await safeFetch(`${creds.immich_url}/api/albums`, {
-      headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
-      signal: AbortSignal.timeout(10000) as any,
+    // Fetch both owned and shared albums
+    const [ownResp, sharedResp] = await Promise.all([
+      safeFetch(`${creds.immich_url}/api/albums`, {
+        headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000) as any,
+      }),
+      safeFetch(`${creds.immich_url}/api/albums?shared=true`, {
+        headers: { 'x-api-key': creds.immich_api_key, 'Accept': 'application/json' },
+        signal: AbortSignal.timeout(10000) as any,
+      }),
+    ]);
+    if (!ownResp.ok) return { error: 'Failed to fetch albums', status: ownResp.status };
+    const ownAlbums = await ownResp.json() as any[];
+    const sharedAlbums = sharedResp.ok ? await sharedResp.json() as any[] : [];
+    const seenIds = new Set<string>();
+    const allAlbums = [...ownAlbums, ...sharedAlbums].filter((a: any) => {
+      if (seenIds.has(a.id)) return false;
+      seenIds.add(a.id);
+      return true;
     });
-    if (!resp.ok) return { error: 'Failed to fetch albums', status: resp.status };
-    const albums = (await resp.json() as any[]).map((a: any) => ({
+    const albums = allAlbums.map((a: any) => ({
       id: a.id,
       albumName: a.albumName,
       assetCount: a.assetCount || 0,
       startDate: a.startDate,
       endDate: a.endDate,
       albumThumbnailAssetId: a.albumThumbnailAssetId,
+      shared: a.shared || a.sharedUsers?.length > 0,
     }));
     return { albums };
   } catch {
