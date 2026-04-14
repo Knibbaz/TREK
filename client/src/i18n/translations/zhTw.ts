@@ -1856,6 +1856,8 @@ const zhTw: Record<string, string> = {
   'journey.stats.entries': '條目',
   'journey.stats.photos': '照片',
   'journey.stats.places': '地點',
+  'journey.skeletons.show': '顯示建議',
+  'journey.skeletons.hide': '隱藏建議',
   'journey.verdict.lovedIt': '非常喜歡',
   'journey.verdict.couldBeBetter': '有待改進',
   'journey.synced.places': '個地點',

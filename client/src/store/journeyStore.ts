@@ -82,6 +82,7 @@ export interface JourneyDetail extends Journey {
   trips: JourneyTrip[]
   contributors: JourneyContributor[]
   stats: { entries: number; photos: number; cities: number }
+  hide_skeletons?: boolean
 }
 
 interface JourneyState {

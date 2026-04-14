@@ -1557,6 +1557,8 @@ const ar: Record<string, string | { name: string; category: string }[]> = {
   'journey.detail.backToJourney': 'العودة للمجلة',
   'journey.detail.day': 'اليوم {number}',
   'journey.detail.places': 'أماكن',
+  'journey.skeletons.show': 'إظهار الاقتراحات',
+  'journey.skeletons.hide': 'إخفاء الاقتراحات',
 
   // Journey — Invite
   'journey.invite.role': 'الدور',

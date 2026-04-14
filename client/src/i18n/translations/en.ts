@@ -1906,6 +1906,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'journey.stats.entries': 'Entries',
   'journey.stats.photos': 'Photos',
   'journey.stats.places': 'Places',
+  'journey.skeletons.show': 'Show suggestions',
+  'journey.skeletons.hide': 'Hide suggestions',
 
   // Journey Detail — Verdict
   'journey.verdict.lovedIt': 'Loved it',

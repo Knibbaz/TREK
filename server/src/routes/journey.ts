@@ -279,6 +279,15 @@ router.delete('/:id/contributors/:userId', authenticate, (req: Request, res: Res
   res.json({ success: true });
 });
 
+// ── User Preferences ─────────────────────────────────────────────────────
+
+router.patch('/:id/preferences', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const result = svc.updateJourneyPreferences(Number(req.params.id), authReq.user.id, req.body);
+  if (!result) return res.status(403).json({ error: 'Not allowed' });
+  res.json(result);
+});
+
 // ── Share Link ────────────────────────────────────────────────────────────
 
 router.get('/:id/share-link', authenticate, (req: Request, res: Response) => {

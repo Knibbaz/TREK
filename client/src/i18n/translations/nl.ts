@@ -1896,6 +1896,8 @@ const nl: Record<string, string> = {
   'journey.stats.entries': 'Vermeldingen',
   'journey.stats.photos': 'Foto\'s',
   'journey.stats.places': 'Plaatsen',
+  'journey.skeletons.show': 'Suggesties tonen',
+  'journey.skeletons.hide': 'Suggesties verbergen',
   'journey.verdict.lovedIt': 'Geweldig',
   'journey.verdict.couldBeBetter': 'Kan beter',
   'journey.synced.places': 'plaatsen',

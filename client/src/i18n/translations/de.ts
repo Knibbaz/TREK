@@ -1901,6 +1901,8 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'journey.stats.entries': 'Einträge',
   'journey.stats.photos': 'Fotos',
   'journey.stats.places': 'Orte',
+  'journey.skeletons.show': 'Vorschläge anzeigen',
+  'journey.skeletons.hide': 'Vorschläge ausblenden',
   'journey.verdict.lovedIt': 'Toll',
   'journey.verdict.couldBeBetter': 'Verbesserungswürdig',
   'journey.synced.places': 'Orte',

@@ -565,6 +565,46 @@ describe('deleteEntry', () => {
 
     expect(deleteEntry(entry.id, viewer.id)).toBe(false);
   });
+
+  it('JOURNEY-SVC-037b: deleting a filled skeleton reverts it back to skeleton', () => {
+    const { user } = createUser(testDb);
+    const journey = createJourney(testDb, user.id);
+    const trip = createTrip(testDb, user.id);
+    const place = createPlace(testDb, trip.id, { name: 'Tokyo Tower' });
+
+    // Create a filled entry that originated from a trip skeleton
+    const now = Date.now();
+    testDb.prepare(`
+      INSERT INTO journey_entries (journey_id, source_trip_id, source_place_id, author_id, type, title, story, mood, entry_date, location_name, visibility, sort_order, created_at, updated_at)
+      VALUES (?, ?, ?, ?, 'entry', 'Tokyo Tower', 'Amazing view!', 'amazing', '2026-03-01', 'Tokyo', 'private', 0, ?, ?)
+    `).run(journey.id, trip.id, place.id, user.id, now, now);
+    const entry = testDb.prepare('SELECT * FROM journey_entries WHERE journey_id = ? AND source_place_id = ?').get(journey.id, place.id) as any;
+
+    const result = deleteEntry(entry.id, user.id);
+    expect(result).toBe(true);
+
+    // Entry should still exist but reverted to skeleton
+    const reverted = testDb.prepare('SELECT * FROM journey_entries WHERE id = ?').get(entry.id) as any;
+    expect(reverted).toBeDefined();
+    expect(reverted.type).toBe('skeleton');
+    expect(reverted.story).toBeNull();
+    expect(reverted.mood).toBeNull();
+    expect(reverted.source_trip_id).toBe(trip.id);
+    expect(reverted.source_place_id).toBe(place.id);
+    expect(reverted.title).toBe('Tokyo Tower');
+  });
+
+  it('JOURNEY-SVC-037c: deleting an independent entry permanently removes it', () => {
+    const { user } = createUser(testDb);
+    const journey = createJourney(testDb, user.id);
+    const entry = createJourneyEntry(testDb, journey.id, user.id, { entry_date: '2026-03-01', story: 'Manual entry' });
+
+    const result = deleteEntry(entry.id, user.id);
+    expect(result).toBe(true);
+
+    const row = testDb.prepare('SELECT * FROM journey_entries WHERE id = ?').get(entry.id);
+    expect(row).toBeUndefined();
+  });
 });
 
 // -- Photos -------------------------------------------------------------------

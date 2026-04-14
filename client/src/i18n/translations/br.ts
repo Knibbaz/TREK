@@ -1895,6 +1895,8 @@ const br: Record<string, string | { name: string; category: string }[]> = {
   'journey.stats.entries': 'Entradas',
   'journey.stats.photos': 'Fotos',
   'journey.stats.places': 'Lugares',
+  'journey.skeletons.show': 'Mostrar sugestões',
+  'journey.skeletons.hide': 'Ocultar sugestões',
   'journey.verdict.lovedIt': 'Adorei',
   'journey.verdict.couldBeBetter': 'Poderia ser melhor',
   'journey.synced.places': 'lugares',

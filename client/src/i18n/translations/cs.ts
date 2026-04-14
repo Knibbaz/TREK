@@ -1900,6 +1900,8 @@ const cs: Record<string, string | { name: string; category: string }[]> = {
   'journey.stats.entries': 'Záznamy',
   'journey.stats.photos': 'Fotky',
   'journey.stats.places': 'Místa',
+  'journey.skeletons.show': 'Zobrazit návrhy',
+  'journey.skeletons.hide': 'Skrýt návrhy',
   'journey.verdict.lovedIt': 'Skvělé',
   'journey.verdict.couldBeBetter': 'Mohlo by být lepší',
   'journey.synced.places': 'místa',

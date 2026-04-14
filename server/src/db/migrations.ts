@@ -1574,6 +1574,10 @@ function runMigrations(db: Database.Database): void {
         db.exec('CREATE INDEX IF NOT EXISTS idx_journey_photos_photo ON journey_photos(photo_id)');
       }
     },
+    // Migration 99: hide_skeletons per-user setting on journey_contributors
+    () => {
+      try { db.exec('ALTER TABLE journey_contributors ADD COLUMN hide_skeletons INTEGER NOT NULL DEFAULT 0'); } catch {}
+    },
   ];
 
   if (currentVersion < migrations.length) {

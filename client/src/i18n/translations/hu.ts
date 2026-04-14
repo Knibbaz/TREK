@@ -1897,6 +1897,8 @@ const hu: Record<string, string | { name: string; category: string }[]> = {
   'journey.stats.entries': 'Bejegyzések',
   'journey.stats.photos': 'Fotók',
   'journey.stats.places': 'Helyszínek',
+  'journey.skeletons.show': 'Javaslatok megjelenítése',
+  'journey.skeletons.hide': 'Javaslatok elrejtése',
   'journey.verdict.lovedIt': 'Imádtam',
   'journey.verdict.couldBeBetter': 'Lehetne jobb',
   'journey.synced.places': 'helyszín',

@@ -1889,6 +1889,8 @@ const pl: Record<string, string | { name: string; category: string }[]> = {
   'journey.stats.entries': 'Wpisy',
   'journey.stats.photos': 'Zdjęcia',
   'journey.stats.places': 'Miejsca',
+  'journey.skeletons.show': 'Pokaż sugestie',
+  'journey.skeletons.hide': 'Ukryj sugestie',
   'journey.verdict.lovedIt': 'Świetne',
   'journey.verdict.couldBeBetter': 'Mogłoby być lepiej',
   'journey.synced.places': 'miejsca',

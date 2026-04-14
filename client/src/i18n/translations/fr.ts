@@ -1896,6 +1896,8 @@ const fr: Record<string, string> = {
   'journey.stats.entries': 'Entrées',
   'journey.stats.photos': 'Photos',
   'journey.stats.places': 'Lieux',
+  'journey.skeletons.show': 'Afficher les suggestions',
+  'journey.skeletons.hide': 'Masquer les suggestions',
   'journey.verdict.lovedIt': 'Adoré',
   'journey.verdict.couldBeBetter': 'Pourrait être mieux',
   'journey.synced.places': 'lieux',

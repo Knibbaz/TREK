@@ -18,7 +18,7 @@ import {
   Clock, Package, Image, ChevronRight,
   UserPlus, Plus, Minus, Calendar, Camera, BookOpen, X, Check, ImagePlus, Trash2, Pencil,
   Laugh, Smile, Meh, Annoyed, Frown,
-  Sun, CloudSun, Cloud, CloudRain, CloudLightning, Snowflake, ChevronDown,
+  Sun, CloudSun, Cloud, CloudRain, CloudLightning, Snowflake, ChevronDown, Eye, EyeOff,
 } from 'lucide-react'
 import type { JourneyEntry, JourneyPhoto, JourneyDetail } from '../store/journeyStore'
 
@@ -92,10 +92,15 @@ export default function JourneyDetailPage() {
   const [showAddTrip, setShowAddTrip] = useState(false)
   const [unlinkTrip, setUnlinkTrip] = useState<{ trip_id: number; title: string } | null>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const [hideSkeletons, setHideSkeletons] = useState(false)
 
   useEffect(() => {
     if (id) loadJourney(Number(id)).catch(() => {})
   }, [id])
+
+  useEffect(() => {
+    if (current?.hide_skeletons !== undefined) setHideSkeletons(current.hide_skeletons)
+  }, [current?.hide_skeletons])
 
   useEffect(() => {
     if (notFound) {
@@ -193,7 +198,7 @@ export default function JourneyDetailPage() {
     )
   }
 
-  const timelineEntries = current.entries.filter(e => e.title !== 'Gallery' && e.title !== '[Trip Photos]')
+  const timelineEntries = current.entries.filter(e => e.title !== 'Gallery' && e.title !== '[Trip Photos]' && (!hideSkeletons || e.type !== 'skeleton'))
   const dayGroups = groupByDate(timelineEntries)
   const sortedDates = [...dayGroups.keys()].sort()
 
@@ -243,7 +248,21 @@ export default function JourneyDetailPage() {
                   </button>
                   <div className="flex items-center gap-1.5">
                     <button onClick={() => { import('../components/PDF/JourneyBookPDF').then(m => m.downloadJourneyBookPDF(current)) }} className="w-[34px] h-[34px] rounded-lg bg-white/15 backdrop-blur flex items-center justify-center hover:bg-white/25"><Download size={14} /></button>
-                    <button onClick={() => setShowSettings(true)} className="w-[34px] h-[34px] rounded-lg bg-white/15 backdrop-blur flex items-center justify-center hover:bg-white/25"><Share2 size={14} /></button>
+                    <div className="relative group">
+                      <button
+                        onClick={async () => {
+                          const next = !hideSkeletons
+                          setHideSkeletons(next)
+                          await journeyApi.updatePreferences(current.id, { hide_skeletons: next })
+                        }}
+                        className={`w-[34px] h-[34px] rounded-lg backdrop-blur flex items-center justify-center ${hideSkeletons ? 'bg-white/30' : 'bg-white/15 hover:bg-white/25'}`}
+                      >
+                        {hideSkeletons ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                      <span className="absolute top-full mt-2 left-1/2 -translate-x-1/2 px-2 py-1 rounded-md bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-900 text-[11px] font-medium whitespace-nowrap opacity-0 pointer-events-none group-hover:opacity-100 transition-opacity">
+                        {hideSkeletons ? t('journey.skeletons.show') : t('journey.skeletons.hide')}
+                      </span>
+                    </div>
                     <button onClick={() => setShowSettings(true)} className="w-[34px] h-[34px] rounded-lg bg-white/15 backdrop-blur flex items-center justify-center hover:bg-white/25"><MoreHorizontal size={14} /></button>
                   </div>
                 </div>

@@ -1902,6 +1902,8 @@ const es: Record<string, string> = {
   'journey.stats.entries': 'Entradas',
   'journey.stats.photos': 'Fotos',
   'journey.stats.places': 'Lugares',
+  'journey.skeletons.show': 'Mostrar sugerencias',
+  'journey.skeletons.hide': 'Ocultar sugerencias',
   'journey.verdict.lovedIt': 'Me encantó',
   'journey.verdict.couldBeBetter': 'Podría mejorar',
   'journey.synced.places': 'lugares',

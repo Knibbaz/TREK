@@ -161,12 +161,17 @@ export function getJourneyFull(journeyId: number, userId: number) {
   const photoCount = photos.length;
   const cities = [...new Set(entries.map(e => e.location_name).filter(Boolean))];
 
+  const userPrefs = db.prepare(
+    'SELECT hide_skeletons FROM journey_contributors WHERE journey_id = ? AND user_id = ?'
+  ).get(journeyId, userId) as { hide_skeletons: number } | undefined;
+
   return {
     ...journey,
     entries: enrichedEntries,
     trips,
     contributors,
     stats: { entries: entryCount, photos: photoCount, cities: cities.length },
+    hide_skeletons: !!(userPrefs?.hide_skeletons),
   };
 }
 
@@ -195,6 +200,19 @@ export function updateJourney(journeyId: number, userId: number, data: Partial<{
   values.push(journeyId);
   db.prepare(`UPDATE journeys SET ${fields.join(', ')} WHERE id = ?`).run(...values);
   return db.prepare('SELECT * FROM journeys WHERE id = ?').get(journeyId) as Journey;
+}
+
+export function updateJourneyPreferences(journeyId: number, userId: number, data: { hide_skeletons?: boolean }) {
+  if (!canAccessJourney(journeyId, userId)) return null;
+  if (data.hide_skeletons !== undefined) {
+    db.prepare(
+      'UPDATE journey_contributors SET hide_skeletons = ? WHERE journey_id = ? AND user_id = ?'
+    ).run(data.hide_skeletons ? 1 : 0, journeyId, userId);
+  }
+  const row = db.prepare(
+    'SELECT hide_skeletons FROM journey_contributors WHERE journey_id = ? AND user_id = ?'
+  ).get(journeyId, userId) as { hide_skeletons: number };
+  return { hide_skeletons: !!row.hide_skeletons };
 }
 
 export function deleteJourney(journeyId: number, userId: number): boolean {
@@ -567,7 +585,20 @@ export function deleteEntry(entryId: number, userId: number, sid?: string): bool
 
   // delete photos along with the entry — no more orphan Gallery entries
   db.prepare('DELETE FROM journey_photos WHERE entry_id = ?').run(entryId);
-  db.prepare('DELETE FROM journey_entries WHERE id = ?').run(entryId);
+
+  if (entry.source_trip_id && entry.source_place_id && entry.type !== 'skeleton') {
+    // Revert filled entry back to skeleton instead of deleting
+    db.prepare(`
+      UPDATE journey_entries
+      SET type = 'skeleton', story = NULL, mood = NULL, weather = NULL, pros_cons = NULL,
+          visibility = 'private', updated_at = ?
+      WHERE id = ?
+    `).run(ts(), entryId);
+    broadcastJourneyEvent(entry.journey_id, 'journey:entry:updated', { entryId }, sid);
+  } else {
+    db.prepare('DELETE FROM journey_entries WHERE id = ?').run(entryId);
+    broadcastJourneyEvent(entry.journey_id, 'journey:entry:deleted', { entryId }, sid);
+  }
 
   // clean up any empty Gallery entries in this journey
   db.prepare(`
@@ -575,7 +606,6 @@ export function deleteEntry(entryId: number, userId: number, sid?: string): bool
     AND id NOT IN (SELECT DISTINCT entry_id FROM journey_photos)
   `).run(entry.journey_id);
 
-  broadcastJourneyEvent(entry.journey_id, 'journey:entry:deleted', { entryId }, sid);
   return true;
 }
 

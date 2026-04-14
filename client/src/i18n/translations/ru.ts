@@ -1896,6 +1896,8 @@ const ru: Record<string, string> = {
   'journey.stats.entries': 'Записей',
   'journey.stats.photos': 'Фото',
   'journey.stats.places': 'Мест',
+  'journey.skeletons.show': 'Показать предложения',
+  'journey.skeletons.hide': 'Скрыть предложения',
   'journey.verdict.lovedIt': 'Понравилось',
   'journey.verdict.couldBeBetter': 'Могло быть лучше',
   'journey.synced.places': 'мест',
