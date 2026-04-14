@@ -531,7 +531,11 @@ describe('Immich syncAlbumAssets', () => {
     expect(typeof res.body.added).toBe('number');
 
     // Verify photos were inserted into the DB
-    const photos = testDb.prepare('SELECT * FROM trip_photos WHERE trip_id = ? AND user_id = ?').all(trip.id, user.id) as any[];
+    const photos = testDb.prepare(`
+      SELECT tp.*, tkp.provider FROM trip_photos tp
+      JOIN trek_photos tkp ON tkp.id = tp.photo_id
+      WHERE tp.trip_id = ? AND tp.user_id = ?
+    `).all(trip.id, user.id) as any[];
     expect(photos.length).toBeGreaterThan(0);
     expect(photos[0].provider).toBe('immich');
   });
