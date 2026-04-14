@@ -149,6 +149,7 @@ const ar: Record<string, string | { name: string; category: string }[]> = {
   'settings.tabs.notifications': 'الإشعارات',
   'settings.tabs.integrations': 'التكاملات',
   'settings.tabs.account': 'الحساب',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'حول',
   'settings.map': 'الخريطة',
   'settings.mapTemplate': 'قالب الخريطة',

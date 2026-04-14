@@ -144,6 +144,7 @@ const nl: Record<string, string> = {
   'settings.tabs.notifications': 'Meldingen',
   'settings.tabs.integrations': 'Integraties',
   'settings.tabs.account': 'Account',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'Over',
   'settings.map': 'Kaart',
   'settings.mapTemplate': 'Kaartsjabloon',

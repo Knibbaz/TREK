@@ -147,6 +147,7 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'settings.tabs.notifications': 'Benachrichtigungen',
   'settings.tabs.integrations': 'Integrationen',
   'settings.tabs.account': 'Konto',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'Über',
   'settings.map': 'Karte',
   'settings.mapTemplate': 'Karten-Vorlage',

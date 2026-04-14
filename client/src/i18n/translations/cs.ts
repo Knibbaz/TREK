@@ -145,6 +145,7 @@ const cs: Record<string, string | { name: string; category: string }[]> = {
   'settings.tabs.notifications': 'Oznámení',
   'settings.tabs.integrations': 'Integrace',
   'settings.tabs.account': 'Účet',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'O aplikaci',
   'settings.map': 'Mapy',
   'settings.mapTemplate': 'Šablona mapy',

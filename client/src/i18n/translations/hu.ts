@@ -144,6 +144,7 @@ const hu: Record<string, string | { name: string; category: string }[]> = {
   'settings.tabs.notifications': 'Értesítések',
   'settings.tabs.integrations': 'Integrációk',
   'settings.tabs.account': 'Fiók',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'Névjegy',
   'settings.map': 'Térkép',
   'settings.mapTemplate': 'Térkép sablon',

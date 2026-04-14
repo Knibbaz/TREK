@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { tripsApi } from '../api/client'
+import { tripRepo } from '../repo/tripRepo'
 import { useAuthStore } from '../store/authStore'
 import { useSettingsStore } from '../store/settingsStore'
 import { useTranslation } from '../i18n'
@@ -713,12 +714,9 @@ export default function DashboardPage(): React.ReactElement {
   const loadTrips = async () => {
     setIsLoading(true)
     try {
-      const [active, archived] = await Promise.all([
-        tripsApi.list(),
-        tripsApi.list({ archived: 1 }),
-      ])
-      setTrips(sortTrips(active.trips))
-      setArchivedTrips(sortTrips(archived.trips))
+      const { trips, archivedTrips } = await tripRepo.list()
+      setTrips(sortTrips(trips))
+      setArchivedTrips(sortTrips(archivedTrips))
     } catch {
       toast.error(t('dashboard.toast.loadError'))
     } finally {

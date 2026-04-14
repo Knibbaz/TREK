@@ -42,7 +42,7 @@ export default function SettingsPage(): React.ReactElement {
     { id: 'map', label: t('settings.tabs.map') },
     { id: 'notifications', label: t('settings.tabs.notifications') },
     ...(hasIntegrations ? [{ id: 'integrations', label: t('settings.tabs.integrations') }] : []),
-    { id: 'offline', label: t('settings.tabs.offline', 'Offline') },
+    { id: 'offline', label: t('settings.tabs.offline') },
     { id: 'account', label: t('settings.tabs.account') },
     ...(appVersion ? [{ id: 'about', label: t('settings.tabs.about') }] : []),
   ]

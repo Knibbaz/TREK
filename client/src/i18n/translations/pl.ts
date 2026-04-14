@@ -130,6 +130,7 @@ const pl: Record<string, string | { name: string; category: string }[]> = {
   'settings.tabs.notifications': 'Powiadomienia',
   'settings.tabs.integrations': 'Integracje',
   'settings.tabs.account': 'Konto',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'O aplikacji',
   'settings.map': 'Mapa',
   'settings.mapTemplate': 'Szablon mapy',

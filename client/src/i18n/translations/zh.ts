@@ -144,6 +144,7 @@ const zh: Record<string, string> = {
   'settings.tabs.notifications': '通知',
   'settings.tabs.integrations': '集成',
   'settings.tabs.account': '账户',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': '关于',
   'settings.map': '地图',
   'settings.mapTemplate': '地图模板',

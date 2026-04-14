@@ -145,6 +145,7 @@ const es: Record<string, string> = {
   'settings.tabs.notifications': 'Notificaciones',
   'settings.tabs.integrations': 'Integraciones',
   'settings.tabs.account': 'Cuenta',
+  'settings.tabs.offline': 'Offline',
   'settings.tabs.about': 'Acerca de',
   'settings.map': 'Mapa',
   'settings.mapTemplate': 'Plantilla del mapa',
