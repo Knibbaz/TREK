@@ -168,37 +168,6 @@ export default function JourneyPage() {
               </span>
 
               <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flexShrink: 0 }}>
-                {searchOpen && (
-                  <input
-                    value={searchQuery}
-                    onChange={e => setSearchQuery(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
-                    placeholder={t('journey.search.placeholder')}
-                    autoFocus
-                    className="w-52 px-3 py-2 rounded-[10px] text-[13px] bg-white dark:bg-zinc-800 text-zinc-900 dark:text-white focus:outline-none"
-                    style={{ border: '1px solid var(--border-primary)' }}
-                  />
-                )}
-                <button
-                  onClick={() => {
-                    setSearchOpen(s => !s)
-                    if (searchOpen) setSearchQuery('')
-                  }}
-                  title={t('journey.search.placeholder')}
-                  style={{
-                    appearance: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '7px 11px', borderRadius: 99,
-                    background: searchOpen ? 'var(--bg-card)' : 'transparent',
-                    color: searchOpen ? 'var(--text-primary)' : 'var(--text-muted)',
-                    boxShadow: searchOpen ? '0 1px 2px rgba(0,0,0,0.06)' : 'none',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => { if (!searchOpen) { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)' } }}
-                  onMouseLeave={e => { if (!searchOpen) { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' } }}
-                >
-                  {searchOpen ? <X size={15} /> : <Search size={15} />}
-                </button>
                 <button
                   onClick={() => openCreateModal()}
                   style={{

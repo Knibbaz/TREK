@@ -138,8 +138,8 @@ export default function VacayPage(): React.ReactElement {
 
       <div style={{ paddingTop: 'var(--nav-h)' }}>
         <div className="max-w-[1800px] mx-auto px-3 sm:px-4 py-4 sm:py-6">
-          {/* Mobile header */}
-          <div className="md:hidden flex items-center justify-between mb-4">
+          {/* Mobile + tablet header (filter toggle lives here) */}
+          <div className="lg:hidden flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'var(--bg-secondary)' }}>
                 <CalendarDays size={18} style={{ color: 'var(--text-primary)' }} />
@@ -164,8 +164,8 @@ export default function VacayPage(): React.ReactElement {
             </div>
           </div>
 
-          {/* Desktop header — unified toolbar */}
-          <div className="hidden md:block" style={{ marginBottom: 20 }}>
+          {/* Desktop header — unified toolbar (sidebar is always visible at this width) */}
+          <div className="hidden lg:block" style={{ marginBottom: 20 }}>
             <div style={{
               background: 'var(--bg-tertiary)', borderRadius: 18,
               border: '1px solid var(--border-primary)',
@@ -181,22 +181,6 @@ export default function VacayPage(): React.ReactElement {
                 {t('vacay.subtitle')}
               </span>
               <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flexShrink: 0 }}>
-                <button
-                  onClick={() => setShowMobileSidebar(true)}
-                  className="lg:hidden"
-                  title={t('vacay.filters') || 'Filters'}
-                  style={{
-                    appearance: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '7px 11px', borderRadius: 99,
-                    background: 'transparent', color: 'var(--text-muted)',
-                    transition: 'all 0.15s ease',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.style.color = 'var(--text-primary)' }}
-                  onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--text-muted)' }}
-                >
-                  <SlidersHorizontal size={15} />
-                </button>
                 <button
                   onClick={() => setShowSettings(true)}
                   style={{
