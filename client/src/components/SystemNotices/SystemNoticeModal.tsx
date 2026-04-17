@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { flushSync } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { Info, AlertTriangle, AlertOctagon, X, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -71,159 +71,168 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
     : DefaultIcon;
 
   return (
-    <div className="flex flex-col relative flex-1">
+    <div className="flex flex-col relative" style={{ flex: '1 1 0', minHeight: '100%' }}>
       {/* Dismiss X button — only on last page so users read all notices */}
       {notice.dismissible && isLastPage && (
         <button
           onClick={onDismissAll}
-          className="absolute top-4 right-4 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+          className="absolute top-4 right-4 z-10 p-2 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
           aria-label="Dismiss"
         >
           <X size={18} />
         </button>
       )}
 
-      {/* Hero image (not inline) */}
-      {notice.media && notice.media.placement !== 'inline' && (
-        <div
-          className="w-full overflow-hidden"
-          style={{ aspectRatio: notice.media.aspectRatio ?? '16/9' }}
-        >
-          <img
-            src={isDark && notice.media.srcDark ? notice.media.srcDark : notice.media.src}
-            alt={t(notice.media.altKey)}
-            className="w-full h-full object-cover"
-            fetchPriority="high"
-            decoding="async"
-            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-          />
-        </div>
-      )}
-
-      {/* Special warm header for Heart icon (thank-you notice) */}
-      {notice.icon === 'Heart' && !notice.media && (
-        <div className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-pink-500 to-indigo-500 px-8 py-5 text-center">
-          <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)', backgroundSize: '60px 60px, 80px 80px, 40px 40px' }} />
-          <div className="relative flex items-center justify-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/10">
-              <LucideIcon size={20} className="text-white" />
-            </div>
-            <div className="text-left">
-              <h2 id={titleId} className="text-lg font-bold text-white leading-tight">{title}</h2>
-              <p className="text-xs text-white/60 font-medium">TREK 3.0</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div className={`${notice.icon === 'Heart' && !notice.media ? 'px-8 py-6' : 'p-8'} flex flex-col flex-1`}>
-        {/* Severity icon (when no hero and not Heart) */}
-        {!notice.media && notice.icon !== 'Heart' && (
-          <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${SEVERITY_ACCENT[notice.severity] ?? ''}`}>
-            <LucideIcon size={28} />
-          </div>
-        )}
-
-        {/* Title (not for Heart — rendered in gradient header) */}
-        {(notice.icon !== 'Heart' || notice.media) && (
-          <h2
-            id={titleId}
-            className="text-xl font-semibold text-center text-slate-900 dark:text-slate-100 mb-3"
-          >
-            {title}
-          </h2>
-        )}
-
-        {/* Body — markdown (long body text uses left-aligned layout) */}
-        <div
-          id={bodyId}
-          className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 mx-auto mb-4 text-center"
-        >
-          <React.Suspense fallback={<p className="text-sm text-slate-500">{body}</p>}>
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeSanitize]}
-              components={{
-                a: ({ href, children }) => (
-                  <a
-                    href={href}
-                    className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-300 dark:decoration-indigo-700 hover:decoration-indigo-500 dark:hover:decoration-indigo-400 underline-offset-2 transition-colors"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {children}
-                  </a>
-                ),
-                p: ({ children }) => {
-                  // Signature line styling (e.g. "— Maurice")
-                  const text = typeof children === 'string' ? children : Array.isArray(children) ? children.find(c => typeof c === 'string') : '';
-                  if (typeof text === 'string' && text.trim().startsWith('—') && text.trim().length < 30) {
-                    return <p className="mt-4 mb-3 text-base font-semibold text-slate-800 dark:text-slate-200 italic">{children}</p>;
-                  }
-                  return <p className="mb-3 last:mb-0">{children}</p>;
-                },
-                hr: () => (
-                  <div className="my-5 flex items-center gap-3">
-                    <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-                    <span className="text-slate-300 dark:text-slate-600 text-xs">♡</span>
-                    <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
-                  </div>
-                ),
-                strong: ({ children }) => <strong className="font-semibold text-slate-800 dark:text-slate-200">{children}</strong>,
-                ul: ({ children }) => <ul className="list-disc list-inside text-left">{children}</ul>,
-                ol: ({ children }) => <ol className="list-decimal list-inside text-left">{children}</ol>,
-              }}
-            >
-              {body}
-            </ReactMarkdown>
-          </React.Suspense>
-        </div>
-
-        {/* Inline image */}
-        {notice.media?.placement === 'inline' && (
+      {/* Scrollable content — vertically centered when shorter than available space */}
+      <div className="flex flex-col justify-center" style={{ flex: '1 1 0' }}>
+        {/* Hero image (not inline) */}
+        {notice.media && notice.media.placement !== 'inline' && (
           <div
-            className="w-full overflow-hidden rounded-lg mb-4 mx-auto"
+            className="w-full overflow-hidden"
             style={{ aspectRatio: notice.media.aspectRatio ?? '16/9' }}
           >
             <img
               src={isDark && notice.media.srcDark ? notice.media.srcDark : notice.media.src}
               alt={t(notice.media.altKey)}
               className="w-full h-full object-cover"
+              fetchPriority="high"
               decoding="async"
               onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
           </div>
         )}
 
-        {/* Highlights */}
-        {notice.highlights && notice.highlights.length > 0 && (
-          <ul className="mx-auto mb-4 space-y-2">
-            {notice.highlights.map((h, i) => {
-              const HIcon: React.ElementType | null = h.iconName
-                ? ((LucideIcons as Record<string, unknown>)[h.iconName] as React.ElementType) ?? null
-                : null;
-              return (
-                <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
-                  {HIcon
-                    ? <HIcon size={16} className="text-blue-500 shrink-0" />
-                    : <span className="text-blue-500 shrink-0">✓</span>
-                  }
-                  {t(h.labelKey)}
-                </li>
-              );
-            })}
-          </ul>
+        {/* Special warm header for Heart icon (thank-you notice) */}
+        {notice.icon === 'Heart' && !notice.media && (
+          <div className="relative overflow-hidden bg-gradient-to-br from-rose-500 via-pink-500 to-indigo-500 px-8 py-5 text-center">
+            <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'radial-gradient(circle at 20% 50%, white 1px, transparent 1px), radial-gradient(circle at 80% 20%, white 1px, transparent 1px), radial-gradient(circle at 60% 80%, white 1px, transparent 1px)', backgroundSize: '60px 60px, 80px 80px, 40px 40px' }} />
+            <div className="relative flex items-center justify-center gap-3">
+              <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center ring-2 ring-white/10">
+                <LucideIcon size={20} className="text-white" />
+              </div>
+              <div className="text-left">
+                <h2 id={titleId} className="text-lg font-bold text-white leading-tight">{title}</h2>
+                <p className="text-xs text-white/60 font-medium">TREK 3.0</p>
+              </div>
+            </div>
+          </div>
         )}
 
+        <div className={`${notice.icon === 'Heart' && !notice.media ? 'px-8 py-6' : 'p-8'} flex flex-col`}>
+          {/* Severity icon (when no hero and not Heart) */}
+          {!notice.media && notice.icon !== 'Heart' && (
+            <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${SEVERITY_ACCENT[notice.severity] ?? ''}`}>
+              <LucideIcon size={28} />
+            </div>
+          )}
+
+          {/* Title (not for Heart — rendered in gradient header) */}
+          {(notice.icon !== 'Heart' || notice.media) && (
+            <h2
+              id={titleId}
+              className="text-xl font-semibold text-center text-slate-900 dark:text-slate-100 mb-3"
+            >
+              {title}
+            </h2>
+          )}
+
+          {/* Body — markdown */}
+          <div
+            id={bodyId}
+            className="text-sm leading-relaxed text-slate-600 dark:text-slate-400 mx-auto mb-4 text-center"
+          >
+            <React.Suspense fallback={<p className="text-sm text-slate-500">{body}</p>}>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeSanitize]}
+                components={{
+                  a: ({ href, children }) => (
+                    <a
+                      href={href}
+                      className="text-indigo-600 dark:text-indigo-400 underline decoration-indigo-300 dark:decoration-indigo-700 hover:decoration-indigo-500 dark:hover:decoration-indigo-400 underline-offset-2 transition-colors"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {children}
+                    </a>
+                  ),
+                  p: ({ children }) => {
+                    // Signature line styling (e.g. "— Maurice")
+                    const text = typeof children === 'string' ? children : Array.isArray(children) ? children.find(c => typeof c === 'string') : '';
+                    if (typeof text === 'string' && text.trim().startsWith('—') && text.trim().length < 30) {
+                      return <p className="mt-4 mb-3 text-base font-semibold text-slate-800 dark:text-slate-200 italic">{children}</p>;
+                    }
+                    return <p className="mb-3 last:mb-0">{children}</p>;
+                  },
+                  hr: () => (
+                    <div className="my-5 flex items-center gap-3">
+                      <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+                      <span className="text-slate-300 dark:text-slate-600 text-xs">♡</span>
+                      <div className="flex-1 border-t border-slate-200 dark:border-slate-700" />
+                    </div>
+                  ),
+                  strong: ({ children }) => <strong className="font-semibold text-slate-800 dark:text-slate-200">{children}</strong>,
+                  ul: ({ children }) => <ul className="list-disc list-inside text-left">{children}</ul>,
+                  ol: ({ children }) => <ol className="list-decimal list-inside text-left">{children}</ol>,
+                }}
+              >
+                {body}
+              </ReactMarkdown>
+            </React.Suspense>
+          </div>
+
+          {/* Inline image */}
+          {notice.media?.placement === 'inline' && (
+            <div
+              className="w-full overflow-hidden rounded-lg mb-4 mx-auto"
+              style={{ aspectRatio: notice.media.aspectRatio ?? '16/9' }}
+            >
+              <img
+                src={isDark && notice.media.srcDark ? notice.media.srcDark : notice.media.src}
+                alt={t(notice.media.altKey)}
+                className="w-full h-full object-cover"
+                decoding="async"
+                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+              />
+            </div>
+          )}
+
+          {/* Highlights */}
+          {notice.highlights && notice.highlights.length > 0 && (
+            <ul className="mx-auto mb-4 space-y-2">
+              {notice.highlights.map((h, i) => {
+                const HIcon: React.ElementType | null = h.iconName
+                  ? ((LucideIcons as Record<string, unknown>)[h.iconName] as React.ElementType) ?? null
+                  : null;
+                return (
+                  <li key={i} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-300">
+                    {HIcon
+                      ? <HIcon size={16} className="text-blue-500 shrink-0" />
+                      : <span className="text-blue-500 shrink-0">✓</span>
+                    }
+                    {t(h.labelKey)}
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Sticky footer — pager + CTA, always anchored at the bottom of the slot */}
+      <div
+        className="sticky bottom-0 px-8 pt-4 flex flex-col gap-3 bg-white dark:bg-slate-900 border-t border-slate-100 dark:border-slate-800"
+        style={{ paddingBottom: 'calc(var(--bottom-nav-h) + 1rem)' }}
+      >
         {/* Pager — dots, arrows, counter (only when multiple notices) */}
         {total > 1 && (
-          <div className="flex flex-col items-center gap-1 mt-6 mb-0">
+          <div className="flex flex-col items-center gap-1">
             <div className="flex items-center gap-2">
               <button
                 onClick={onPrev}
                 disabled={!canPage || currentPage === 0}
                 aria-label={t('system_notice.pager.prev')}
-                className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronLeft size={14} />
               </button>
@@ -247,7 +256,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
                 onClick={onNext}
                 disabled={!canPage || currentPage === total - 1}
                 aria-label={t('system_notice.pager.next')}
-                className="p-1 rounded text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                className="px-2 py-1 rounded border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
               >
                 <ChevronRight size={14} />
               </button>
@@ -262,17 +271,8 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
         )}
 
         {/* CTA + dismiss link */}
-        <div className="flex flex-col items-center gap-3 mt-auto">
-          {!isLastPage && total > 1 ? (
-            /* Non-last page: "Next" button to advance through all notices */
-            <button
-              id={`notice-cta-${notice.id}`}
-              onClick={onNext}
-              className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors flex items-center justify-center gap-2"
-            >
-              {t('system_notice.pager.next')} <ChevronRight size={16} />
-            </button>
-          ) : ctaLabel ? (
+        <div className="flex flex-col items-center gap-3">
+          {ctaLabel && isLastPage ? (
             <button
               id={`notice-cta-${notice.id}`}
               onClick={onCTA}
@@ -280,10 +280,10 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
             >
               {ctaLabel}
             </button>
-          ) : (
+          ) : (notice.dismissible || isLastPage) && (
             <button
               id={`notice-cta-${notice.id}`}
-              onClick={onDismissAll}
+              onClick={isLastPage ? onDismissAll : onNext}
               className="w-full h-11 rounded-lg bg-blue-600 hover:bg-blue-700 text-white font-medium transition-colors"
             >
               {t('common.ok')}
@@ -332,6 +332,9 @@ export function ModalRenderer({ notices }: Props) {
   const touchStartY = useRef<number | null>(null);
   // 'h' once we classify the gesture as horizontal, 'v' for vertical, null = unclassified
   const dragLockRef = useRef<'h' | 'v' | null>(null);
+  // Sheet scroll offset at the moment the touch began — used to suppress dismiss-drag
+  // when the user is scrolled into content and pans down to scroll back up.
+  const scrollTopAtTouchStart = useRef(0);
   // Keep a ref to the current notice id so dismiss/CTA handlers see the latest value
   const noticeIdRef = useRef<string | null>(null);
   noticeIdRef.current = notice?.id ?? null;
@@ -347,10 +350,11 @@ export function ModalRenderer({ notices }: Props) {
   const stripRef = useRef<HTMLDivElement>(null);
   // The sheet element itself — animated on vertical drag-to-dismiss
   const sheetRef = useRef<HTMLDivElement>(null);
-  // Clip container ref + cached max height — used to pin sheet height to tallest notice
   const clipRef = useRef<HTMLDivElement>(null);
-  const maxClipHeightRef = useRef(0);
-  const contentWrapperRef = useRef<HTMLDivElement>(null);
+  // Individual slot scroll containers (prev / center / next)
+  const prevSlotRef  = useRef<HTMLDivElement>(null);
+  const contentWrapperRef = useRef<HTMLDivElement>(null); // center slot
+  const nextSlotRef  = useRef<HTMLDivElement>(null);
 
   // Mobile breakpoint
   useEffect(() => {
@@ -466,18 +470,11 @@ export function ModalRenderer({ notices }: Props) {
     return () => { document.body.style.overflow = ''; };
   }, [visible, notice]);
 
-  // Pin the strip to the tallest notice height seen so far.
-  // Setting minHeight on the strip (not the clip) forces align-items:stretch to
-  // make every slot exactly that tall, so mt-auto always bottoms out at the same Y.
-  useLayoutEffect(() => {
+  // Reset center slot scroll to top on navigation (keyboard / pager buttons).
+  useEffect(() => {
     if (!isMobile) return;
-    const el = stripRef.current;
-    if (!el) return;
-    el.style.minHeight = '';
-    const h = el.scrollHeight;
-    if (h > maxClipHeightRef.current) maxClipHeightRef.current = h;
-    el.style.minHeight = `${maxClipHeightRef.current}px`;
-  });
+    contentWrapperRef.current?.scrollTo({ top: 0 });
+  }, [idx, isMobile]);
 
   function announceIndex(newIdx: number, total: number) {
     setPageAnnouncement(
@@ -659,12 +656,13 @@ export function ModalRenderer({ notices }: Props) {
           aria-modal="true"
           aria-labelledby={titleId}
           aria-describedby={bodyId}
-          className={`absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden max-h-[85dvh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl transition-[opacity,transform] ${dur} ${ease} ${mobileMotion}`}
-          style={{ paddingBottom: 'var(--bottom-nav-h)', touchAction: 'pan-y' }}
+          className={`absolute bottom-0 left-0 right-0 rounded-t-3xl overflow-hidden h-[85dvh] flex flex-col bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-xl transition-[opacity,transform] ${dur} ${ease} ${mobileMotion}`}
+          style={{ touchAction: 'pan-y' }}
           onTouchStart={e => {
             touchStartX.current = e.touches[0].clientX;
             touchStartY.current = e.touches[0].clientY;
             dragLockRef.current = null;
+            scrollTopAtTouchStart.current = contentWrapperRef.current?.scrollTop ?? 0;
           }}
           onTouchMove={e => {
             if (prefersReducedMotion) return;
@@ -675,8 +673,14 @@ export function ModalRenderer({ notices }: Props) {
             const dy = e.touches[0].clientY - startY;
             // Classify gesture direction on first significant movement
             if (!dragLockRef.current) {
-              if (Math.abs(dx) > 8 || Math.abs(dy) > 8)
+              if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
                 dragLockRef.current = Math.abs(dx) >= Math.abs(dy) ? 'h' : 'v';
+                // Reset adjacent slots to top before they slide into view.
+                if (dragLockRef.current === 'h') {
+                  prevSlotRef.current?.scrollTo({ top: 0 });
+                  nextSlotRef.current?.scrollTo({ top: 0 });
+                }
+              }
               return;
             }
             if (dragLockRef.current === 'h') {
@@ -686,6 +690,9 @@ export function ModalRenderer({ notices }: Props) {
               // Strip base = -33.333% (center slot visible); dx offsets from there
               strip.style.transform = `translateX(calc(-33.333% + ${dx}px))`;
             } else if (dragLockRef.current === 'v' && notice.dismissible) {
+              // Only intercept downward drag for dismiss when the sheet is scrolled to the top.
+              // If scrolled into content, let native pan-y scroll it back up.
+              if (scrollTopAtTouchStart.current > 0) return;
               const sheet = sheetRef.current;
               if (!sheet || dy <= 0) return;
               sheet.style.transition = 'none';
@@ -726,6 +733,10 @@ export function ModalRenderer({ notices }: Props) {
                     setIdx(newIdx);
                     announceIndex(newIdx, notices.length);
                   });
+                  // Reset all slot scrolls so the new center starts at top.
+                  prevSlotRef.current?.scrollTo({ top: 0 });
+                  contentWrapperRef.current?.scrollTo({ top: 0 });
+                  nextSlotRef.current?.scrollTo({ top: 0 });
                   strip.style.transform = 'translateX(-33.333%)';
                 }, { once: true });
               } else {
@@ -741,8 +752,8 @@ export function ModalRenderer({ notices }: Props) {
               return;
             }
 
-            // Vertical drag — animated dismiss or spring back
-            if (lock === 'v' && startY !== null) {
+            // Vertical drag — animated dismiss or spring back (only when at scroll top)
+            if (lock === 'v' && startY !== null && scrollTopAtTouchStart.current === 0) {
               const deltaY = e.changedTouches[0].clientY - startY;
               const sheet = sheetRef.current;
               if (deltaY > 80 && notice.dismissible) {
@@ -759,24 +770,24 @@ export function ModalRenderer({ notices }: Props) {
             }
           }}
         >
-          {/* Drag handle */}
-          <div className="pt-3 pb-1 flex justify-center">
+          {/* Drag handle — fixed, does not scroll */}
+          <div className="pt-3 pb-1 flex justify-center shrink-0">
             <div className="w-9 h-1 rounded-full bg-slate-300 dark:bg-slate-600" />
           </div>
-          {/* Clip container — hides the adjacent slots outside the sheet width */}
-          <div style={{ overflow: 'hidden', width: '100%' }}>
+          {/* Clip container — fills remaining sheet height, hides adjacent slots */}
+          <div style={{ flex: '1 1 0', minHeight: 0, overflow: 'hidden', width: '100%' }}>
             {/* 3-slot strip: [prev][current][next] — starts at -33.333% to show current */}
             <div
               ref={stripRef}
-              style={{ display: 'flex', width: '300%', alignItems: 'stretch', transform: 'translateX(-33.333%)' }}
+              style={{ display: 'flex', width: '300%', height: '100%', alignItems: 'stretch', transform: 'translateX(-33.333%)' }}
             >
-              <div style={{ width: '33.333%', display: 'flex', flexDirection: 'column' }}>
+              <div ref={prevSlotRef} style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                 {prevNotice && <NoticeContent {...buildSlotProps(prevNotice, idx - 1)} />}
               </div>
-              <div ref={contentWrapperRef} style={{ width: '33.333%', display: 'flex', flexDirection: 'column' }}>
+              <div ref={contentWrapperRef} style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                 <NoticeContent {...contentProps} />
               </div>
-              <div style={{ width: '33.333%', display: 'flex', flexDirection: 'column' }}>
+              <div ref={nextSlotRef} style={{ width: '33.333%', overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
                 {nextNotice && <NoticeContent {...buildSlotProps(nextNotice, idx + 1)} />}
               </div>
             </div>
