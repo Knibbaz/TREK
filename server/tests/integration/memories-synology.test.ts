@@ -166,16 +166,6 @@ vi.mock('../../src/utils/ssrfGuard', async () => {
       });
     }
 
-    // Original download
-    if (apiName === 'SYNO.Foto.Download') {
-      const imageBytes = Buffer.from('fake-synology-original');
-      return Promise.resolve({
-        ok: true, status: 200,
-        headers: { get: (h: string) => h === 'content-type' ? 'image/jpeg' : null },
-        body: new ReadableStream({ start(c) { c.enqueue(imageBytes); c.close(); } }),
-      });
-    }
-
     return Promise.reject(new Error(`Unexpected safeFetch call to Synology: ${u}, api=${apiName}`));
   }
 
