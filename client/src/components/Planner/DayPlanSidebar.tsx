@@ -1074,6 +1074,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
               <button
                 onClick={onUndo}
                 disabled={!canUndo}
+                aria-label={t('undo.button')}
                 onMouseEnter={() => setUndoHover(true)}
                 onMouseLeave={() => setUndoHover(false)}
                 style={{

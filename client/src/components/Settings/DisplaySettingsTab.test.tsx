@@ -42,7 +42,7 @@ describe('DisplaySettingsTab', () => {
 
   it('FE-COMP-DISPLAY-005: shows Auto mode button', () => {
     render(<DisplaySettingsTab />);
-    expect(screen.getByText('Auto')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Auto/i })).toBeInTheDocument();
   });
 
   it('FE-COMP-DISPLAY-006: shows Language section', () => {
@@ -95,16 +95,16 @@ describe('DisplaySettingsTab', () => {
     const updateSetting = vi.fn().mockResolvedValue(undefined);
     seedStore(useSettingsStore, { settings: buildSettings({ dark_mode: 'light' }), updateSetting });
     render(<DisplaySettingsTab />);
-    await user.click(screen.getByText('Auto'));
+    await user.click(screen.getByRole('button', { name: /Auto/i }));
     expect(updateSetting).toHaveBeenCalledWith('dark_mode', 'auto');
   });
 
   it('FE-COMP-DISPLAY-014: active color mode button has border with var(--text-primary)', () => {
     seedStore(useSettingsStore, { settings: buildSettings({ dark_mode: 'dark' }) });
     render(<DisplaySettingsTab />);
-    const darkBtn = screen.getByText('Dark').closest('button')!;
-    const lightBtn = screen.getByText('Light').closest('button')!;
-    const autoBtn = screen.getByText('Auto').closest('button')!;
+    const darkBtn = screen.getByRole('button', { name: /^Dark$/i });
+    const lightBtn = screen.getByRole('button', { name: /^Light$/i });
+    const autoBtn = screen.getByRole('button', { name: /Auto/i });
     expect(darkBtn.style.border).toContain('var(--text-primary)');
     expect(lightBtn.style.border).toContain('var(--border-primary)');
     expect(autoBtn.style.border).toContain('var(--border-primary)');
@@ -122,8 +122,11 @@ describe('DisplaySettingsTab', () => {
   it('FE-COMP-DISPLAY-016: active language button is visually highlighted', () => {
     seedStore(useSettingsStore, { settings: buildSettings({ language: 'en' }) });
     render(<DisplaySettingsTab />);
-    const englishBtn = screen.getByText('English').closest('button')!;
-    expect(englishBtn.style.border).toContain('var(--text-primary)');
+    // Multiple elements contain "English" (desktop grid button + mobile dropdown trigger).
+    // The desktop grid button is the one with the active border style.
+    const englishMatches = screen.getAllByText('English').map(el => el.closest('button')!).filter(Boolean);
+    const activeBtn = englishMatches.find(btn => (btn.style.border || '').includes('var(--text-primary)'));
+    expect(activeBtn).toBeDefined();
   });
 
   it('FE-COMP-DISPLAY-017: shows Temperature section label', () => {

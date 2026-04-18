@@ -187,7 +187,7 @@ describe('DayPlanSidebar', () => {
     const assignments = { '10': [assignment] }
     render(<DayPlanSidebar {...makeDefaultProps({ days: [day], places: [place], assignments })} />)
     // The chevron button immediately follows the "Add Note" button (which has a title attribute)
-    const addNoteBtn = screen.getByTitle('Add Note')
+    const addNoteBtn = screen.getByLabelText('Add Note')
     const chevron = addNoteBtn.nextElementSibling as HTMLButtonElement
     expect(chevron).toBeTruthy()
     await user.click(chevron)
@@ -201,7 +201,7 @@ describe('DayPlanSidebar', () => {
     const assignment = buildAssignment({ id: 99, day_id: 10, order_index: 0, place })
     const assignments = { '10': [assignment] }
     render(<DayPlanSidebar {...makeDefaultProps({ days: [day], places: [place], assignments })} />)
-    const getChevron = () => screen.getByTitle('Add Note').nextElementSibling as HTMLButtonElement
+    const getChevron = () => screen.getByLabelText('Add Note').nextElementSibling as HTMLButtonElement
     await user.click(getChevron()) // collapse
     expect(screen.queryByText('Eiffel Tower')).not.toBeInTheDocument()
     await user.click(getChevron()) // re-expand
@@ -362,28 +362,14 @@ describe('DayPlanSidebar', () => {
     const user = userEvent.setup()
     const onUndo = vi.fn()
     render(<DayPlanSidebar {...makeDefaultProps({ canUndo: true, lastActionLabel: 'Removed place', onUndo })} />)
-    // Find the undo button — it has width 30, height 30 and is not disabled
-    const buttons = screen.getAllByRole('button')
-    // The undo button is the one with the Undo2 icon and is not disabled
-    const undoBtn = buttons.find(btn => {
-      const style = btn.getAttribute('style') || ''
-      return style.includes('width: 30px') || style.includes('width:30px') || (style.includes('30') && !btn.disabled)
-    })
-    if (undoBtn) {
-      await user.click(undoBtn)
-      expect(onUndo).toHaveBeenCalled()
-    }
+    const undoBtn = screen.getByLabelText('Undo')
+    await user.click(undoBtn)
+    expect(onUndo).toHaveBeenCalled()
   })
 
   it('FE-PLANNER-DAYPLAN-024: undo button not present when onUndo not provided', () => {
     render(<DayPlanSidebar {...makeDefaultProps({ canUndo: false })} />)
-    // When onUndo is not provided, the undo section is not rendered at all
-    const buttons = screen.getAllByRole('button')
-    const undoBtn = buttons.find(btn => {
-      const style = btn.getAttribute('style') || ''
-      return style.includes('width: 30px')
-    })
-    expect(undoBtn).toBeUndefined()
+    expect(screen.queryByLabelText('Undo')).toBeNull()
   })
 
   // ── PDF export ──────────────────────────────────────────────────────────
@@ -931,7 +917,7 @@ describe('DayPlanSidebar', () => {
     const user = userEvent.setup()
     const day = buildDay({ id: 10, date: '2025-06-01', title: 'Day 1' })
     render(<DayPlanSidebar {...makeDefaultProps({ days: [day] })} />)
-    const addNoteBtn = screen.getByTitle('Add Note')
+    const addNoteBtn = screen.getByLabelText('Add Note')
     await user.click(addNoteBtn)
     expect(mockDayNotesState.openAddNote).toHaveBeenCalled()
   })

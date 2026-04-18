@@ -282,13 +282,36 @@ describe('getWeather', () => {
   });
 
   describe('with date — past date (diffDays < -1)', () => {
-    it('returns no_forecast error immediately without fetching', async () => {
+    it('returns forecast-type WeatherResult from the archive API', async () => {
       const date = dateOffset(-5); // 5 days in the past
+      const archiveBody = {
+        daily: {
+          time: [date],
+          temperature_2m_max: [18],
+          temperature_2m_min: [10],
+          weathercode: [2],
+          precipitation_sum: [0],
+        },
+      };
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse(archiveBody));
 
       const result = await getWeather('14.00', '24.00', date, 'en');
 
+      expect(result.type).toBe('forecast');
+      expect(result.temp).toBe(14);
+      expect(result.temp_max).toBe(18);
+      expect(result.temp_min).toBe(10);
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(vi.mocked(fetch).mock.calls[0][0]).toContain('archive-api.open-meteo.com');
+    });
+
+    it('returns no_forecast error when archive has no data for the date', async () => {
+      const date = dateOffset(-5);
+      vi.mocked(fetch).mockResolvedValueOnce(mockResponse({ daily: { time: [], temperature_2m_max: [], temperature_2m_min: [], weathercode: [] } }));
+
+      const result = await getWeather('14.01', '24.01', date, 'en');
+
       expect(result.error).toBe('no_forecast');
-      expect(fetch).not.toHaveBeenCalled();
     });
   });
 

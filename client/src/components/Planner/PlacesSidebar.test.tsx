@@ -195,7 +195,7 @@ describe('Filter tabs', () => {
     const assignments = { '1': [buildAssignment({ place: planned, day_id: 1 })] };
     render(<PlacesSidebar {...defaultProps} places={[planned, unplanned]} assignments={assignments} />);
     await user.click(screen.getByRole('button', { name: /Unplanned/i }));
-    await user.click(screen.getByRole('button', { name: /^All$/i }));
+    await user.click(screen.getByRole('button', { name: /^All/i }));
     expect(screen.getByText('Planned Place')).toBeInTheDocument();
     expect(screen.getByText('Unplanned Place')).toBeInTheDocument();
   });
