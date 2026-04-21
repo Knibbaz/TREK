@@ -642,6 +642,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
         const r = await tripActions.updateReservation(tripId, editingReservation.id, { ...data, day_id: selectedDayId || null })
         toast.success(t('trip.toast.reservationUpdated'))
         setShowReservationModal(false)
+        setEditingReservation(null)
         if (data.type === 'hotel') {
           accommodationsApi.list(tripId).then(d => setTripAccommodations(d.accommodations || [])).catch(() => {})
         }
