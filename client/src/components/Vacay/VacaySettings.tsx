@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { type LucideIcon, CalendarOff, AlertCircle, Building2, Unlink, ArrowRightLeft, Globe, Plus, Trash2 } from 'lucide-react'
+import { type LucideIcon, CalendarOff, AlertCircle, Building2, Unlink, ArrowRightLeft, Globe, Plus, Trash2, Clock } from 'lucide-react'
 import { useVacayStore } from '../../store/vacayStore'
 import { getIntlLanguage, useTranslation } from '../../i18n'
 import { useToast } from '../shared/Toast'
@@ -40,6 +40,9 @@ export default function VacaySettings({ onClose }: VacaySettingsProps) {
 
   return (
     <div className="space-y-5">
+      {/* Hours per work day */}
+      <HoursPerDayInput plan={plan} onUpdate={updatePlan} t={t} />
+
       {/* Block weekends */}
       <SettingToggle
         icon={CalendarOff}
@@ -194,6 +197,45 @@ export default function VacaySettings({ onClose }: VacaySettingsProps) {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function HoursPerDayInput({ plan, onUpdate, t }: { plan: import('../../types').VacayPlan; onUpdate: (u: Partial<import('../../types').VacayPlan>) => Promise<void>; t: (k: string) => string }) {
+  const [localHours, setLocalHours] = useState<string>(String(plan.standard_hours_per_day ?? 8))
+  useEffect(() => { setLocalHours(String(plan.standard_hours_per_day ?? 8)) }, [plan.standard_hours_per_day])
+
+  const handleSave = () => {
+    const v = parseFloat(localHours)
+    if (!isNaN(v) && v > 0 && v <= 24 && v !== (plan.standard_hours_per_day ?? 8)) {
+      onUpdate({ standard_hours_per_day: v })
+    }
+  }
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex items-center gap-2 min-w-0">
+        <Clock size={15} className="shrink-0" style={{ color: 'var(--text-muted)' }} />
+        <div className="min-w-0">
+          <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{t('vacay.hoursPerDay')}</p>
+          <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>{t('vacay.hoursPerDayHint')}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-1 shrink-0">
+        <input
+          type="number"
+          value={localHours}
+          onChange={e => setLocalHours(e.target.value)}
+          onBlur={handleSave}
+          onKeyDown={e => { if (e.key === 'Enter') handleSave() }}
+          step={0.5}
+          min={1}
+          max={24}
+          className="w-14 text-sm font-bold text-right rounded-lg px-2 py-1 outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', color: 'var(--text-primary)' }}
+        />
+        <span className="text-xs" style={{ color: 'var(--text-faint)' }}>u</span>
+      </div>
     </div>
   )
 }
