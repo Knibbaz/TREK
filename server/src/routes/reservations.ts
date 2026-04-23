@@ -27,7 +27,7 @@ router.get('/', authenticate, (req: Request, res: Response) => {
   res.json({ reservations });
 });
 
-router.post('/', authenticate, (req: Request, res: Response) => {
+router.post('/', authenticate, async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId } = req.params;
   const { title, reservation_time, reservation_end_time, location, confirmation_number, notes, day_id, place_id, assignment_id, status, type, accommodation_id, metadata, create_accommodation, create_budget_entry } = req.body;
@@ -40,11 +40,13 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 
   if (!title) return res.status(400).json({ error: 'Title is required' });
 
-  const { reservation, accommodationCreated } = createReservation(tripId, {
+  const { reservation, accommodationCreated } = await createReservation(tripId, {
     title, reservation_time, reservation_end_time, location,
     confirmation_number, notes, day_id, place_id, assignment_id,
     status, type, accommodation_id, metadata, create_accommodation
   });
+
+  console.log('Created reservation:', reservation, 'Accommodation created:', accommodationCreated);
 
   if (accommodationCreated) {
     broadcast(tripId, 'accommodation:created', {}, req.headers['x-socket-id'] as string);

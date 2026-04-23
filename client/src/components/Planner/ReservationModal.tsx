@@ -12,6 +12,51 @@ import { CustomDatePicker } from '../shared/CustomDateTimePicker'
 import CustomTimePicker from '../shared/CustomTimePicker'
 import { getAuthUrl } from '../../api/authUrl'
 import type { Day, Place, Reservation, TripFile, AssignmentsMap, Accommodation } from '../../types'
+import {
+  MAX_FLIGHT_HOURS,
+  isEndBeforeStart as computeIsEndBeforeStart,
+  isFlightDurationExceeded as computeIsFlightDurationExceeded,
+  isInvalidTimezone as computeIsInvalidTimezone,
+  type FlightFormFields,
+} from '../../utils/reservationValidation'
+
+const TIMEZONE_OPTIONS = [
+  { value: '', label: '—' },
+  { value: 'UTC-12', label: 'UTC-12' },
+  { value: 'UTC-11', label: 'UTC-11' },
+  { value: 'UTC-10', label: 'UTC-10 (HST)' },
+  { value: 'UTC-9', label: 'UTC-9 (AKST)' },
+  { value: 'UTC-8', label: 'UTC-8 (PST)' },
+  { value: 'UTC-7', label: 'UTC-7 (MST)' },
+  { value: 'UTC-6', label: 'UTC-6 (CST)' },
+  { value: 'UTC-5', label: 'UTC-5 (EST)' },
+  { value: 'UTC-4', label: 'UTC-4 (AST/EDT)' },
+  { value: 'UTC-3:30', label: 'UTC-3:30 (NST)' },
+  { value: 'UTC-3', label: 'UTC-3 (BRT)' },
+  { value: 'UTC-2', label: 'UTC-2' },
+  { value: 'UTC-1', label: 'UTC-1' },
+  { value: 'UTC+0', label: 'UTC+0 (GMT)' },
+  { value: 'UTC+1', label: 'UTC+1 (CET)' },
+  { value: 'UTC+2', label: 'UTC+2 (EET)' },
+  { value: 'UTC+3', label: 'UTC+3 (MSK)' },
+  { value: 'UTC+3:30', label: 'UTC+3:30 (IRST)' },
+  { value: 'UTC+4', label: 'UTC+4 (GST)' },
+  { value: 'UTC+4:30', label: 'UTC+4:30 (AFT)' },
+  { value: 'UTC+5', label: 'UTC+5 (PKT)' },
+  { value: 'UTC+5:30', label: 'UTC+5:30 (IST)' },
+  { value: 'UTC+5:45', label: 'UTC+5:45 (NPT)' },
+  { value: 'UTC+6', label: 'UTC+6 (BST)' },
+  { value: 'UTC+6:30', label: 'UTC+6:30 (MMT)' },
+  { value: 'UTC+7', label: 'UTC+7 (ICT)' },
+  { value: 'UTC+8', label: 'UTC+8 (CST/SGT)' },
+  { value: 'UTC+9', label: 'UTC+9 (JST/KST)' },
+  { value: 'UTC+9:30', label: 'UTC+9:30 (ACST)' },
+  { value: 'UTC+10', label: 'UTC+10 (AEST)' },
+  { value: 'UTC+11', label: 'UTC+11 (SBT)' },
+  { value: 'UTC+12', label: 'UTC+12 (NZST)' },
+  { value: 'UTC+13', label: 'UTC+13 (TOT)' },
+  { value: 'UTC+14', label: 'UTC+14 (LINT)' },
+]
 
 const TYPE_OPTIONS = [
   { value: 'flight',     labelKey: 'reservations.type.flight',     Icon: Plane },
@@ -64,9 +109,10 @@ interface ReservationModalProps {
   onFileUpload?: (fd: FormData) => Promise<void>
   onFileDelete: (fileId: number) => Promise<void>
   accommodations?: Accommodation[]
+  automatic?: boolean
 }
 
-export function ReservationModal({ isOpen, onClose, onSave, reservation, days, places, assignments, selectedDayId, files = [], onFileUpload, onFileDelete, accommodations = [] }: ReservationModalProps) {
+export function ReservationModal({ isOpen, onClose, onSave, reservation, days, places, assignments, selectedDayId, files = [], onFileUpload, onFileDelete, accommodations = [], automatic = false }: ReservationModalProps) {
   const { id: tripId } = useParams<{ id: string }>()
   const loadFiles = useTripStore(s => s.loadFiles)
   const toast = useToast()
@@ -88,6 +134,7 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
     price: '', budget_category: '',
     meta_airline: '', meta_flight_number: '', meta_departure_airport: '', meta_arrival_airport: '',
     meta_departure_timezone: '', meta_arrival_timezone: '',
+    meta_flight_duration: '',
     meta_train_number: '', meta_platform: '', meta_seat: '',
     meta_check_in_time: '', meta_check_out_time: '',
     hotel_place_id: '', hotel_start_day: '', hotel_end_day: '',
@@ -136,14 +183,15 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
         meta_arrival_airport: meta.arrival_airport || '',
         meta_departure_timezone: meta.departure_timezone || '',
         meta_arrival_timezone: meta.arrival_timezone || '',
+        meta_flight_duration: meta.flight_duration || '',
         meta_train_number: meta.train_number || '',
         meta_platform: meta.platform || '',
         meta_seat: meta.seat || '',
         meta_check_in_time: meta.check_in_time || '',
         meta_check_out_time: meta.check_out_time || '',
-        hotel_place_id: (() => { const acc = accommodations.find(a => a.id == reservation.accommodation_id); return acc?.place_id || '' })(),
-        hotel_start_day: (() => { const acc = accommodations.find(a => a.id == reservation.accommodation_id); return acc?.start_day_id || '' })(),
-        hotel_end_day: (() => { const acc = accommodations.find(a => a.id == reservation.accommodation_id); return acc?.end_day_id || '' })(),
+        hotel_place_id: (() => { const acc = accommodations.find(a => a.id == reservation.accommodation_id); return (acc as any)?.place_id || '' })(),
+        hotel_start_day: (() => { const acc = accommodations.find(a => a.id == reservation.accommodation_id); return (acc as any)?.start_day_id || '' })(),
+        hotel_end_day: (() => { const acc = accommodations.find(a => a.id == reservation.accommodation_id); return (acc as any)?.end_day_id || '' })(),
         price: meta.price || '',
         budget_category: (meta.budget_category && budgetItems.some(i => i.category === meta.budget_category)) ? meta.budget_category : '',
       })
@@ -155,46 +203,51 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
         price: '', budget_category: '',
         meta_airline: '', meta_flight_number: '', meta_departure_airport: '', meta_arrival_airport: '',
         meta_departure_timezone: '', meta_arrival_timezone: '',
+        meta_flight_duration: '',
         meta_train_number: '', meta_platform: '', meta_seat: '',
         meta_check_in_time: '', meta_check_out_time: '',
+        hotel_place_id: '', hotel_start_day: '', hotel_end_day: '',
       })
       setPendingFiles([])
     }
-  }, [reservation, isOpen, selectedDayId])
+  }, [reservation, automatic, isOpen, selectedDayId])
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
-
-  // Validate that end datetime is after start datetime
-  const isEndBeforeStart = (() => {
-    if (!form.end_date || !form.reservation_time) return false
-    const startDate = form.reservation_time.split('T')[0]
-    const startTime = form.reservation_time.split('T')[1] || '00:00'
-    const endTime = form.reservation_end_time || '00:00'
-    // For flights, compare in UTC using timezone offsets
-    if (form.type === 'flight') {
-      const parseOffset = (tz: string): number | null => {
-        if (!tz) return null
-        const m = tz.trim().match(/^(?:UTC|GMT)?\s*([+-])(\d{1,2})(?::(\d{2}))?$/i)
-        if (!m) return null
-        const sign = m[1] === '+' ? 1 : -1
-        return sign * (parseInt(m[2]) * 60 + parseInt(m[3] || '0'))
-      }
-      const depOffset = parseOffset(form.meta_departure_timezone)
-      const arrOffset = parseOffset(form.meta_arrival_timezone)
-      if (depOffset === null || arrOffset === null) return false
-      const depMinutes = new Date(`${startDate}T${startTime}`).getTime() - depOffset * 60000
-      const arrMinutes = new Date(`${form.end_date}T${endTime}`).getTime() - arrOffset * 60000
-      return arrMinutes <= depMinutes
+  
+  useEffect(() => {
+    // Als de modal opent (isOpen === true)
+    // EN het is een automatische boeking (automatic)
+    // EN we zijn een NIEUWE reservering aan het maken (!reservation)
+    if (isOpen && automatic && !reservation) {
+      setForm(prev => ({ ...prev, type: 'flight' }));
     }
-    const startFull = `${startDate}T${startTime}`
-    const endFull = `${form.end_date}T${endTime}`
-    return endFull <= startFull
-  })()
+  }, [isOpen, automatic, reservation]);
+
+  const activeFilters = automatic ? ['flight'] : TYPE_OPTIONS.map(opt => opt.value);
+  const optionsToShow = automatic 
+    ? TYPE_OPTIONS.filter(opt => {
+      if (activeFilters.length === 0) return true;
+      return activeFilters.includes(opt.value);
+    })
+    : TYPE_OPTIONS
+
+  const _flightForm: FlightFormFields = {
+    type: form.type,
+    reservation_time: form.reservation_time,
+    end_date: form.end_date,
+    reservation_end_time: form.reservation_end_time,
+    meta_departure_timezone: form.meta_departure_timezone,
+    meta_arrival_timezone: form.meta_arrival_timezone,
+  }
+  const isEndBeforeStart = computeIsEndBeforeStart(_flightForm)
+  const isFlightDurationExceeded = computeIsFlightDurationExceeded(_flightForm)
+  const isInvalidTimezone = computeIsInvalidTimezone(_flightForm)
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!form.title.trim()) return
     if (isEndBeforeStart) { toast.error(t('reservations.validation.endBeforeStart')); return }
+    if (form.type === 'flight' && isFlightDurationExceeded) { toast.error(t('reservations.validation.flightDurationExceeded', { hours: String(MAX_FLIGHT_HOURS) })); return }
     setIsSaving(true)
     try {
       const metadata: Record<string, string> = {}
@@ -205,6 +258,7 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
         if (form.meta_arrival_airport) metadata.arrival_airport = form.meta_arrival_airport
         if (form.meta_departure_timezone) metadata.departure_timezone = form.meta_departure_timezone
         if (form.meta_arrival_timezone) metadata.arrival_timezone = form.meta_arrival_timezone
+        if (form.meta_flight_duration) metadata.flight_duration = form.meta_flight_duration
       } else if (form.type === 'hotel') {
         if (form.meta_check_in_time) metadata.check_in_time = form.meta_check_in_time
         if (form.meta_check_out_time) metadata.check_out_time = form.meta_check_out_time
@@ -311,18 +365,24 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
         <div>
           <label style={labelStyle}>{t('reservations.bookingType')}</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-            {TYPE_OPTIONS.map(({ value, labelKey, Icon }) => (
-              <button key={value} type="button" onClick={() => set('type', value)} style={{
-                display: 'flex', alignItems: 'center', gap: 4,
-                padding: '5px 10px', borderRadius: 99, border: '1px solid',
-                fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
-                background: form.type === value ? 'var(--text-primary)' : 'var(--bg-card)',
-                borderColor: form.type === value ? 'var(--text-primary)' : 'var(--border-primary)',
-                color: form.type === value ? 'var(--bg-primary)' : 'var(--text-muted)',
-              }}>
-                <Icon size={11} /> {t(labelKey)}
-              </button>
-            ))}
+            {optionsToShow.map(({ value, labelKey, Icon }) => {
+              return (
+                <button 
+                  key={value}
+                  type="button"
+                  onClick={() => set('type', value)}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 4,
+                    padding: '5px 10px', borderRadius: 99, border: '1px solid',
+                    fontSize: 11, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.12s',
+                    background: form.type === value ? 'var(--text-primary)' : 'var(--bg-card)',
+                    borderColor: form.type === value ? 'var(--text-primary)' : 'var(--border-primary)',
+                    color: form.type === value ? 'var(--bg-primary)' : 'var(--text-muted)',
+                  }}>
+                  <Icon size={11} /> {t(labelKey)}
+                </button>
+              )
+            })}
           </div>
         </div>
 
@@ -366,7 +426,7 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
         )}
 
         {/* Start Date/Time + End Date/Time + Status (hidden for hotels) */}
-        {form.type !== 'hotel' && (
+        {form.type !== 'hotel' && !automatic && (
         <>
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -394,8 +454,14 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
             {form.type === 'flight' && (
               <div style={{ flex: 1, minWidth: 0 }}>
                 <label style={labelStyle}>{t('reservations.meta.departureTimezone')}</label>
-                <input type="text" value={form.meta_departure_timezone} onChange={e => set('meta_departure_timezone', e.target.value)}
-                  placeholder="e.g. CET, UTC+1" style={inputStyle} />
+                <CustomSelect
+                  value={form.meta_departure_timezone}
+                  onChange={v => set('meta_departure_timezone', v)}
+                  options={TIMEZONE_OPTIONS}
+                  placeholder="UTC+0"
+                  searchable
+                  size="sm"
+                />
               </div>
             )}
           </div>
@@ -414,13 +480,25 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
             {form.type === 'flight' && (
               <div style={{ flex: 1, minWidth: 0 }}>
                 <label style={labelStyle}>{t('reservations.meta.arrivalTimezone')}</label>
-                <input type="text" value={form.meta_arrival_timezone} onChange={e => set('meta_arrival_timezone', e.target.value)}
-                  placeholder="e.g. JST, UTC+9" style={inputStyle} />
+                <CustomSelect
+                  value={form.meta_arrival_timezone}
+                  onChange={v => set('meta_arrival_timezone', v)}
+                  options={TIMEZONE_OPTIONS}
+                  placeholder="UTC+0"
+                  searchable
+                  size="sm"
+                />
               </div>
             )}
           </div>
           {isEndBeforeStart && (
             <div style={{ fontSize: 11, color: '#ef4444', marginTop: -6 }}>{t('reservations.validation.endBeforeStart')}</div>
+          )}
+          {isFlightDurationExceeded && (
+            <div style={{ fontSize: 11, color: '#ef4444', marginTop: -6 }}>{t('reservations.validation.flightDurationExceeded', { hours: MAX_FLIGHT_HOURS })}</div>
+          )}
+          {isInvalidTimezone && (
+            <div style={{ fontSize: 11, color: '#ef4444', marginTop: -6 }}>{t('reservations.validation.invalidTimezone')}</div>
           )}
           <div style={{ display: 'flex', gap: 8 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
@@ -440,42 +518,57 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
         )}
 
         {/* Location + Booking Code */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label style={labelStyle}>{t('reservations.locationAddress')}</label>
-            <input type="text" value={form.location} onChange={e => set('location', e.target.value)}
-              placeholder={t('reservations.locationPlaceholder')} style={inputStyle} />
+        {!automatic && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label style={labelStyle}>{t('reservations.locationAddress')}</label>
+              <input type="text" value={form.location} onChange={e => set('location', e.target.value)}
+                placeholder={t('reservations.locationPlaceholder')} style={inputStyle} />
+            </div>
+            <div>
+              <label style={labelStyle}>{t('reservations.confirmationCode')}</label>
+              <input type="text" value={form.confirmation_number} onChange={e => set('confirmation_number', e.target.value)}
+                placeholder={t('reservations.confirmationPlaceholder')} style={inputStyle} />
+            </div>
           </div>
-          <div>
-            <label style={labelStyle}>{t('reservations.confirmationCode')}</label>
-            <input type="text" value={form.confirmation_number} onChange={e => set('confirmation_number', e.target.value)}
-              placeholder={t('reservations.confirmationPlaceholder')} style={inputStyle} />
-          </div>
-        </div>
+        )}
 
         {/* Type-specific fields */}
         {form.type === 'flight' && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div>
-              <label style={labelStyle}>{t('reservations.meta.airline') || 'Airline'}</label>
-              <input type="text" value={form.meta_airline} onChange={e => set('meta_airline', e.target.value)}
-                placeholder="Lufthansa" style={inputStyle} />
-            </div>
+          <div className={`grid grid-cols-${!automatic ? 2 : 1} sm:grid-cols-${!automatic ? 4 : 1} gap-3`}>
+            {!automatic && (
+              <div>
+                <label style={labelStyle}>{t('reservations.meta.airline') || 'Airline'}</label>
+                <input type="text" value={form.meta_airline} onChange={e => set('meta_airline', e.target.value)}
+                  placeholder="Lufthansa" style={inputStyle} />
+              </div>
+            )}
             <div>
               <label style={labelStyle}>{t('reservations.meta.flightNumber') || 'Flight No.'}</label>
               <input type="text" value={form.meta_flight_number} onChange={e => set('meta_flight_number', e.target.value)}
                 placeholder="LH 123" style={inputStyle} />
             </div>
-            <div>
-              <label style={labelStyle}>{t('reservations.meta.from') || 'From'}</label>
-              <input type="text" value={form.meta_departure_airport} onChange={e => set('meta_departure_airport', e.target.value)}
-                placeholder="FRA" style={inputStyle} />
-            </div>
-            <div>
-              <label style={labelStyle}>{t('reservations.meta.to') || 'To'}</label>
-              <input type="text" value={form.meta_arrival_airport} onChange={e => set('meta_arrival_airport', e.target.value)}
-                placeholder="NRT" style={inputStyle} />
-            </div>
+            {!automatic && (
+              <div>
+                <label style={labelStyle}>{t('reservations.meta.duration') || 'Duration'}</label>
+                <input type="text" value={form.meta_flight_duration} onChange={e => set('meta_flight_duration', e.target.value)}
+                  placeholder="2h 30m" style={inputStyle} />
+              </div>
+            )}
+            {!automatic && (
+              <div>
+                <label style={labelStyle}>{t('reservations.meta.from') || 'From'}</label>
+                <input type="text" value={form.meta_departure_airport} onChange={e => set('meta_departure_airport', e.target.value)}
+                  placeholder="FRA" style={inputStyle} />
+              </div>
+            )}
+            {!automatic && (
+              <div>
+                <label style={labelStyle}>{t('reservations.meta.to') || 'To'}</label>
+                <input type="text" value={form.meta_arrival_airport} onChange={e => set('meta_arrival_airport', e.target.value)}
+                  placeholder="NRT" style={inputStyle} />
+              </div>
+            )}
           </div>
         )}
 
@@ -709,7 +802,7 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
           <button type="button" onClick={onClose} style={{ padding: '8px 16px', borderRadius: 10, border: '1px solid var(--border-primary)', background: 'none', fontSize: 12, cursor: 'pointer', fontFamily: 'inherit', color: 'var(--text-muted)' }}>
             {t('common.cancel')}
           </button>
-          <button type="submit" disabled={isSaving || !form.title.trim() || isEndBeforeStart} style={{ padding: '8px 20px', borderRadius: 10, border: 'none', background: 'var(--text-primary)', color: 'var(--bg-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: isSaving || !form.title.trim() || isEndBeforeStart ? 0.5 : 1 }}>
+          <button type="submit" disabled={isSaving || !form.title.trim() || isEndBeforeStart || (form.type === 'flight' && isFlightDurationExceeded)} style={{ padding: '8px 20px', borderRadius: 10, border: 'none', background: 'var(--text-primary)', color: 'var(--bg-primary)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', opacity: isSaving || !form.title.trim() || isEndBeforeStart || (form.type === 'flight' && isFlightDurationExceeded) ? 0.5 : 1 }}>
             {isSaving ? t('common.saving') : reservation ? t('common.update') : t('common.add')}
           </button>
         </div>
