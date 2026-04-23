@@ -928,6 +928,15 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'vacay.fuseInfo3': 'Both parties can delete entries and change vacation entitlements.',
   'vacay.fuseInfo4': 'Settings like public holidays and company holidays are shared.',
   'vacay.fuseInfo5': 'The fusion can be dissolved at any time by either party. Your entries will be preserved.',
+  'vacay.hours': 'hours',
+  'vacay.modeComp': 'Comp Time',
+  'vacay.compTime': 'Company Time',
+  'vacay.hoursPerDay': 'Hours per work day',
+  'vacay.hoursPerDayHint': 'Defines how many hours equal one full vacation day',
+  'vacay.stdDay': 'Full day',
+  'vacay.rightClickHint': 'Right-click for hours',
+  'vacay.save': 'Save',
+  'vacay.cancel': 'Cancel',
   'nav.myTrips': 'My Trips',
 
   // Atlas addon

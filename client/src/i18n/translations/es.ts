@@ -66,6 +66,15 @@ const es: Record<string, string> = {
   'nav.darkMode': 'Modo oscuro',
   'nav.autoMode': 'Modo automático',
   'nav.administrator': 'Administrador',
+  'vacay.hours': 'horas',
+  'vacay.modeComp': 'Comp. tiempo',
+  'vacay.compTime': 'Comp. tiempo',
+  'vacay.hoursPerDay': 'Horas por día laboral',
+  'vacay.hoursPerDayHint': 'Define cuántas horas equivalen a un día de vacaciones completo',
+  'vacay.stdDay': 'Día completo',
+  'vacay.rightClickHint': 'Clic derecho para horas',
+  'vacay.save': 'Guardar',
+  'vacay.cancel': 'Cancelar',
   'nav.myTrips': 'Mis viajes',
 
   // Dashboard

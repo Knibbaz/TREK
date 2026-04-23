@@ -70,6 +70,15 @@ const ar: Record<string, string | { name: string; category: string }[]> = {
   'nav.darkMode': 'الوضع الداكن',
   'nav.autoMode': 'الوضع التلقائي',
   'nav.administrator': 'المسؤول',
+  'vacay.hours': 'ساعات',
+  'vacay.modeComp': 'وقت تعويضي',
+  'vacay.compTime': 'وقت تعويضي',
+  'vacay.hoursPerDay': 'ساعات العمل في اليوم',
+  'vacay.hoursPerDayHint': 'يحدد عدد الساعات التي تعادل يوم إجازة كاملاً',
+  'vacay.stdDay': 'يوم كامل',
+  'vacay.rightClickHint': 'انقر بالزر الأيمن للساعات',
+  'vacay.save': 'حفظ',
+  'vacay.cancel': 'إلغاء',
   'nav.myTrips': 'رحلاتي',
 
   // Dashboard

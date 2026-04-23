@@ -851,6 +851,15 @@ const ru: Record<string, string> = {
   'vacay.calendarColor': 'Цвет',
   'vacay.calendarLabel': 'Название',
   'vacay.noCalendars': 'Нет календарей',
+  'vacay.hours': 'часов',
+  'vacay.modeComp': 'Отгул',
+  'vacay.compTime': 'Отгул',
+  'vacay.hoursPerDay': 'Часов в рабочем дне',
+  'vacay.hoursPerDayHint': 'Определяет, сколько часов соответствует одному полному дню отпуска',
+  'vacay.stdDay': 'Полный день',
+  'vacay.rightClickHint': 'Правый клик для часов',
+  'vacay.save': 'Сохранить',
+  'vacay.cancel': 'Отмена',
   'nav.myTrips': 'Мои поездки',
 
   // Atlas addon
