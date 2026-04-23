@@ -60,6 +60,7 @@ interface VacayApi {
   removeYear: (year: number) => Promise<VacayYearsResponse>
   getEntries: (year: number) => Promise<VacayEntriesResponse>
   toggleEntry: (date: string, targetUserId?: number) => Promise<unknown>
+  setEntry: (date: string, hours: number | null, type: 'vacation' | 'comp', targetUserId?: number) => Promise<unknown>
   toggleCompanyHoliday: (date: string) => Promise<unknown>
   getStats: (year: number) => Promise<VacayStatsResponse>
   updateStats: (year: number, days: number, targetUserId?: number) => Promise<unknown>
@@ -85,6 +86,7 @@ const api: VacayApi = {
   removeYear: (year) => ax.delete(`/addons/vacay/years/${year}`).then((r: AxiosResponse) => r.data),
   getEntries: (year) => ax.get(`/addons/vacay/entries/${year}`).then((r: AxiosResponse) => r.data),
   toggleEntry: (date, targetUserId) => ax.post('/addons/vacay/entries/toggle', { date, target_user_id: targetUserId }).then((r: AxiosResponse) => r.data),
+  setEntry: (date, hours, type, targetUserId) => ax.post('/addons/vacay/entries/set', { date, hours, type, target_user_id: targetUserId }).then((r: AxiosResponse) => r.data),
   toggleCompanyHoliday: (date) => ax.post('/addons/vacay/entries/company-holiday', { date }).then((r: AxiosResponse) => r.data),
   getStats: (year) => ax.get(`/addons/vacay/stats/${year}`).then((r: AxiosResponse) => r.data),
   updateStats: (year, days, targetUserId) => ax.put(`/addons/vacay/stats/${year}`, { vacation_days: days, target_user_id: targetUserId }).then((r: AxiosResponse) => r.data),
@@ -126,6 +128,7 @@ interface VacayState {
   removeYear: (year: number) => Promise<void>
   loadEntries: (year?: number) => Promise<void>
   toggleEntry: (date: string, targetUserId?: number) => Promise<void>
+  setEntry: (date: string, hours: number | null, type: 'vacation' | 'comp', targetUserId?: number) => Promise<void>
   toggleCompanyHoliday: (date: string) => Promise<void>
   loadStats: (year?: number) => Promise<void>
   updateVacationDays: (year: number, days: number, targetUserId?: number) => Promise<void>
@@ -240,6 +243,12 @@ export const useVacayStore = create<VacayState>((set, get) => ({
 
   toggleEntry: async (date: string, targetUserId?: number) => {
     await api.toggleEntry(date, targetUserId)
+    await get().loadEntries()
+    await get().loadStats()
+  },
+
+  setEntry: async (date: string, hours: number | null, type: 'vacation' | 'comp', targetUserId?: number) => {
+    await api.setEntry(date, hours, type, targetUserId)
     await get().loadEntries()
     await get().loadStats()
   },

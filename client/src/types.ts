@@ -370,6 +370,7 @@ export interface VacayPlan {
   carry_over_enabled: boolean
   company_holidays_enabled: boolean
   week_start?: number
+  standard_hours_per_day: number
   name?: string
   year?: number
   owner_id?: number
@@ -389,12 +390,24 @@ export interface VacayEntry {
   plan_id?: number
   person_color?: string
   person_name?: string
+  hours?: number | null
+  type?: 'vacation' | 'comp'
 }
 
 export interface VacayStat {
   user_id: number
   vacation_days: number
   used: number
+  carried_over: number
+  carried_over_hours: number
+  total_available: number
+  remaining: number
+  used_hours: number
+  remaining_hours: number
+  comp_hours: number
+  standard_hours_per_day: number
+  person_name: string
+  person_color: string
 }
 
 export interface HolidayInfo {
