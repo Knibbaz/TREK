@@ -102,6 +102,9 @@ function createTables(db: Database.Database): void {
       website TEXT,
       phone TEXT,
       transport_mode TEXT DEFAULT 'walking',
+      source TEXT DEFAULT 'admin',
+      import_source TEXT,
+      contributed_by INTEGER REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -262,6 +265,7 @@ function createTables(db: Database.Database): void {
       holidays_region TEXT DEFAULT '',
       company_holidays_enabled INTEGER DEFAULT 1,
       carry_over_enabled INTEGER DEFAULT 1,
+      standard_hours_per_day REAL DEFAULT 8,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(owner_id)
     );
@@ -297,6 +301,7 @@ function createTables(db: Database.Database): void {
       year INTEGER NOT NULL,
       vacation_days INTEGER DEFAULT 30,
       carried_over INTEGER DEFAULT 0,
+      carried_over_hours REAL DEFAULT 0,
       UNIQUE(user_id, plan_id, year)
     );
 
@@ -305,8 +310,10 @@ function createTables(db: Database.Database): void {
       plan_id INTEGER NOT NULL REFERENCES vacay_plans(id) ON DELETE CASCADE,
       user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
       date TEXT NOT NULL,
+      hours REAL DEFAULT NULL,
+      type TEXT NOT NULL DEFAULT 'vacation',
       note TEXT DEFAULT '',
-      UNIQUE(user_id, plan_id, date)
+      UNIQUE(user_id, plan_id, date, type)
     );
 
     CREATE TABLE IF NOT EXISTS vacay_company_holidays (
@@ -458,6 +465,33 @@ function createTables(db: Database.Database): void {
       PRIMARY KEY (user_id, event_type, channel)
     );
     CREATE INDEX IF NOT EXISTS idx_ncp_user ON notification_channel_preferences(user_id);
+
+    CREATE TABLE IF NOT EXISTS explore_published (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trip_id INTEGER NOT NULL UNIQUE REFERENCES trips(id) ON DELETE CASCADE,
+      price INTEGER DEFAULT 0,
+      is_published INTEGER DEFAULT 1,
+      version INTEGER NOT NULL DEFAULT 1,
+      descriptions TEXT NOT NULL DEFAULT '{}',
+      last_published_at DATETIME,
+      community_enabled INTEGER DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_explore_published_trip ON explore_published(trip_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_published_status ON explore_published(is_published);
+
+    CREATE TABLE IF NOT EXISTS explore_user_trips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      snapshot_version INTEGER NOT NULL DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, source_trip_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_explore_user_trips_source ON explore_user_trips(source_trip_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
   `);
 }
 

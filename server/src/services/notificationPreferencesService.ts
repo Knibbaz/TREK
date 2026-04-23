@@ -13,7 +13,8 @@ export type NotifEventType =
   | 'photos_shared'
   | 'collab_message'
   | 'packing_tagged'
-  | 'version_available';
+  | 'version_available'
+  | 'explore_update';
 
 export interface AvailableChannels {
   email: boolean;
@@ -32,6 +33,7 @@ const IMPLEMENTED_COMBOS: Record<NotifEventType, NotifChannel[]> = {
   collab_message:    ['inapp', 'email', 'webhook'],
   packing_tagged:    ['inapp', 'email', 'webhook'],
   version_available: ['inapp', 'email', 'webhook'],
+  explore_update:    ['inapp', 'email', 'webhook'],
 };
 
 /** Events that target admins only (shown in admin panel, not in user settings). */

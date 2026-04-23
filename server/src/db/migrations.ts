@@ -864,6 +864,57 @@ function runMigrations(db: Database.Database): void {
         for (const d of matchingDays) ins.run(r.id, d.id, r.day_plan_position);
       }
     },
+    // Migration 76: Vacay hours + comp-time support
+    () => {
+      // Rebuild vacay_entries to add hours/type columns and update UNIQUE constraint
+      db.exec(`
+        CREATE TABLE vacay_entries_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          plan_id INTEGER NOT NULL REFERENCES vacay_plans(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          hours REAL DEFAULT NULL,
+          type TEXT NOT NULL DEFAULT 'vacation',
+          note TEXT DEFAULT '',
+          UNIQUE(user_id, plan_id, date, type)
+        );
+        INSERT INTO vacay_entries_new (id, plan_id, user_id, date, note, type)
+          SELECT id, plan_id, user_id, date, note, 'vacation' FROM vacay_entries;
+        DROP TABLE vacay_entries;
+        ALTER TABLE vacay_entries_new RENAME TO vacay_entries;
+      `);
+      // Add standard_hours_per_day to vacay_plans
+      try { db.exec("ALTER TABLE vacay_plans ADD COLUMN standard_hours_per_day REAL DEFAULT 8"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // Add carried_over_hours to vacay_user_years
+      try { db.exec("ALTER TABLE vacay_user_years ADD COLUMN carried_over_hours REAL DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // Backfill carried_over_hours from carried_over (integer days) * 8 hours/day
+      db.exec("UPDATE vacay_user_years SET carried_over_hours = carried_over * 8");
+    },
+    // Migration 77: Explore versioning + user trip tracking + multilingual descriptions
+    () => {
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN version INTEGER NOT NULL DEFAULT 1"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN descriptions TEXT NOT NULL DEFAULT '{}'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN last_published_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_user_trips (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          snapshot_version INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, source_trip_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_user_trips_source ON explore_user_trips(source_trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
+      `);
+    },
+    // Migration 78: Community places — source tracking on places + community flag on explore_published
+    () => {
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN community_enabled INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE places ADD COLUMN source TEXT DEFAULT 'admin'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE places ADD COLUMN contributed_by INTEGER REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
   ];
 
   if (currentVersion < migrations.length) {

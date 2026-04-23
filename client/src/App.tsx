@@ -10,6 +10,7 @@ import AdminPage from './pages/AdminPage'
 import SettingsPage from './pages/SettingsPage'
 import VacayPage from './pages/VacayPage'
 import AtlasPage from './pages/AtlasPage'
+import ExplorePage from './pages/ExplorePage'
 import SharedTripPage from './pages/SharedTripPage'
 import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx'
 import { ToastContainer } from './components/shared/Toast'
@@ -216,6 +217,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <AtlasPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <ProtectedRoute>
+              <ExplorePage />
             </ProtectedRoute>
           }
         />

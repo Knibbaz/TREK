@@ -34,6 +34,7 @@ import backupRoutes from './routes/backup';
 import oidcRoutes from './routes/oidc';
 import vacayRoutes from './routes/vacay';
 import atlasRoutes from './routes/atlas';
+import exploreRoutes from './routes/explore';
 import memoriesRoutes from './routes/memories/unified';
 import notificationRoutes from './routes/notifications';
 import shareRoutes from './routes/share';
@@ -256,6 +257,7 @@ export function createApp(): express.Application {
   // Addon routes
   app.use('/api/addons/vacay', vacayRoutes);
   app.use('/api/addons/atlas', atlasRoutes);
+  app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/integrations/memories', memoriesRoutes);
   app.use('/api/maps', mapsRoutes);
   app.use('/api/weather', weatherRoutes);
