@@ -695,6 +695,15 @@ const it: Record<string, string | { name: string; category: string }[]> = {
   'vacay.fuseInfo3': 'Entrambe le parti possono eliminare le voci e modificare le disponibilità ferie.',
   'vacay.fuseInfo4': 'Le impostazioni come festività pubbliche e ferie aziendali sono condivise.',
   'vacay.fuseInfo5': 'L\'unione può essere sciolta in qualsiasi momento da una delle due parti. Le tue voci verranno preservate.',
+  'vacay.hours': 'ore',
+  'vacay.modeComp': 'Ore di recupero',
+  'vacay.compTime': 'Ore di recupero',
+  'vacay.hoursPerDay': 'Ore per giorno lavorativo',
+  'vacay.hoursPerDayHint': 'Definisce quante ore equivalgono a un giorno di ferie completo',
+  'vacay.stdDay': 'Giornata intera',
+  'vacay.rightClickHint': 'Clic destro per le ore',
+  'vacay.save': 'Salva',
+  'vacay.cancel': 'Annulla',
   'nav.myTrips': 'I miei viaggi',
 
   // Atlas addon

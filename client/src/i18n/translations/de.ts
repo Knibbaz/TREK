@@ -695,6 +695,15 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'vacay.fuseInfo3': 'Beide können Einträge löschen und den Urlaubsanspruch ändern.',
   'vacay.fuseInfo4': 'Einstellungen wie Feiertage und Betriebsferien werden geteilt.',
   'vacay.fuseInfo5': 'Die Fusion kann jederzeit von beiden Seiten aufgelöst werden. Einträge bleiben erhalten.',
+  'vacay.hours': 'Stunden',
+  'vacay.modeComp': 'Zeitausgleich',
+  'vacay.compTime': 'Zeitausgleich',
+  'vacay.hoursPerDay': 'Stunden pro Arbeitstag',
+  'vacay.hoursPerDayHint': 'Definiert, wie viele Stunden einem vollen Urlaubstag entsprechen',
+  'vacay.stdDay': 'Ganzer Tag',
+  'vacay.rightClickHint': 'Rechtsklick für Stunden',
+  'vacay.save': 'Speichern',
+  'vacay.cancel': 'Abbrechen',
   'nav.myTrips': 'Meine Trips',
 
   // Atlas addon

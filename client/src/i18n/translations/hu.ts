@@ -695,6 +695,15 @@ const hu: Record<string, string | { name: string; category: string }[]> = {
   'vacay.fuseInfo3': 'Mindkét fél törölhet bejegyzéseket és módosíthatja a szabadságkeretet.',
   'vacay.fuseInfo4': 'A beállítások, mint ünnepnapok és céges szabadnapok, közösen érvényesek.',
   'vacay.fuseInfo5': 'Az összevonás bármikor feloldható bármelyik fél által. A bejegyzések megmaradnak.',
+  'vacay.hours': 'óra',
+  'vacay.modeComp': 'Szabadidő',
+  'vacay.compTime': 'Szabadidő',
+  'vacay.hoursPerDay': 'Óra munkanaponta',
+  'vacay.hoursPerDayHint': 'Meghatározza, hogy hány óra egyenlő egy teljes szabadnappal',
+  'vacay.stdDay': 'Egész nap',
+  'vacay.rightClickHint': 'Jobb kattintás az órákhoz',
+  'vacay.save': 'Mentés',
+  'vacay.cancel': 'Mégse',
   'nav.myTrips': 'Utazásaim',
 
   // Atlas bővítmény

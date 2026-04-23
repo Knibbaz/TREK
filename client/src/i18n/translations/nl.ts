@@ -694,6 +694,15 @@ const nl: Record<string, string> = {
   'vacay.calendarColor': 'Kleur',
   'vacay.calendarLabel': 'Label',
   'vacay.noCalendars': 'Geen kalenders',
+  'vacay.hours': 'uren',
+  'vacay.modeComp': 'Tijd-voor-Tijd',
+  'vacay.compTime': 'Tijd-voor-Tijd',
+  'vacay.hoursPerDay': 'Uren per werkdag',
+  'vacay.hoursPerDayHint': 'Bepaalt hoeveel uur gelijk staat aan één volledige vakantiedag',
+  'vacay.stdDay': 'Volledige dag',
+  'vacay.rightClickHint': 'Rechtermuisknop voor uren',
+  'vacay.save': 'Opslaan',
+  'vacay.cancel': 'Annuleren',
   'nav.myTrips': 'Mijn reizen',
 
   // Atlas addon

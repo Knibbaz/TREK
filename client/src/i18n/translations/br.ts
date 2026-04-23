@@ -679,6 +679,15 @@ const br: Record<string, string | { name: string; category: string }[]> = {
   'vacay.fuseInfo3': 'Ambos podem excluir entradas e alterar direitos de férias.',
   'vacay.fuseInfo4': 'Configurações como feriados nacionais e da empresa são compartilhadas.',
   'vacay.fuseInfo5': 'A fusão pode ser encerrada a qualquer momento por qualquer parte. Suas entradas serão preservadas.',
+  'vacay.hours': 'horas',
+  'vacay.modeComp': 'Hora extra',
+  'vacay.compTime': 'Hora extra',
+  'vacay.hoursPerDay': 'Horas por dia de trabalho',
+  'vacay.hoursPerDayHint': 'Define quantas horas equivalem a um dia de férias completo',
+  'vacay.stdDay': 'Dia completo',
+  'vacay.rightClickHint': 'Clique direito para horas',
+  'vacay.save': 'Salvar',
+  'vacay.cancel': 'Cancelar',
   'nav.myTrips': 'Minhas viagens',
 
   // Atlas addon

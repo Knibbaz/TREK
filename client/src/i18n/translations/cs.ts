@@ -50,6 +50,15 @@ const cs: Record<string, string | { name: string; category: string }[]> = {
   'nav.darkMode': 'Tmavý režim',
   'nav.autoMode': 'Automatický režim',
   'nav.administrator': 'Administrátor',
+  'vacay.hours': 'hodin',
+  'vacay.modeComp': 'Náhr. volno',
+  'vacay.compTime': 'Náhradní volno',
+  'vacay.hoursPerDay': 'Hodin za pracovní den',
+  'vacay.hoursPerDayHint': 'Určuje, kolik hodin odpovídá jednomu celému dni dovolené',
+  'vacay.stdDay': 'Celý den',
+  'vacay.rightClickHint': 'Pravé tlačítko pro hodiny',
+  'vacay.save': 'Uložit',
+  'vacay.cancel': 'Zrušit',
   'nav.myTrips': 'Moje cesty',
 
   // Přehled (Dashboard)

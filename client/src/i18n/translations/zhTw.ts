@@ -678,6 +678,15 @@ const zhTw: Record<string, string> = {
   'vacay.calendarColor': '顏色',
   'vacay.calendarLabel': '標籤',
   'vacay.noCalendars': '無日曆',
+  'vacay.hours': '小時',
+  'vacay.modeComp': '補休',
+  'vacay.compTime': '補休',
+  'vacay.hoursPerDay': '每工作日小時數',
+  'vacay.hoursPerDayHint': '定義多少小時等於一個完整的假期天數',
+  'vacay.stdDay': '全天',
+  'vacay.rightClickHint': '右鍵設定小時',
+  'vacay.save': '儲存',
+  'vacay.cancel': '取消',
   'nav.myTrips': '我的旅行',
 
   // Atlas addon

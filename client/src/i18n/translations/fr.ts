@@ -694,6 +694,15 @@ const fr: Record<string, string> = {
   'vacay.calendarColor': 'Couleur',
   'vacay.calendarLabel': 'Libellé',
   'vacay.noCalendars': 'Aucun calendrier',
+  'vacay.hours': 'heures',
+  'vacay.modeComp': 'Heures récup.',
+  'vacay.compTime': 'Heures récup.',
+  'vacay.hoursPerDay': 'Heures par jour de travail',
+  'vacay.hoursPerDayHint': "Définit combien d'heures équivalent à une journée de congé complète",
+  'vacay.stdDay': 'Journée complète',
+  'vacay.rightClickHint': 'Clic droit pour les heures',
+  'vacay.save': 'Enregistrer',
+  'vacay.cancel': 'Annuler',
   'nav.myTrips': 'Mes voyages',
 
   // Atlas addon
