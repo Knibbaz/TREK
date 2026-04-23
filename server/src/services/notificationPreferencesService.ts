@@ -37,8 +37,8 @@ const IMPLEMENTED_COMBOS: Record<NotifEventType, NotifChannel[]> = {
   collab_message:    ['inapp', 'email', 'webhook', 'ntfy'],
   packing_tagged:    ['inapp', 'email', 'webhook', 'ntfy'],
   version_available: ['inapp', 'email', 'webhook', 'ntfy'],
-  synology_session_cleared: ['inapp'],
   explore_update:    ['inapp', 'email', 'webhook'],
+  synology_session_cleared: ['inapp'],
 };
 
 /** Events that target admins only (shown in admin panel, not in user settings). */

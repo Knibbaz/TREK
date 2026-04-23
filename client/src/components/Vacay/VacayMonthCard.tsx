@@ -92,6 +92,8 @@ export default function VacayMonthCard({
               const holiday = holidays[dateStr]
               const isCompany = companyHolidaysEnabled && companyHolidaySet.has(dateStr)
               const isToday = dateStr === todayStr
+
+              // Detect partial day entries
               const allDayEntries = entryMap[dateStr] || []
               const vacEntries = allDayEntries.filter(e => !e.type || e.type === 'vacation')
               const compEntries = allDayEntries.filter(e => e.type === 'comp')

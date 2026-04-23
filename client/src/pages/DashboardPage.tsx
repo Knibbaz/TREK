@@ -1165,30 +1165,7 @@ export default function DashboardPage(): React.ReactElement {
               onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
               onPublish={spotlight.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
               onClick={tr => navigate(`/trips/${tr.id}`)}
-            /></div>
-          )}
-
-          {/* Trips — mobile cards */}
-          {!isLoading && rest.length > 0 && (
-            <div className="md:hidden flex flex-col gap-3 mb-10">
-              <div className="flex items-baseline justify-between px-1 pb-1">
-                <span className="text-[11px] font-bold tracking-[0.12em] uppercase" style={{ color: 'var(--text-faint)' }}>
-                  {rest.some(t => getTripStatus(t) === 'future' || getTripStatus(t) === 'tomorrow') ? t('dashboard.mobile.upcomingTrips') : t('dashboard.mobile.yourTrips')}
-                </span>
-                <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>{rest.length} {t('dashboard.mobile.trips')}</span>
-              </div>
-              {rest.map(trip => (
-                <MobileTripCard
-                  key={trip.id}
-                  trip={trip}
-                  t={t} locale={locale}
-                  onEdit={(can('trip_edit', trip) || can('trip_cover_upload', trip)) ? tr => { setEditingTrip(tr); setShowForm(true) } : undefined}
-                  onCopy={can('trip_create') ? handleCopy : undefined}
-                  onDelete={can('trip_delete', trip) ? handleDelete : undefined}
-                  onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                  onClick={tr => navigate(`/trips/${tr.id}`)}
-                />
-              ))}
+            />
             </div>
           )}
 

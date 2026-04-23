@@ -325,12 +325,12 @@ export function createApp(): express.Application {
   // Addon routes
   app.use('/api/addons/vacay', vacayRoutes);
   app.use('/api/addons/atlas', atlasRoutes);
+  app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/journeys', (req, res, next) => {
     if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return res.status(404).json({ error: 'Journey addon is not enabled' });
     next();
   }, journeyRoutes);
   app.use('/api/public/journey', journeyPublicRoutes);
-  app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/integrations/memories', memoriesRoutes);
   app.use('/api/photos', photoRoutes);
   app.use('/api/maps', mapsRoutes);
