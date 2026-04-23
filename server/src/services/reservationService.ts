@@ -148,27 +148,6 @@ export function getFlightNumberType(flightNumber: string): 'IATA' | 'ICAO' | 'UN
   return 'UNKNOWN';
 }
 
-export function getFlightNumberType(flightNumber: string): 'IATA' | 'ICAO' | 'UNKNOWN' {
-  if (!flightNumber) return 'UNKNOWN';
-
-  // Verwijder spaties en zet alles naar hoofdletters (bijv " klm 1234 " -> "KLM1234")
-  const cleanCode = flightNumber.trim().toUpperCase().replace(/\s+/g, '');
-
-  // ICAO Regex: 3 letters, gevolgd door 1 tot 4 cijfers (en heel soms een optionele letter aan het eind)
-  const icaoRegex = /^[A-Z]{3}\d{1,4}[A-Z]?$/;
-  if (icaoRegex.test(cleanCode)) {
-    return 'ICAO';
-  }
-
-  // IATA Regex: 2 alfanumerieke karakters, gevolgd door 1 tot 4 cijfers
-  const iataRegex = /^[A-Z0-9]{2}\d{1,4}[A-Z]?$/;
-  if (iataRegex.test(cleanCode)) {
-    return 'IATA';
-  }
-
-  return 'UNKNOWN';
-}
-
 interface CreateAccommodation {
   place_id?: number;
   start_day_id?: number;

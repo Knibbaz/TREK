@@ -2232,6 +2232,10 @@ function runMigrations(db: Database.Database): void {
       try { db.exec("ALTER TABLE places ADD COLUMN source TEXT DEFAULT 'admin'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE places ADD COLUMN contributed_by INTEGER REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
+    // Migration 79: Import source tracking for places (GPX, Google Maps lists, KML)
+    () => {
+      try { db.exec("ALTER TABLE places ADD COLUMN import_source TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
   ];
 
   if (currentVersion < migrations.length) {
