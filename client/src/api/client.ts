@@ -220,6 +220,8 @@ export const placesApi = {
     apiClient.post(`/trips/${tripId}/places/import/naver-list`, { url }).then(r => r.data),
   bulkDelete: (tripId: number | string, ids: number[]) =>
     apiClient.post(`/trips/${tripId}/places/bulk-delete`, { ids }).then(r => r.data),
+  importKml: (tripId: string | number, formData: FormData) => 
+    apiClient.post(`/trips/${tripId}/places/import/kml`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
 }
 
 export const assignmentsApi = {
@@ -544,6 +546,26 @@ export const inAppNotificationsApi = {
     apiClient.delete('/notifications/in-app/all').then(r => r.data),
   respond: (id: number, response: 'positive' | 'negative') =>
     apiClient.post(`/notifications/in-app/${id}/respond`, { response }).then(r => r.data),
+}
+
+export const exploreApi = {
+  listTrips: (filter?: 'all' | 'curated' | 'community') =>
+    apiClient.get('/addons/explore/trips', { params: filter && filter !== 'all' ? { filter } : undefined }).then(r => r.data),
+  getTrip: (id: number | string) => apiClient.get(`/addons/explore/trips/${id}`).then(r => r.data),
+  publishTrip: (id: number | string, price: number, descriptions?: Record<string, string>, community_enabled?: boolean) =>
+    apiClient.post(`/addons/explore/trips/${id}/publish`, { price, descriptions, community_enabled }).then(r => r.data),
+  publishUpdate: (id: number | string, descriptions?: Record<string, string>) =>
+    apiClient.post(`/addons/explore/trips/${id}/publish-update`, { descriptions }).then(r => r.data),
+  unpublishTrip: (id: number | string) => apiClient.post(`/addons/explore/trips/${id}/unpublish`).then(r => r.data),
+  purchaseTrip: (id: number | string, data: { title: string }) => apiClient.post(`/addons/explore/trips/${id}/purchase`, data).then(r => r.data),
+  syncTrip: (tripId: number | string) => apiClient.post(`/addons/explore/trips/${tripId}/sync`).then(r => r.data),
+  getSyncStatus: (tripId: number | string) => apiClient.get(`/addons/explore/trips/${tripId}/sync-status`).then(r => r.data),
+  getCommunityPlaces: (sourceTripId: number | string) =>
+    apiClient.get(`/addons/explore/trips/${sourceTripId}/community-places`).then(r => r.data),
+  contributeCommunityPlace: (sourceTripId: number | string, data: Record<string, unknown>) =>
+    apiClient.post(`/addons/explore/trips/${sourceTripId}/community-places`, data).then(r => r.data),
+  deleteCommunityPlace: (sourceTripId: number | string, placeId: number | string) =>
+    apiClient.delete(`/addons/explore/trips/${sourceTripId}/community-places/${placeId}`).then(r => r.data),
 }
 
 export default apiClient

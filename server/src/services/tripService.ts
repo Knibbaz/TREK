@@ -17,9 +17,11 @@ export const TRIP_SELECT = `
     (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count,
     CASE WHEN t.user_id = :userId THEN 1 ELSE 0 END as is_owner,
     u.username as owner_username,
-    (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count
+    (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count,
+    CASE WHEN ep.trip_id IS NOT NULL AND ep.is_published = 1 THEN 1 ELSE 0 END as is_published
   FROM trips t
   JOIN users u ON u.id = t.user_id
+  LEFT JOIN explore_published ep ON ep.trip_id = t.id
 `;
 
 // ── Access helpers ────────────────────────────────────────────────────────

@@ -130,6 +130,13 @@ const EVENT_NOTIFICATION_CONFIG: Record<string, EventNotifConfig> = {
     textKey: 'notifications.synologySessionCleared.text',
     navigateTarget: () => null,
   },
+  explore_update: {
+    inAppType: 'navigate',
+    titleKey: 'notif.explore_update.title',
+    textKey: 'notif.explore_update.text',
+    navigateTextKey: 'notif.action.view_trip',
+    navigateTarget: p => (p.tripId ? `/trips/${p.tripId}` : null),
+  },
 };
 
 // ── Fallback config for unknown event types ────────────────────────────────

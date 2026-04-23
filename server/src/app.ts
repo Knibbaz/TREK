@@ -34,6 +34,7 @@ import oidcRoutes from './routes/oidc';
 import { oauthPublicRouter, oauthApiRouter } from './routes/oauth';
 import vacayRoutes from './routes/vacay';
 import atlasRoutes from './routes/atlas';
+import exploreRoutes from './routes/explore';
 import memoriesRoutes from './routes/memories/unified';
 import photoRoutes from './routes/photos';
 import notificationRoutes from './routes/notifications';
@@ -329,6 +330,7 @@ export function createApp(): express.Application {
     next();
   }, journeyRoutes);
   app.use('/api/public/journey', journeyPublicRoutes);
+  app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/integrations/memories', memoriesRoutes);
   app.use('/api/photos', photoRoutes);
   app.use('/api/maps', mapsRoutes);

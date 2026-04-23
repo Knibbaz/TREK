@@ -9,6 +9,7 @@ import { broadcast } from '../websocket';
 import { AuthRequest, Trip } from '../types';
 import { writeAudit, getClientIp, logInfo } from '../services/auditLog';
 import { checkPermission } from '../services/permissions';
+import { copyTripTransaction } from '../services/tripCopyService';
 import {
   listTrips,
   createTrip,
@@ -207,9 +208,14 @@ router.post('/:id/copy', authenticate, (req: Request, res: Response) => {
   if (!canAccessTrip(req.params.id, authReq.user.id))
     return res.status(404).json({ error: 'Trip not found' });
 
+  const src = db.prepare('SELECT * FROM trips WHERE id = ?').get(req.params.id) as Trip | undefined;
+  if (!src) return res.status(404).json({ error: 'Trip not found' });
+
+  const title = req.body.title || src.title;
+
   try {
-    const newTripId = copyTripById(req.params.id, authReq.user.id, req.body.title);
-    writeAudit({ userId: authReq.user.id, action: 'trip.copy', ip: getClientIp(req), details: { sourceTripId: Number(req.params.id), newTripId, title: req.body.title } });
+    const newTripId = copyTripTransaction(db, Number(req.params.id), authReq.user.id, title);
+    writeAudit({ userId: authReq.user.id, action: 'trip.copy', ip: getClientIp(req), details: { sourceTripId: Number(req.params.id), newTripId: Number(newTripId), title } });
     const trip = db.prepare(`${TRIP_SELECT} WHERE t.id = :tripId`).get({ userId: authReq.user.id, tripId: newTripId });
     res.status(201).json({ trip });
   } catch {
