@@ -1594,6 +1594,8 @@ const nl: Record<string, string> = {
   'planner.keepPosition': 'Positie behouden tijdens route-optimalisatie',
   'planner.dayDetails': 'Dagdetails',
   'planner.dayN': 'Dag {n}',
+  'planner.mode.edit': 'Bewerken',
+  'planner.mode.view': 'Overzicht',
 
   // Dashboard Stats
   'stats.countries': 'Landen',

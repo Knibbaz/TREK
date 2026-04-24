@@ -26,7 +26,7 @@ import BudgetPanel from '../components/Budget/BudgetPanel'
 import CollabPanel from '../components/Collab/CollabPanel'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Users, Train } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Users, Train, Eye, Pencil } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import { accommodationRepo } from '../repo/accommodationRepo'
@@ -272,6 +272,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [fitKey, setFitKey] = useState<number>(0)
   const initialFitTripId = useRef<number | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<'left' | 'right' | null>(null)
+  const [plannerMode, setPlannerMode] = useState<'edit' | 'view'>('edit')
   const [deletePlaceId, setDeletePlaceId] = useState<number | null>(null)
   const [deletePlaceIds, setDeletePlaceIds] = useState<number[] | null>(null)
 
@@ -704,6 +705,31 @@ export default function TripPlannerPage(): React.ReactElement | null {
     return map
   }, [selectedDayId, assignments])
 
+  // In view mode: placeId → [dayNumber] across all days
+  const viewDayOrderMap = useMemo(() => {
+    const sortedDays = [...days].sort((a, b) => a.date < b.date ? -1 : 1)
+    const map: Record<number, number[]> = {}
+    sortedDays.forEach((day, idx) => {
+      const da = assignments[String(day.id)] || []
+      da.forEach(a => {
+        if (!a.place?.id) return
+        if (!map[a.place.id]) map[a.place.id] = []
+        if (!map[a.place.id].includes(idx + 1)) map[a.place.id].push(idx + 1)
+      })
+    })
+    return map
+  }, [days, assignments])
+
+  // In view mode: all assigned places with coords
+  const allAssignedPlaces = useMemo(() => {
+    const seen = new Set<number>()
+    return Object.values(assignments).flatMap(da => da.map(a => a.place)).filter(p => {
+      if (!p?.lat || !p?.lng || seen.has(p.id)) return false
+      seen.add(p.id)
+      return true
+    })
+  }, [assignments])
+
   // Places assigned to selected day (with coords) — used for map fitting
   const dayPlaces = useMemo(() => {
     if (!selectedDayId) return []
@@ -793,6 +819,39 @@ export default function TripPlannerPage(): React.ReactElement | null {
           activeTab={activeTab}
           onChange={handleTabChange}
         />
+        {activeTab === 'plan' && (
+          <div style={{ position: 'absolute', right: 12, display: 'flex', alignItems: 'center', gap: 2,
+            background: 'var(--bg-tertiary)', borderRadius: 8, padding: 2 }}>
+            <button
+              onClick={() => setPlannerMode('edit')}
+              title={t('planner.mode.edit')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                background: plannerMode === 'edit' ? 'var(--bg-card)' : 'transparent',
+                color: plannerMode === 'edit' ? 'var(--text-primary)' : 'var(--text-faint)',
+                boxShadow: plannerMode === 'edit' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              <Pencil size={12} />
+              <span className="hidden sm:inline">{t('planner.mode.edit')}</span>
+            </button>
+            <button
+              onClick={() => { setPlannerMode('view'); updateRouteForDay(null, true) }}
+              title={t('planner.mode.view')}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
+                background: plannerMode === 'view' ? 'var(--bg-card)' : 'transparent',
+                color: plannerMode === 'view' ? 'var(--text-primary)' : 'var(--text-faint)',
+                boxShadow: plannerMode === 'view' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+                transition: 'all 0.15s',
+              }}
+            >
+              <Eye size={12} />
+              <span className="hidden sm:inline">{t('planner.mode.view')}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Offset by navbar + tab bar (44px) */}
@@ -801,23 +860,23 @@ export default function TripPlannerPage(): React.ReactElement | null {
         {activeTab === 'plan' && (
           <div style={{ position: 'absolute', inset: 0 }}>
             <MapView
-              places={mapPlaces}
-              dayPlaces={dayPlaces}
+              places={plannerMode === 'view' ? allAssignedPlaces : mapPlaces}
+              dayPlaces={plannerMode === 'view' ? allAssignedPlaces : dayPlaces}
               route={route}
               routeSegments={routeSegments}
-              selectedPlaceId={selectedPlaceId}
-              onMarkerClick={handleMarkerClick}
-              onMapClick={handleMapClick}
-              onMapContextMenu={handleMapContextMenu}
+              selectedPlaceId={plannerMode === 'view' ? null : selectedPlaceId}
+              onMarkerClick={plannerMode === 'view' ? undefined : handleMarkerClick}
+              onMapClick={plannerMode === 'view' ? undefined : handleMapClick}
+              onMapContextMenu={plannerMode === 'view' ? undefined : handleMapContextMenu}
               center={defaultCenter}
               zoom={defaultZoom}
               tileUrl={mapTileUrl}
               fitKey={fitKey}
-              dayOrderMap={dayOrderMap}
-              leftWidth={leftCollapsed ? 0 : leftWidth}
-              rightWidth={rightCollapsed ? 0 : rightWidth}
-              hasInspector={!!selectedPlace}
-              hasDayDetail={!!showDayDetail && !selectedPlace}
+              dayOrderMap={plannerMode === 'view' ? viewDayOrderMap : dayOrderMap}
+              leftWidth={plannerMode === 'view' ? (leftCollapsed ? 0 : leftWidth) : (leftCollapsed ? 0 : leftWidth)}
+              rightWidth={plannerMode === 'view' ? 0 : (rightCollapsed ? 0 : rightWidth)}
+              hasInspector={plannerMode === 'view' ? false : !!selectedPlace}
+              hasDayDetail={plannerMode === 'view' ? false : (!!showDayDetail && !selectedPlace)}
               reservations={reservations}
               showReservationStats={settings.route_calculation !== false}
               visibleConnectionIds={visibleConnections}
@@ -904,7 +963,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
               </div>
             </div>
 
-            <div className="hidden md:block" style={{ position: 'absolute', right: 10, top: 10, bottom: 10, zIndex: 20 }}>
+            <div className="hidden md:block" style={{ position: 'absolute', right: 10, top: 10, bottom: 10, zIndex: 20, display: plannerMode === 'view' ? 'none' : undefined }}>
               <button onClick={() => setRightCollapsed(c => !c)}
                 style={{
                   position: rightCollapsed ? 'fixed' : 'absolute', top: rightCollapsed ? 'calc(var(--nav-h) + 44px + 14px)' : 14, right: rightCollapsed ? 10 : undefined, left: rightCollapsed ? undefined : -28, zIndex: -1,

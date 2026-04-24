@@ -298,10 +298,13 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
         phase: (dragDataRef.current.phase || 'single') as 'single' | 'start' | 'middle' | 'end',
       }
     }
-    // Externer Drag (aus PlacesSidebar)
+    // Externer Drag (aus PlacesSidebar oder ReservationsPanel)
     const ext = window.__dragData || {}
     const placeId = dt?.getData('placeId') || ext.placeId || ''
-    return { placeId, assignmentId: '', noteId: '', reservationId: '', fromDayId: 0, phase: 'single' as const }
+    const reservationId = dt?.getData('reservationId') || ext.reservationId || ''
+    const fromDayId = parseInt(dt?.getData('fromDayId') || ext.fromDayId || '0') || 0
+    const phase = (ext.phase || 'single') as 'single' | 'start' | 'middle' | 'end'
+    return { placeId, assignmentId: '', noteId: '', reservationId, fromDayId, phase }
   }
 
   // Only auto-expand genuinely new days (not on initial load from storage)
@@ -846,6 +849,18 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
 
     const prevIds = da.map(a => a.id)
 
+    // Find anchor points from adjacent days
+    const sortedDays = [...days].sort((a, b) => getDayOrder(a) - getDayOrder(b))
+    const currentDayIdx = sortedDays.findIndex(d => d.id === selectedDayId)
+    const prevDay = currentDayIdx > 0 ? sortedDays[currentDayIdx - 1] : null
+    const nextDay = currentDayIdx < sortedDays.length - 1 ? sortedDays[currentDayIdx + 1] : null
+
+    const prevDayAssignments = prevDay ? (assignments[String(prevDay.id)] || []).slice().sort((a, b) => a.order_index - b.order_index) : []
+    const nextDayAssignments = nextDay ? (assignments[String(nextDay.id)] || []).slice().sort((a, b) => a.order_index - b.order_index) : []
+
+    const startAnchor = prevDayAssignments.slice().reverse().find(a => a.place?.lat && a.place?.lng)?.place ?? undefined
+    const endAnchor = nextDayAssignments.find(a => a.place?.lat && a.place?.lng)?.place ?? undefined
+
     // Separate locked (stay at their index) and unlocked assignments
     const locked = new Map() // index -> assignment
     const unlocked = []
@@ -858,7 +873,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
     const unlockedWithCoords = unlocked.filter(a => a.place?.lat && a.place?.lng)
     const unlockedNoCoords = unlocked.filter(a => !a.place?.lat || !a.place?.lng)
     const optimizedAssignments = unlockedWithCoords.length >= 2
-      ? optimizeRoute(unlockedWithCoords.map(a => ({ ...a.place, _assignmentId: a.id }))).map(p => unlockedWithCoords.find(a => a.id === p._assignmentId)).filter(Boolean)
+      ? optimizeRoute(unlockedWithCoords.map(a => ({ ...a.place, _assignmentId: a.id })), { startAnchor, endAnchor }).map(p => unlockedWithCoords.find(a => a.id === p._assignmentId)).filter(Boolean)
       : unlockedWithCoords
     const optimizedQueue = [...optimizedAssignments, ...unlockedNoCoords]
 

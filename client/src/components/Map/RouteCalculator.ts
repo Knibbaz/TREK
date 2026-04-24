@@ -63,25 +63,63 @@ export function generateGoogleMapsUrl(places: Waypoint[]): string | null {
   return `https://www.google.com/maps/dir/${stops}`
 }
 
-/** Reorders waypoints using a nearest-neighbor heuristic to minimize total Euclidean distance. */
-export function optimizeRoute(places: Waypoint[]): Waypoint[] {
+function dist(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  return Math.sqrt(Math.pow(a.lat - b.lat, 2) + Math.pow(a.lng - b.lng, 2))
+}
+
+/**
+ * Reorders waypoints using a nearest-neighbor heuristic to minimize total Euclidean distance.
+ * Optional anchors from adjacent days:
+ *   - startAnchor: last place of the previous day → start from the place nearest to it
+ *   - endAnchor:   first place of the next day → ensure the route ends at the place nearest to it
+ */
+export function optimizeRoute(
+  places: Waypoint[],
+  options?: { startAnchor?: Waypoint; endAnchor?: Waypoint }
+): Waypoint[] {
   const valid = places.filter((p) => p.lat && p.lng)
   if (valid.length <= 2) return places
 
+  const { startAnchor, endAnchor } = options ?? {}
+
+  // If endAnchor is given, pre-select the place closest to it as the forced last stop
+  let forcedLastIdx: number | null = null
+  if (endAnchor) {
+    let minD = Infinity
+    valid.forEach((p, i) => {
+      const d = dist(p, endAnchor)
+      if (d < minD) { minD = d; forcedLastIdx = i }
+    })
+  }
+
+  // Determine start: place closest to startAnchor, excluding the forced-last place
+  let startIdx = 0
+  if (startAnchor) {
+    let minD = Infinity
+    valid.forEach((p, i) => {
+      if (i === forcedLastIdx) return
+      const d = dist(p, startAnchor)
+      if (d < minD) { minD = d; startIdx = i }
+    })
+  } else if (forcedLastIdx === 0) {
+    // startAnchor not set but index 0 is reserved for last → start from 1
+    startIdx = 1
+  }
+
   const visited = new Set<number>()
   const result: Waypoint[] = []
-  let current = valid[0]
-  visited.add(0)
+
+  if (forcedLastIdx !== null) visited.add(forcedLastIdx)
+  visited.add(startIdx)
+  let current = valid[startIdx]
   result.push(current)
 
-  while (result.length < valid.length) {
+  while (result.length < valid.length - (forcedLastIdx !== null ? 1 : 0)) {
     let nearestIdx = -1
     let minDist = Infinity
     for (let i = 0; i < valid.length; i++) {
       if (visited.has(i)) continue
-      const d = Math.sqrt(
-        Math.pow(valid[i].lat - current.lat, 2) + Math.pow(valid[i].lng - current.lng, 2)
-      )
+      const d = dist(valid[i], current)
       if (d < minDist) { minDist = d; nearestIdx = i }
     }
     if (nearestIdx === -1) break
@@ -89,6 +127,10 @@ export function optimizeRoute(places: Waypoint[]): Waypoint[] {
     current = valid[nearestIdx]
     result.push(current)
   }
+
+  // Append forced-last place at the end
+  if (forcedLastIdx !== null) result.push(valid[forcedLastIdx])
+
   return result
 }
 

@@ -60,7 +60,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
   const routeAbortRef = useRef<AbortController | null>(null)
   const reservationsForSignature = useTripStore((s) => s.reservations)
 
-  const updateRouteForDay = useCallback(async (dayId: number | null) => {
+  const updateRouteForDay = useCallback(async (dayId: number | null, connectDays = false) => {
     if (routeAbortRef.current) routeAbortRef.current.abort()
 
     const currentAssignments = useTripStore.getState().assignments || {}
@@ -117,7 +117,8 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
         ].sort((a, b) => a.pos - b.pos)
 
         // Between days: insert a transport break so day boundaries split the route
-        if (allEntries.length > 0 && dayEntries.some(e => e.kind === 'place')) {
+        // (skipped in connectDays mode so the overview shows one continuous route)
+        if (!connectDays && allEntries.length > 0 && dayEntries.some(e => e.kind === 'place')) {
           allEntries.push({ kind: 'transport' })
         }
         allEntries.push(...dayEntries)

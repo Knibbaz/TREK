@@ -139,12 +139,22 @@ function ReservationCard({ r, tripId, onEdit, onDelete, files = [], onNavigateTo
   }
 
   return (
-    <div style={{
-      borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column',
-      border: `1px solid ${confirmed ? 'rgba(22,163,74,0.25)' : 'rgba(217,119,6,0.25)'}`,
-      background: 'var(--bg-card)',
-      transition: 'box-shadow 0.15s ease',
-    }}
+    <div
+      draggable
+      onDragStart={e => {
+        window.__dragData = { reservationId: String(r.id), fromDayId: String(r.day_id ?? 0), phase: 'single' }
+        e.dataTransfer.effectAllowed = 'move'
+        e.dataTransfer.setData('reservationId', String(r.id))
+        e.dataTransfer.setData('fromDayId', String(r.day_id ?? 0))
+      }}
+      onDragEnd={() => { window.__dragData = null }}
+      style={{
+        borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        border: `1px solid ${confirmed ? 'rgba(22,163,74,0.25)' : 'rgba(217,119,6,0.25)'}`,
+        background: 'var(--bg-card)',
+        transition: 'box-shadow 0.15s ease',
+        cursor: 'grab',
+      }}
       onMouseEnter={e => e.currentTarget.style.boxShadow = '0 2px 12px rgba(0,0,0,0.06)'}
       onMouseLeave={e => e.currentTarget.style.boxShadow = 'none'}
     >
