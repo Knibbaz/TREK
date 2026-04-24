@@ -141,6 +141,9 @@ export default function PlaceFormModal({
     } else {
       setForm({ ...DEFAULT_FORM, currency: defaultCurrency, price_type: 'total' })
     }
+    setMapsSearch('')
+    setMapsResults([])
+    setAcSuggestions([])
     setPendingFiles([])
   }, [place, prefillCoords, isOpen, defaultCurrency])
 
