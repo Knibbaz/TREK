@@ -268,7 +268,7 @@ router.delete('/:id', authenticate, requireTripAccess, (req: Request, res: Respo
 
 function getPlaceVotes(placeId: string | number) {
   return db.prepare(`
-    SELECT pv.user_id, pv.vote, u.username, u.avatar_url
+    SELECT pv.user_id, pv.vote, u.username, u.avatar AS avatar_url
     FROM place_votes pv JOIN users u ON u.id = pv.user_id
     WHERE pv.place_id = ?
     ORDER BY pv.created_at ASC
