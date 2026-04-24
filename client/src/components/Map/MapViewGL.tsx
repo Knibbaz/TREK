@@ -544,9 +544,9 @@ export function MapViewGL({
     try {
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: Math.max(map.getZoom(), 14),
+        zoom: 14,
         pitch: mapbox3d ? 45 : 0,
-        duration: 400,
+        duration: 600,
       })
     } catch { /* noop */ }
   }, [selectedPlaceId, mapbox3d]) // eslint-disable-line react-hooks/exhaustive-deps

@@ -130,10 +130,9 @@ function SelectionController({ places, selectedPlaceId, dayPlaces, paddingOpts }
 
   useEffect(() => {
     if (selectedPlaceId && selectedPlaceId !== prev.current) {
-      // Pan to the selected place without changing zoom
       const selected = places.find(p => p.id === selectedPlaceId)
       if (selected?.lat && selected?.lng) {
-        map.panTo([selected.lat, selected.lng], { animate: true })
+        map.flyTo([selected.lat, selected.lng], 14, { animate: true, duration: 0.6 })
       }
     }
     prev.current = selectedPlaceId
