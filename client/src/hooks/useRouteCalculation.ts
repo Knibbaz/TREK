@@ -59,10 +59,12 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
   const [isCalculating, setIsCalculating] = useState(false)
   const routeCalcEnabled = useSettingsStore((s) => s.settings.route_calculation) !== false
   const routeAbortRef = useRef<AbortController | null>(null)
+  const calcGenRef = useRef(0)
   const reservationsForSignature = useTripStore((s) => s.reservations)
 
   const updateRouteForDay = useCallback(async (dayId: number | null, connectDays = false) => {
     if (routeAbortRef.current) routeAbortRef.current.abort()
+    const myGen = ++calcGenRef.current
     setIsCalculating(true)
     try {
     // ── inner ──────────────────────────────────────────────────────────────
@@ -211,7 +213,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
     }
     // ── end inner ──────────────────────────────────────────────────────────
     } finally {
-      setIsCalculating(false)
+      if (myGen === calcGenRef.current) setIsCalculating(false)
     }
   }, [routeCalcEnabled])
 

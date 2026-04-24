@@ -1138,6 +1138,23 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
         </div>
       </div>
 
+      {/* Globale route-berekeningsstatus */}
+      {(isRouteCalculating || routeDone) && (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, padding: '5px 16px', fontSize: 12, color: routeDone ? '#16a34a' : 'var(--text-secondary)', background: 'var(--bg-hover)', borderBottom: '1px solid var(--border-faint)' }}>
+          {isRouteCalculating ? (
+            <>
+              <Loader2 size={12} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+              <span>{t('dayplan.routeCalculating')}</span>
+            </>
+          ) : (
+            <>
+              <Check size={12} style={{ flexShrink: 0 }} />
+              <span>{t('dayplan.routeReady')}</span>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Tagesliste */}
       <div className={`scroll-container${draggingId ? '' : ' trek-stagger'}`} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {days.map((day, index) => {
