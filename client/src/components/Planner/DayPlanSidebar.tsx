@@ -1230,10 +1230,10 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
                         <Pencil size={15} strokeWidth={1.8} color="var(--text-secondary)" />
                       </button>}
                       {canEditDays && onAddTransport && (
-                        <Tooltip label={t('transport.addTransport')} placement="top">
+                        <Tooltip label={t('day.addAccommodation')} placement="top">
                         <button
                           onClick={e => { e.stopPropagation(); onAddTransport(day.id) }}
-                          aria-label={t('transport.addTransport')}
+                          aria-label={t('day.addAccommodation')}
                           style={{
                             flexShrink: 0,
                             background: 'none',
