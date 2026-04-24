@@ -970,6 +970,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'atlas.month': 'Month',
   'atlas.year': 'Year',
   'atlas.addToBucketHint': 'Save as a place you want to visit',
+  'atlas.removeFromBucket': 'Remove from bucket list',
+  'atlas.removeFromBucketHint': 'This country is already on your bucket list',
   'atlas.bucketWhen': 'When do you plan to visit?',
   'atlas.statsTab': 'Stats',
   'atlas.bucketTab': 'Bucket List',

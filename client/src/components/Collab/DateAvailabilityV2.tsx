@@ -162,7 +162,7 @@ function MonthSelector({ fromMonth, toMonth, onChange }: MonthSelectorProps) {
 // ── MonthGrid ─────────────────────────────────────────────────────────────────
 
 const DAY_LABELS = ['M', 'D', 'W', 'D', 'V', 'Z', 'Z']
-const STATUS_CYCLE: Array<'yes' | 'no' | 'maybe' | null> = ['yes', 'maybe', 'no', null]
+const STATUS_CYCLE: Array<'yes' | 'no' | 'maybe' | null> = ['yes', 'no', 'maybe', null]
 
 // Status colors — subtle, matching the app palette
 const STATUS_COLOR = {
@@ -363,18 +363,42 @@ interface ProposalCardProps {
   proposal: DateProposal
   groupId: number
   currentUserId: number
+  isAdmin: boolean
   onDelete: (id: number) => void
   onAvailabilityChange: (proposalId: number, availability: DateAvailabilityEntry[]) => void
   publicHolidays: Record<string, { name: string }>
 }
 
-function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabilityChange, publicHolidays }: ProposalCardProps) {
+function ProposalCard({ proposal, groupId, currentUserId, isAdmin, onDelete, onAvailabilityChange, publicHolidays }: ProposalCardProps) {
   const { t } = useTranslation()
   const [viewMonth, setViewMonth] = useState<Date>(() => new Date(proposal.period_start + 'T00:00:00'))
-  const [viewMode, setViewMode] = useState<'mine' | 'group'>('group')
+  const [viewMode, setViewMode] = useState<'mine' | 'group'>('mine')
   const [pending, setPending] = useState<Record<string, 'yes' | 'no' | 'maybe' | null>>({})
   const [saving, setSaving] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const hasMyEntries = proposal.availability.some(e => e.user_id === currentUserId)
+
+  // Auto-prefill: eerste keer dat gebruiker de proposal ziet, alle dagen op 'ja' behalve vakantiedagen
+  useEffect(() => {
+    if (hasMyEntries) return
+    const pad = (n: number) => String(n).padStart(2, '0')
+    const prefill: Record<string, 'yes' | 'no' | 'maybe'> = {}
+    const start = new Date(proposal.period_start + 'T00:00:00')
+    const end   = new Date(proposal.period_end   + 'T00:00:00')
+    for (const d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dateStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+      const onVacation = proposal.vacationDays?.some(
+        v => v.user_id === currentUserId && dateStr >= v.start_date && dateStr <= v.end_date
+      )
+      prefill[dateStr] = onVacation ? 'no' : 'yes'
+    }
+    setPending(prefill)
+    dateProposalsApi.setAvailability(groupId, proposal.id, prefill)
+      .then(data => { onAvailabilityChange(proposal.id, data.availability); setPending({}) })
+      .catch(() => {})
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proposal.id])
 
   const myStatus: Record<string, 'yes' | 'no' | 'maybe'> = {}
   for (const e of proposal.availability) {
@@ -489,32 +513,28 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
           style={{ padding: 4, borderRadius: 6, border: 'none', background: 'transparent', cursor: mIdx > 0 ? 'pointer' : 'default', color: 'var(--text-primary)', opacity: mIdx > 0 ? 1 : 0.25, flexShrink: 0 }}>
           <ChevronLeft size={16} />
         </button>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+        <div className="flex flex-col items-center gap-2 flex-1">
+          <div className="text-[13px] font-semibold capitalize" style={{ color: 'var(--text-primary)' }}>
             {viewMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
           </div>
-          <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-primary)', fontSize: 11 }}>
-            <button
-              onClick={() => setViewMode('mine')}
-              style={{
-                padding: '4px 10px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11,
-                background: viewMode === 'mine' ? 'var(--accent)' : 'var(--bg-input)',
-                color: viewMode === 'mine' ? 'var(--accent-text)' : 'var(--text-secondary)',
-                fontWeight: viewMode === 'mine' ? 600 : 400,
-              }}>
-              Mijn beschikbaarheid
-            </button>
-            <button
-              onClick={() => setViewMode('group')}
-              style={{
-                padding: '4px 10px', border: 'none', borderLeft: '1px solid var(--border-primary)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11,
-                background: viewMode === 'group' ? 'var(--accent)' : 'var(--bg-input)',
-                color: viewMode === 'group' ? 'var(--accent-text)' : 'var(--text-secondary)',
-                fontWeight: viewMode === 'group' ? 600 : 400,
-              }}>
-              Groep
-            </button>
-          </div>
+          {isAdmin ? (
+            <div className="flex rounded-lg overflow-hidden border text-[11px]" style={{ borderColor: 'var(--border-primary)' }}>
+              {(['mine', 'group'] as const).map((mode, i) => (
+                <button key={mode} onClick={() => setViewMode(mode)} className="px-3 py-1 cursor-pointer transition-colors"
+                  style={{
+                    fontFamily: 'inherit', fontSize: 11, border: 'none',
+                    borderLeft: i > 0 ? '1px solid var(--border-primary)' : 'none',
+                    background: viewMode === mode ? 'var(--accent)' : 'var(--bg-input)',
+                    color: viewMode === mode ? 'var(--accent-text)' : 'var(--text-secondary)',
+                    fontWeight: viewMode === mode ? 600 : 400,
+                  }}>
+                  {mode === 'mine' ? 'Mijn beschikbaarheid' : 'Groep'}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Mijn beschikbaarheid</span>
+          )}
         </div>
         <button onClick={() => mIdx < months.length - 1 && setViewMonth(months[mIdx + 1])} disabled={mIdx >= months.length - 1}
           style={{ padding: 4, borderRadius: 6, border: 'none', background: 'transparent', cursor: mIdx < months.length - 1 ? 'pointer' : 'default', color: 'var(--text-primary)', opacity: mIdx < months.length - 1 ? 1 : 0.25, flexShrink: 0 }}>
@@ -536,25 +556,25 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
       </div>
 
       {/* Legend */}
-      <div style={{ padding: '10px 16px 12px', borderTop: '1px solid var(--border-faint)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {(viewMode === 'group' ? groupLegendItems : mineLegendItems).map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color, flexShrink: 0, border: (item as any).border ? '1px solid var(--border-primary)' : 'none' }} />
+      <div className="px-4 pt-2.5 pb-3 border-t flex flex-col gap-1.5" style={{ borderColor: 'var(--border-faint)' }}>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
+          {statusLegend.map(item => (
+            <div key={item.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
+              <div className="rounded-sm flex-shrink-0" style={{ width: 10, height: 10, background: item.color, opacity: item.color.startsWith('var') ? 1 : 0.7 }} />
               {item.label}
             </div>
           ))}
           {viewMode === 'group' && (
-            <div style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 'auto' }}>
-              <span style={{ fontWeight: 700, color: '#16a34a' }}>✓</span> jij kan &nbsp;
-              <span style={{ fontWeight: 700, color: '#f59e0b' }}>?</span> jij misschien &nbsp;
-              <span style={{ fontWeight: 700, color: '#dc2626' }}>✕</span> jij niet
+            <div className="ml-auto text-[10px] flex items-center gap-2" style={{ color: 'var(--text-faint)' }}>
+              <span style={{ color: STATUS_COLOR.yes, fontWeight: 700 }}>✓</span> jij
+              <span style={{ color: STATUS_COLOR.maybe, fontWeight: 700 }}>◐</span> jij misschien
+              <span style={{ color: STATUS_COLOR.no, fontWeight: 700 }}>✕</span> jij niet
             </div>
           )}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div className="flex flex-wrap gap-x-3 gap-y-1 items-center">
           {overlayLegend.map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
+            <div key={item.label} className="flex items-center gap-1.5 text-[11px]" style={{ color: 'var(--text-secondary)' }}>
               <span style={{ color: item.color }}>{item.icon}</span>
               {item.label}
             </div>
@@ -785,9 +805,10 @@ function SettingsPanel({ groupId }: SettingsPanelProps) {
 interface DateAvailabilityV2Props {
   groupId: number
   canCreate?: boolean
+  isAdmin?: boolean
 }
 
-export default function DateAvailabilityV2({ groupId, canCreate = true }: DateAvailabilityV2Props) {
+export default function DateAvailabilityV2({ groupId, canCreate = true, isAdmin = false }: DateAvailabilityV2Props) {
   const { t } = useTranslation()
   const { user } = useAuthStore()
   const [proposals, setProposals] = useState<DateProposal[]>([])
@@ -897,6 +918,7 @@ export default function DateAvailabilityV2({ groupId, canCreate = true }: DateAv
             proposal={p}
             groupId={groupId}
             currentUserId={user.id}
+            isAdmin={isAdmin}
             onDelete={handleDelete}
             onAvailabilityChange={(id, availability) => setProposals(prev => prev.map(x => x.id === id ? { ...x, availability } : x))}
             publicHolidays={publicHolidays}

@@ -705,6 +705,7 @@ export default function GroupsPage(): React.ReactElement {
             <DateAvailabilityV2
               groupId={currentGroup.id}
               canCreate={canManageMembers || currentGroup.role === 'member'}
+              isAdmin={canManageMembers}
             />
           </div>
           </div>

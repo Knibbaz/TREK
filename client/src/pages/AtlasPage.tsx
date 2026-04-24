@@ -1259,16 +1259,42 @@ export default function AtlasPage(): React.ReactElement {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.markVisitedHint')}</div>
                   </div>
                 </button>
-                <button onClick={() => { setConfirmAction({ ...confirmAction, type: 'bucket' }); setShowMoreActions(false) }}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                  <Star size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.addToBucket')}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addToBucketHint')}</div>
-                  </div>
-                </button>
+                {(() => {
+                  const existingBucket = bucketList.find(b => b.country_code === confirmAction.code)
+                  if (existingBucket) {
+                    return (
+                      <button onClick={async () => {
+                        try {
+                          await apiClient.delete(`/addons/atlas/bucket-list/${existingBucket.id}`)
+                          setBucketList(prev => prev.filter(i => i.id !== existingBucket.id))
+                        } catch {}
+                        setConfirmAction(null)
+                        setShowMoreActions(false)
+                      }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                        <X size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.removeFromBucket')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.removeFromBucketHint')}</div>
+                        </div>
+                      </button>
+                    )
+                  }
+                  return (
+                    <button onClick={() => { setConfirmAction({ ...confirmAction, type: 'bucket' }); setShowMoreActions(false) }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <Star size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.addToBucket')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addToBucketHint')}</div>
+                      </div>
+                    </button>
+                  )
+                })()}
 
                 {!showMoreActions && (
                   <button onClick={() => setShowMoreActions(true)}
@@ -1338,16 +1364,41 @@ export default function AtlasPage(): React.ReactElement {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.markRegionVisitedHint')}</div>
                   </div>
                 </button>
-                <button onClick={() => setConfirmAction({ ...confirmAction, type: 'bucket' })}
-                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'none'}>
-                  <Star size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.addToBucket')}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addToBucketHint')}</div>
-                  </div>
-                </button>
+                {(() => {
+                  const existingBucket = bucketList.find(b => b.country_code === confirmAction.code)
+                  if (existingBucket) {
+                    return (
+                      <button onClick={async () => {
+                        try {
+                          await apiClient.delete(`/addons/atlas/bucket-list/${existingBucket.id}`)
+                          setBucketList(prev => prev.filter(i => i.id !== existingBucket.id))
+                        } catch {}
+                        setConfirmAction(null)
+                      }}
+                        style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
+                        onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                        onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                        <X size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.removeFromBucket')}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.removeFromBucketHint')}</div>
+                        </div>
+                      </button>
+                    )
+                  }
+                  return (
+                    <button onClick={() => setConfirmAction({ ...confirmAction, type: 'bucket' })}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <Star size={18} style={{ color: '#fbbf24', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.addToBucket')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addToBucketHint')}</div>
+                      </div>
+                    </button>
+                  )
+                })()}
               </div>
             )}
 

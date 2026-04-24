@@ -943,6 +943,8 @@ const nl: Record<string, string> = {
   'atlas.searchCountry': 'Zoek een land...',
   'atlas.month': 'Maand',
   'atlas.addToBucketHint': 'Opslaan als plek die je wilt bezoeken',
+  'atlas.removeFromBucket': 'Verwijderen van bucket list',
+  'atlas.removeFromBucketHint': 'Dit land staat al op je bucket list',
   'atlas.bucketWhen': 'Wanneer ben je van plan te gaan?',
 
   // Trip Planner
