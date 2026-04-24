@@ -2275,6 +2275,14 @@ function runMigrations(db: Database.Database): void {
     },
     // Migration: Date availability proposals for group trip planning
     () => {
+      // Drop old date_proposals/date_availability tables if they were created
+      // with an earlier trip-based schema (trip_id instead of group_id).
+      const dpCols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const hasOldSchema = dpCols.length > 0 && !dpCols.some(c => c.name === 'group_id');
+      if (hasOldSchema) {
+        db.exec('DROP TABLE IF EXISTS date_availability; DROP TABLE IF EXISTS date_proposals;');
+      }
+
       db.exec(`
         CREATE TABLE IF NOT EXISTS date_proposals (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -2298,6 +2306,37 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_date_avail_proposal ON date_availability(proposal_id);
         CREATE INDEX IF NOT EXISTS idx_date_avail_user ON date_availability(user_id);
       `);
+    },
+    // Migration: Fix date_proposals schema if it was created with trip_id instead of group_id
+    () => {
+      const dpCols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const hasOldSchema = dpCols.length > 0 && !dpCols.some(c => c.name === 'group_id');
+      if (hasOldSchema) {
+        db.exec('DROP TABLE IF EXISTS date_availability; DROP TABLE IF EXISTS date_proposals;');
+        db.exec(`
+          CREATE TABLE date_proposals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+            created_by INTEGER NOT NULL REFERENCES users(id),
+            title TEXT NOT NULL,
+            period_start TEXT NOT NULL,
+            period_end TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+          );
+          CREATE INDEX idx_date_proposals_group ON date_proposals(group_id);
+
+          CREATE TABLE date_availability (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+            UNIQUE(proposal_id, user_id, date)
+          );
+          CREATE INDEX idx_date_avail_proposal ON date_availability(proposal_id);
+          CREATE INDEX idx_date_avail_user ON date_availability(user_id);
+        `);
+      }
     },
   ];
 
