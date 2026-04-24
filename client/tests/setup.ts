@@ -13,6 +13,34 @@ vi.mock('../src/api/websocket', () => ({
   setPreReconnectHook: vi.fn(),
 }));
 
+// Stub localStorage / sessionStorage if jsdom hasn't provided them
+if (typeof localStorage === 'undefined' || !localStorage.getItem) {
+  const storage: Record<string, string> = {};
+  Object.defineProperty(globalThis, 'localStorage', {
+    value: {
+      getItem: (key: string) => storage[key] ?? null,
+      setItem: (key: string, value: string) => { storage[key] = value; },
+      removeItem: (key: string) => { delete storage[key]; },
+      clear: () => { for (const key of Object.keys(storage)) delete storage[key]; },
+    },
+    writable: true,
+    configurable: true,
+  });
+}
+if (typeof sessionStorage === 'undefined' || !sessionStorage.getItem) {
+  const storage: Record<string, string> = {};
+  Object.defineProperty(globalThis, 'sessionStorage', {
+    value: {
+      getItem: (key: string) => storage[key] ?? null,
+      setItem: (key: string, value: string) => { storage[key] = value; },
+      removeItem: (key: string) => { delete storage[key]; },
+      clear: () => { for (const key of Object.keys(storage)) delete storage[key]; },
+    },
+    writable: true,
+    configurable: true,
+  });
+}
+
 // MSW lifecycle
 beforeAll(() => server.listen({ onUnhandledRequest: 'warn' }));
 afterEach(() => {
