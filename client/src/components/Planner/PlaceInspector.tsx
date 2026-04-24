@@ -846,8 +846,9 @@ export default function PlaceInspector({
             </div>
           )}
           {selectedDayId && assignmentInDay ? (
-            <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
-              label={<><span className="hidden sm:inline">{t('inspector.removeFromDay')}</span><span className="sm:hidden">{t('inspector.remove')}</span></>} />
+            <span className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg" style={{ color: 'var(--text-faint)', background: 'var(--bg-secondary)' }}>
+              {t('inspector.assigned') || 'In day'}
+            </span>
           ) : (
             <div style={{ position: 'relative' }}>
               <ActionButton
