@@ -53,12 +53,15 @@ interface MemoPlaceRowProps {
   onAssignToDay: (placeId: number, dayId?: number) => void
   toggleSelected: (id: number) => void
   setDayPickerPlace: (place: any) => void
+  days: Day[]
+  openInlineDayPicker: (place: Place, anchorEl: HTMLElement) => void
 }
 
 const MemoPlaceRow = React.memo(function MemoPlaceRow({
   place, category: cat, isSelected, isPlanned, inDay, isChecked,
   selectMode, selectedDayId, canEditPlaces, isMobile, t,
   onPlaceClick, onContextMenu, onAssignToDay, toggleSelected, setDayPickerPlace,
+  days, openInlineDayPicker,
 }: MemoPlaceRowProps) {
   const hasGeometry = Boolean(place.route_geometry)
   return (
@@ -124,9 +127,16 @@ const MemoPlaceRow = React.memo(function MemoPlaceRow({
         )}
       </div>
       <div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
-        {!selectMode && !inDay && selectedDayId && (
+        {!selectMode && !inDay && (
           <button
-            onClick={e => { e.stopPropagation(); onAssignToDay(place.id) }}
+            onClick={e => {
+              e.stopPropagation()
+              if (selectedDayId) {
+                onAssignToDay(place.id)
+              } else {
+                openInlineDayPicker(place, e.currentTarget)
+              }
+            }}
             style={{
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               width: 20, height: 20, borderRadius: 6,
@@ -268,8 +278,22 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
   const [dayPickerPlace, setDayPickerPlace] = useState(null)
   const [catDropOpen, setCatDropOpen] = useState(false)
   const [mobileShowDays, setMobileShowDays] = useState(false)
+  const [inlineDayPicker, setInlineDayPicker] = useState<{ place: Place; rect: DOMRect } | null>(null)
+  const inlinePickerRef = useRef<HTMLDivElement>(null)
 
-  // Alle geplanten Ort-IDs abrufen (einem Tag zugewiesen)
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (inlinePickerRef.current && !inlinePickerRef.current.contains(e.target as Node)) {
+        setInlineDayPicker(null)
+      }
+    }
+    if (inlineDayPicker) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [inlineDayPicker])
+
+  // Fetch all planned place IDs (assigned to a day)
   const hasTracks = useMemo(() => places.some(p => p.route_geometry), [places])
   useEffect(() => { if (filter === 'tracks' && !hasTracks) setFilter('all') }, [hasTracks, filter])
 
@@ -334,7 +358,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--accent)' }}>{t('places.sidebarDrop')}</span>
         </div>
       )}
-      {/* Kopfbereich */}
+      {/* Header */}
       <div style={{ padding: '14px 16px 10px', borderBottom: '1px solid var(--border-faint)', flexShrink: 0 }}>
         {canEditPlaces && <button
           onClick={onAddPlace}
@@ -377,7 +401,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
         <div style={{ height: 1, background: 'var(--border-primary)', margin: '2px 0 10px' }} />
         </>}
 
-        {/* Filter-Tabs */}
+        {/* Filter tabs */}
         {(() => {
           const baseFiltered = places.filter(p => {
             if (categoryFilters.size > 0) {
@@ -434,7 +458,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
           )
         })()}
 
-        {/* Suchfeld */}
+        {/* Search field */}
         <div style={{ position: 'relative' }}>
           <Search size={13} strokeWidth={1.8} color="var(--text-faint)" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }} />
           <input
@@ -578,7 +602,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
         })()}
       </div>
 
-      {/* Anzahl / Auswahl-Leiste */}
+      {/* Count / Selection bar */}
       {selectMode ? (
         <div style={{
           margin: '6px 16px', padding: '5px 8px 5px 10px', borderRadius: 8,
@@ -635,7 +659,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
         </div>
       )}
 
-      {/* Liste */}
+      {/* List */}
       <div className="trek-stagger" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px', gap: 8 }}>
@@ -672,11 +696,78 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
                 onAssignToDay={onAssignToDay}
                 toggleSelected={toggleSelected}
                 setDayPickerPlace={setDayPickerPlace}
+                days={days}
+                openInlineDayPicker={(place, anchorEl) => setInlineDayPicker({ place, rect: anchorEl.getBoundingClientRect() })}
               />
             )
           })
         )}
       </div>
+
+      {inlineDayPicker && ReactDOM.createPortal(
+        <div
+          ref={inlinePickerRef}
+          style={{
+            position: 'fixed',
+            left: Math.min(inlineDayPicker.rect.left, window.innerWidth - 220),
+            top: inlineDayPicker.rect.bottom + 6,
+            zIndex: 99999,
+            background: 'var(--bg-elevated)',
+            border: '1px solid var(--border-primary)',
+            borderRadius: 14,
+            boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+            padding: '8px 4px',
+            minWidth: 200,
+            maxHeight: 280,
+            overflowY: 'auto',
+          }}
+        >
+          {days.length === 0 && (
+            <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-faint)' }}>
+              {t('planner.noPlacesForDay')}
+            </div>
+          )}
+          {days.map((day, i) => (
+            <button
+              key={day.id}
+              onClick={() => {
+                onAssignToDay(inlineDayPicker.place.id, day.id)
+                setInlineDayPicker(null)
+              }}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 10,
+                width: '100%', padding: '8px 12px', borderRadius: 10,
+                border: 'none', cursor: 'pointer', background: 'transparent',
+                fontFamily: 'inherit', textAlign: 'left', fontSize: 13,
+                color: 'var(--text-primary)',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)' }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+            >
+              <div style={{
+                width: 26, height: 26, borderRadius: '50%',
+                background: 'var(--bg-tertiary)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0,
+              }}>
+                {i + 1}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+                  {day.title || t('dayplan.dayN', { n: i + 1 })}
+                </div>
+                {day.date && (
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+                    {new Date(day.date + 'T00:00:00Z').toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                  </div>
+                )}
+              </div>
+              {(assignments[String(day.id)] || []).some(a => a.place?.id === inlineDayPicker.place.id) && <Check size={14} color="var(--text-faint)" />}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
 
       {dayPickerPlace && ReactDOM.createPortal(
         <div

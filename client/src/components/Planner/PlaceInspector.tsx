@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffe
 import { openFile } from '../../utils/fileDownload'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, BedDouble } from 'lucide-react'
+import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, BedDouble, CalendarDays, GripVertical } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import { mapsApi, budgetApi } from '../../api/client'
 import { useToast } from '../shared/Toast'
@@ -117,7 +117,7 @@ interface PlaceInspectorProps {
   onClose: () => void
   onEdit: () => void
   onDelete: () => void
-  onAssignToDay: (placeId: number, dayId: number) => void
+  onAssignToDay: (placeId: number, dayId?: number) => void
   onRemoveAssignment: (assignmentId: number, dayId: number) => void
   files: TripFile[]
   onFileUpload?: (fd: FormData) => Promise<void>
@@ -153,7 +153,21 @@ export default function PlaceInspector({
   const [nameValue, setNameValue] = useState('')
   const nameInputRef = useRef(null)
   const fileInputRef = useRef(null)
+  const [showDayPicker, setShowDayPicker] = useState(false)
+  const dayPickerRef = useRef<HTMLDivElement>(null)
   const googleDetails = usePlaceDetails(place?.google_place_id, place?.osm_id, language)
+
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (dayPickerRef.current && !dayPickerRef.current.contains(e.target as Node)) {
+        setShowDayPicker(false)
+      }
+    }
+    if (showDayPicker) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showDayPicker])
 
   const startNameEdit = () => {
     if (!onUpdatePlace) return
@@ -253,8 +267,20 @@ export default function PlaceInspector({
     openingHours?.length > 0 || place.route_geometry ||
     (selectedAssignmentId && (reservations.find(r => r.assignment_id === selectedAssignmentId) || tripMembers.length > 1))
 
+  const isDraggable = Boolean(place)
+
   return (
     <div
+      draggable={isDraggable}
+      onDragStart={e => {
+        if (!place) return
+        e.dataTransfer.setData('placeId', String(place.id))
+        e.dataTransfer.effectAllowed = 'copy'
+        window.__dragData = { placeId: String(place.id) }
+      }}
+      onDragEnd={() => {
+        window.__dragData = null
+      }}
       style={{
         position: 'absolute',
         bottom: 20,
@@ -263,6 +289,7 @@ export default function PlaceInspector({
         width: `min(800px, calc(100% - ${leftWidth}px - ${rightWidth}px - 32px))`,
         zIndex: 50,
         fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
+        cursor: isDraggable ? 'grab' : 'default',
       }}
     >
       <div style={{
@@ -818,13 +845,94 @@ export default function PlaceInspector({
               })()}
             </div>
           )}
-          {selectedDayId && (
-            assignmentInDay ? (
-              <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
-                label={<><span className="hidden sm:inline">{t('inspector.removeFromDay')}</span><span className="sm:hidden">{t('inspector.remove')}</span></>} />
-            ) : (
-              <ActionButton onClick={() => onAssignToDay(place.id)} variant="primary" icon={<Plus size={13} />} label={t('inspector.addToDay')} />
-            )
+          {selectedDayId && assignmentInDay ? (
+            <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
+              label={<><span className="hidden sm:inline">{t('inspector.removeFromDay')}</span><span className="sm:hidden">{t('inspector.remove')}</span></>} />
+          ) : (
+            <div style={{ position: 'relative' }}>
+              <ActionButton
+                onClick={() => {
+                  if (selectedDayId) {
+                    onAssignToDay(place.id)
+                  } else {
+                    setShowDayPicker(v => !v)
+                  }
+                }}
+                variant="primary"
+                icon={<Plus size={13} />}
+                label={t('inspector.addToDay')}
+              />
+              {showDayPicker && (
+                <div
+                  ref={dayPickerRef}
+                  style={{
+                    position: 'absolute',
+                    bottom: 'calc(100% + 8px)',
+                    left: 0,
+                    zIndex: 200,
+                    background: 'var(--bg-elevated)',
+                    border: '1px solid var(--border-primary)',
+                    borderRadius: 14,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+                    padding: '8px 4px',
+                    minWidth: 200,
+                    maxHeight: 280,
+                    overflowY: 'auto',
+                  }}
+                >
+                  {days.length === 0 && (
+                    <div style={{ padding: '8px 12px', fontSize: 12, color: 'var(--text-faint)' }}>
+                      {t('planner.noPlacesForDay')}
+                    </div>
+                  )}
+                  {days.map((day, i) => (
+                    <button
+                      key={day.id}
+                      onClick={() => {
+                        onAssignToDay(place.id, day.id)
+                        setShowDayPicker(false)
+                      }}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 10,
+                        width: '100%',
+                        padding: '8px 12px',
+                        borderRadius: 10,
+                        border: 'none',
+                        cursor: 'pointer',
+                        background: 'transparent',
+                        fontFamily: 'inherit',
+                        textAlign: 'left',
+                        fontSize: 13,
+                        color: 'var(--text-primary)',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = 'var(--bg-hover)' }}
+                      onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+                    >
+                      <div style={{
+                        width: 26, height: 26, borderRadius: '50%',
+                        background: 'var(--bg-tertiary)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: 11, fontWeight: 700, color: 'var(--text-primary)', flexShrink: 0,
+                      }}>
+                        {i + 1}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-primary)' }}>
+                          {day.title || t('dayplan.dayN', { n: i + 1 })}
+                        </div>
+                        {day.date && (
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>
+                            {new Date(day.date + 'T00:00:00Z').toLocaleDateString(undefined, { timeZone: 'UTC' })}
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
           {googleDetails?.google_maps_url && (
             <ActionButton onClick={() => window.open(googleDetails.google_maps_url, '_blank')} variant="ghost" icon={<Navigation size={13} />}

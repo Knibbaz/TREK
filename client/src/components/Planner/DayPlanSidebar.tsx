@@ -329,7 +329,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
     if (editingDayId && inputRef.current) inputRef.current.focus()
   }, [editingDayId])
 
-  // Globaler Aufräum-Listener: wenn ein Drag endet ohne Drop, alles zurücksetzen
+  // Global cleanup listener: when a drag ends without a drop, reset everything
   useEffect(() => {
     const cleanup = () => {
       setDraggingId(null)
@@ -967,7 +967,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
     setDraggingId(null)
   }
 
-  // Bester verfügbarer Standort für Wetter: zugewiesene Orte zuerst, dann beliebiger Reiseort
+  // Best available location for weather: assigned places first, then any trip place
   const anyGeoAssignment = Object.values(assignments).flatMap(da => da).find(a => a.place?.lat && a.place?.lng)
   const anyGeoPlace = anyGeoAssignment || (places || []).find(p => p.lat && p.lng)
 
@@ -2023,7 +2023,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
                     )}
                   </div>
 
-                  {/* Routen-Werkzeuge (ausgewählter Tag, 2+ Orte) */}
+                  {/* Route tools (selected day, 2+ places) */}
                   {isSelected && getDayAssignments(day.id).length >= 2 && (
                     <div style={{ padding: '10px 16px 12px', borderTop: '1px solid var(--border-faint)', display: 'flex', flexDirection: 'column', gap: 7 }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-hover)', borderRadius: 8, padding: '5px 10px', minHeight: 28, alignItems: 'center' }}>
@@ -2084,7 +2084,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
         })}
       </div>
 
-      {/* Notiz-Popup-Modal — über Portal gerendert, um den backdropFilter-Stapelkontext zu umgehen */}
+      {/* Note popup modal — rendered via portal to avoid the backdropFilter stacking context */}
       {Object.entries(noteUi).map(([dayId, ui]) => ui && ReactDOM.createPortal(
         <div key={dayId} style={{
           position: 'fixed', inset: 0, zIndex: 10000,
@@ -2316,7 +2316,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
                     )
                   })()}
 
-                  {/* Schließen */}
+                  {/* Close */}
                   <div style={{ textAlign: 'right' }}>
                     <button onClick={() => setTransportDetail(null)} style={{
                       fontSize: 12, background: 'var(--accent)', color: 'var(--accent-text)',

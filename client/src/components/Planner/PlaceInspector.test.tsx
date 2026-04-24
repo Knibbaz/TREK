@@ -210,15 +210,12 @@ describe('PlaceInspector', () => {
 
   // ── Assign to / remove from day ────────────────────────────────────────────
 
-  it('FE-PLANNER-INSPECTOR-015: "Add to day" button appears when selectedDayId is set and place NOT in that day', () => {
+  it('FE-PLANNER-INSPECTOR-015: "Add to day" button is always visible when place is not in selectedDay', () => {
     render(<PlaceInspector {...defaultProps} selectedDayId={1} assignments={{ '1': [] }} />);
-    const allButtons = screen.getAllByRole('button');
-    // The add-to-day button is the first footer button (Plus icon)
-    // It should exist when selectedDayId is set and place is not assigned
-    expect(allButtons.length).toBeGreaterThan(2);
+    expect(screen.getByText('Add to Day')).toBeTruthy();
   });
 
-  it('FE-PLANNER-INSPECTOR-016: clicking assign-to-day button calls onAssignToDay with placeId', async () => {
+  it('FE-PLANNER-INSPECTOR-016: clicking assign-to-day button calls onAssignToDay with placeId when selectedDayId is set', async () => {
     const user = userEvent.setup();
     const onAssignToDay = vi.fn();
     render(
@@ -243,8 +240,7 @@ describe('PlaceInspector', () => {
         assignments={{ '1': assignmentInDay }}
       />
     );
-    const allButtons = screen.getAllByRole('button');
-    expect(allButtons.length).toBeGreaterThan(2);
+    expect(screen.getByText('Remove')).toBeTruthy();
   });
 
   it('FE-PLANNER-INSPECTOR-018: clicking remove calls onRemoveAssignment with dayId and assignmentId', async () => {
@@ -259,11 +255,49 @@ describe('PlaceInspector', () => {
         onRemoveAssignment={onRemoveAssignment}
       />
     );
-    // Find the remove button — it has "Remove" text (sm:hidden span)
     const removeBtn = screen.getByText('Remove').closest('button')!;
     await user.click(removeBtn);
-    // Component calls onRemoveAssignment(selectedDayId, assignmentInDay.id)
     expect(onRemoveAssignment).toHaveBeenCalledWith(1, 99);
+  });
+
+  it('FE-PLANNER-INSPECTOR-046: "Add to day" button is visible even without selectedDayId', () => {
+    render(<PlaceInspector {...defaultProps} selectedDayId={null} assignments={{}} />);
+    expect(screen.getByText('Add to Day')).toBeTruthy();
+  });
+
+  it('FE-PLANNER-INSPECTOR-047: clicking "Add to day" without selectedDayId opens a day picker popover', async () => {
+    const user = userEvent.setup();
+    const days = [{ id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
+    render(<PlaceInspector {...defaultProps} selectedDayId={null} assignments={{}} days={days} />);
+    const addBtn = screen.getByText('Add to Day').closest('button')!;
+    await user.click(addBtn);
+    expect(screen.getByText('Day 1')).toBeTruthy();
+  });
+
+  it('FE-PLANNER-INSPECTOR-048: selecting a day from the popover calls onAssignToDay with placeId and dayId', async () => {
+    const user = userEvent.setup();
+    const onAssignToDay = vi.fn();
+    const days = [{ id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
+    render(
+      <PlaceInspector
+        {...defaultProps}
+        selectedDayId={null}
+        assignments={{}}
+        days={days}
+        onAssignToDay={onAssignToDay}
+      />
+    );
+    const addBtn = screen.getByText('Add to Day').closest('button')!;
+    await user.click(addBtn);
+    const dayOption = screen.getByText('Day 1').closest('button')!;
+    await user.click(dayOption);
+    expect(onAssignToDay).toHaveBeenCalledWith(place.id, 1);
+  });
+
+  it('FE-PLANNER-INSPECTOR-049: place inspector is draggable', () => {
+    const { container } = render(<PlaceInspector {...defaultProps} />);
+    const inspector = container.firstChild as HTMLElement;
+    expect(inspector?.getAttribute('draggable')).toBe('true');
   });
 
   // ── Inline name editing ────────────────────────────────────────────────────
