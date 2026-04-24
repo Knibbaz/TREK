@@ -2482,6 +2482,9 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'groups.toast.tripRemoved': 'Trip removed',
   'groups.deleteConfirm.title': 'Delete Group',
   'groups.deleteConfirm.body': 'Are you sure? This will permanently delete the group and remove all members and trip links.',
+  'groups.role.owner': 'Owner',
+  'groups.role.admin': 'Admin',
+  'groups.role.member': 'Member',
 }
 
 export default en

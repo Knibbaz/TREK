@@ -414,7 +414,7 @@ export default function GroupsPage(): React.ReactElement {
                           <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-faint)' }}>
                             {member.role === 'owner' && <Crown size={10} />}
                             {member.role === 'admin' && <Shield size={10} />}
-                            <span className="capitalize">{member.role}</span>
+                            <span>{t(`groups.role.${member.role}`) || member.role}</span>
                           </div>
                         </div>
                       </div>
