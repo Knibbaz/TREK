@@ -554,6 +554,7 @@ function SettingsPanel({ groupId }: SettingsPanelProps) {
       setCountries((cData as any).countries || [])
       const settings = (sData as any).settings || {}
       if (settings.holiday_region) setRegion(settings.holiday_region)
+      else if (settings.home_country) setRegion(settings.home_country)
     } catch { /* noop */ }
     setLoading(false)
   }, [])

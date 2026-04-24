@@ -40,6 +40,7 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     dashboard_currency: 'off',
     dashboard_timezone: 'off',
     map_nav_zoom: 14,
+    home_country: '',
   },
   isLoaded: false,
 

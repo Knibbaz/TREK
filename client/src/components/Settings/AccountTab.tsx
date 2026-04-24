@@ -4,7 +4,8 @@ import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from '../../i18n'
 import { useAuthStore } from '../../store/authStore'
 import { useToast } from '../shared/Toast'
-import { authApi, adminApi } from '../../api/client'
+import { authApi, adminApi, availabilityApi } from '../../api/client'
+import { useSettingsStore } from '../../store/settingsStore'
 import { getApiErrorMessage } from '../../types'
 import type { UserWithOidc } from '../../types'
 import Section from './Section'
@@ -13,6 +14,7 @@ const MFA_BACKUP_SESSION_KEY = 'trek_mfa_backup_codes_pending'
 
 export default function AccountTab(): React.ReactElement {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loadUser, demoMode, appRequireMfa } = useAuthStore()
+  const { settings, updateSetting, loadSettings } = useSettingsStore()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
   const { t } = useTranslation()
@@ -25,11 +27,19 @@ export default function AccountTab(): React.ReactElement {
   // Profile
   const [username, setUsername] = useState<string>(user?.username || '')
   const [email, setEmail] = useState<string>(user?.email || '')
+  const [countries, setCountries] = useState<Array<{ countryCode: string; name: string }>>([])
 
   useEffect(() => {
     setUsername(user?.username || '')
     setEmail(user?.email || '')
   }, [user])
+
+  useEffect(() => {
+    loadSettings()
+    availabilityApi.listHolidayCountries()
+      .then((data: any) => setCountries(data.countries || []))
+      .catch(() => {})
+  }, [loadSettings])
 
   // Password
   const [currentPassword, setCurrentPassword] = useState('')
@@ -168,6 +178,23 @@ export default function AccountTab(): React.ReactElement {
             onChange={e => setEmail(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
           />
+        </div>
+
+        {/* Home Country */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('account.homeCountry')}</label>
+          <select
+            value={settings.home_country || ''}
+            onChange={e => updateSetting('home_country', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+          >
+            <option value="">{t('dateAvail.selectCountry') || 'Select country'}</option>
+            {countries.map(c => (
+              <option key={c.countryCode} value={c.countryCode}>{c.name}</option>
+            ))}
+          </select>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('account.homeCountryHelp')}</p>
         </div>
 
         {/* Change Password */}

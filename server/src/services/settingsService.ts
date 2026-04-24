@@ -13,6 +13,7 @@ export const DEFAULTABLE_USER_SETTING_KEYS = [
   'route_calculation',
   'blur_booking_codes',
   'map_tile_url',
+  'home_country',
 ] as const;
 
 type DefaultableKey = typeof DEFAULTABLE_USER_SETTING_KEYS[number];

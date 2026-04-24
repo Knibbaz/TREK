@@ -1005,6 +1005,16 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'atlas.tripPlural': 'Trips',
   'atlas.placeVisited': 'Place visited',
   'atlas.placesVisited': 'Places visited',
+  'atlas.livedIn': 'Lived in',
+  'atlas.volunteeredIn': 'Volunteered in',
+  'atlas.noResidency': 'None yet',
+  'atlas.noVolunteering': 'None yet',
+  'atlas.legend.title': 'Legend',
+  'atlas.legend.lived': 'Lived',
+  'atlas.legend.volunteered': 'Volunteered',
+  'atlas.legend.visited': 'Visited',
+  'account.homeCountry': 'Home country',
+  'account.homeCountryHelp': 'Used for public holidays and your Atlas profile',
 
   // Trip Planner
   'trip.tabs.plan': 'Plan',

@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { getIntlLanguage, getLocaleForLanguage, useTranslation } from '../i18n'
 import { useSettingsStore } from '../store/settingsStore'
 import Navbar from '../components/Layout/Navbar'
-import apiClient, { mapsApi } from '../api/client'
+import apiClient, { mapsApi, atlasApi } from '../api/client'
 import CustomSelect from '../components/shared/CustomSelect'
-import { Globe, MapPin, Briefcase, Calendar, Flag, ChevronRight, PanelLeftOpen, PanelLeftClose, X, Star, Plus, Trash2, Search } from 'lucide-react'
+import { Globe, MapPin, Briefcase, Calendar, Flag, ChevronRight, PanelLeftOpen, PanelLeftClose, X, Star, Plus, Trash2, Search, Home, HeartHandshake } from 'lucide-react'
 import L from 'leaflet'
 import type { AtlasPlace, GeoJsonFeatureCollection, TranslationFn } from '../types'
 
@@ -26,8 +26,29 @@ interface AtlasStats {
   totalCities?: number
 }
 
+interface ResidencyItem {
+  id: number
+  country_code: string
+  city: string | null
+  start_date: string | null
+  end_date: string | null
+  notes: string | null
+}
+
+interface VolunteeringItem {
+  id: number
+  country_code: string
+  city: string | null
+  organization: string | null
+  start_date: string | null
+  end_date: string | null
+  notes: string | null
+}
+
 interface AtlasData {
   countries: AtlasCountry[]
+  residency: ResidencyItem[]
+  volunteering: VolunteeringItem[]
   stats: AtlasStats
   mostVisited?: AtlasCountry | null
   continents?: Record<string, number>
@@ -42,6 +63,8 @@ interface CountryDetail {
   places: AtlasPlace[]
   trips: { id: number; title: string }[]
   manually_marked?: boolean
+  isResidency?: boolean
+  isVolunteering?: boolean
 }
 
 function MobileStats({ data, stats, countries, resolveName, t, dark }: { data: AtlasData | null; stats: AtlasStats; countries: AtlasCountry[]; resolveName: (code: string) => string; t: TranslationFn; dark: boolean }): React.ReactElement {
@@ -157,6 +180,9 @@ export default function AtlasPage(): React.ReactElement {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [countryDetail, setCountryDetail] = useState<CountryDetail | null>(null)
+  const [countriesList, setCountriesList] = useState<Array<{ countryCode: string; name: string }>>([])
+  const [showResidencyForm, setShowResidencyForm] = useState(false)
+  const [showVolunteeringForm, setShowVolunteeringForm] = useState(false)
   const [geoData, setGeoData] = useState<GeoJsonFeatureCollection | null>(null)
   const [visitedRegions, setVisitedRegions] = useState<Record<string, { code: string; name: string; placeCount: number; manuallyMarked?: boolean }[]>>({})
   const regionLayerRef = useRef<L.GeoJSON | null>(null)
@@ -213,14 +239,16 @@ export default function AtlasPage(): React.ReactElement {
     return opts
   }, [geoData, resolveName])
 
-  // Load atlas data + bucket list
+  // Load atlas data + bucket list + countries
   useEffect(() => {
     Promise.all([
       apiClient.get('/addons/atlas/stats'),
       apiClient.get('/addons/atlas/bucket-list'),
-    ]).then(([statsRes, bucketRes]) => {
+      apiClient.get('/availability/holidays/countries').catch(() => ({ data: { countries: [] } })),
+    ]).then(([statsRes, bucketRes, countriesRes]) => {
       setData(statsRes.data)
       setBucketList(bucketRes.data.items || [])
+      setCountriesList(countriesRes.data.countries || [])
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
@@ -380,11 +408,23 @@ export default function AtlasPage(): React.ReactElement {
 
     // Generate deterministic color per country code
     const VISITED_COLORS = ['#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6','#ef4444','#3b82f6','#22c55e','#06b6d4','#f43f5e','#a855f7','#10b981','#0ea5e9','#e11d48','#0d9488','#7c3aed','#2563eb','#dc2626','#059669','#d946ef']
+    const RESIDENCY_COLOR = '#3b82f6'
+    const VOLUNTEERING_COLOR = '#f59e0b'
+
+    // Build sets of A3 codes for each category
+    const residencyA3 = new Set(data.residency.map(r => A2_TO_A3[r.country_code]).filter(Boolean))
+    const volunteeringA3 = new Set(data.volunteering.map(v => A2_TO_A3[v.country_code]).filter(Boolean))
+
     // Assign colors in order of visit (by index in countries array) so no two neighbors share a color easily
     const visitedA3List = [...visitedA3]
-    const colorMap = {}
-    visitedA3List.forEach((a3, i) => { colorMap[a3] = VISITED_COLORS[i % VISITED_COLORS.length] })
-    const colorForCode = (a3) => colorMap[a3] || VISITED_COLORS[0]
+    const colorMap: Record<string, string> = {}
+    // Residency highest priority
+    residencyA3.forEach(a3 => { colorMap[a3] = RESIDENCY_COLOR })
+    // Volunteering second
+    volunteeringA3.forEach(a3 => { if (!colorMap[a3]) colorMap[a3] = VOLUNTEERING_COLOR })
+    // Visited last
+    visitedA3List.forEach((a3, i) => { if (!colorMap[a3]) colorMap[a3] = VISITED_COLORS[i % VISITED_COLORS.length] })
+    const colorForCode = (a3: string) => colorMap[a3] || VISITED_COLORS[0]
 
     const canvasRenderer = L.canvas({ padding: 0.5, tolerance: 5 })
 
@@ -394,10 +434,12 @@ export default function AtlasPage(): React.ReactElement {
       bubblingMouseEvents: false,
       style: (feature) => {
         const a3 = feature.properties?.ADM0_A3 || feature.properties?.ISO_A3 || feature.properties?.['ISO3166-1-Alpha-3'] || feature.id
-        const visited = visitedA3.has(a3)
+        const isResidency = residencyA3.has(a3)
+        const isVolunteering = volunteeringA3.has(a3)
+        const visited = visitedA3.has(a3) || isResidency || isVolunteering
         return {
           fillColor: visited ? colorForCode(a3) : (dark ? '#1e1e2e' : '#e2e8f0'),
-          fillOpacity: visited ? 0.7 : 0.3,
+          fillOpacity: visited ? 0.75 : 0.3,
           color: dark ? '#333' : '#cbd5e1',
           weight: 0.5,
         }
@@ -625,6 +667,40 @@ export default function AtlasPage(): React.ReactElement {
   const handleUnmarkCountry = (code: string): void => {
     const country = data?.countries.find(c => c.code === code)
     setConfirmAction({ type: 'unmark', code, name: resolveName(code) })
+  }
+
+  const handleAddResidency = async (countryCode: string) => {
+    if (!countryCode) return
+    try {
+      await atlasApi.createResidency({ country_code: countryCode })
+      const r = await apiClient.get('/addons/atlas/stats')
+      setData(r.data)
+    } catch {}
+  }
+
+  const handleDeleteResidency = async (id: number) => {
+    try {
+      await atlasApi.deleteResidency(id)
+      const r = await apiClient.get('/addons/atlas/stats')
+      setData(r.data)
+    } catch {}
+  }
+
+  const handleAddVolunteering = async (countryCode: string) => {
+    if (!countryCode) return
+    try {
+      await atlasApi.createVolunteering({ country_code: countryCode })
+      const r = await apiClient.get('/addons/atlas/stats')
+      setData(r.data)
+    } catch {}
+  }
+
+  const handleDeleteVolunteering = async (id: number) => {
+    try {
+      await atlasApi.deleteVolunteering(id)
+      const r = await apiClient.get('/addons/atlas/stats')
+      setData(r.data)
+    } catch {}
   }
 
   const select_country_from_search = (country_code: string): void => {
@@ -912,6 +988,131 @@ export default function AtlasPage(): React.ReactElement {
                 ))}
               </div>
             )}
+          </div>
+        </div>
+
+        {/* Atlas Profile Panel — desktop only, top-right */}
+        <div className="hidden md:flex flex-col absolute z-10" style={{
+          top: 'calc(env(safe-area-inset-top, 0px) + 70px)',
+          right: 16,
+          maxWidth: 260,
+          gap: 8,
+        }}>
+          {/* Legend */}
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 14,
+            background: dark ? 'rgba(10,10,15,0.55)' : 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(18px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+            border: '1px solid ' + (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+            boxShadow: dark ? '0 8px 26px rgba(0,0,0,0.25)' : '0 8px 26px rgba(0,0,0,0.10)',
+          }}>
+            <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-faint)', marginBottom: 6 }}>{t('atlas.legend.title') || 'Legend'}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#3b82f6' }} />
+                {t('atlas.legend.lived') || 'Lived'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+                {t('atlas.legend.volunteered') || 'Volunteered'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1' }} />
+                {t('atlas.legend.visited') || 'Visited'}
+              </div>
+            </div>
+          </div>
+
+          {/* Lived in */}
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 14,
+            background: dark ? 'rgba(10,10,15,0.55)' : 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(18px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+            border: '1px solid ' + (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+            boxShadow: dark ? '0 8px 26px rgba(0,0,0,0.25)' : '0 8px 26px rgba(0,0,0,0.10)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--text-faint)' }}>
+                <Home size={12} />
+                {t('atlas.livedIn') || 'Lived in'}
+              </div>
+              <button onClick={() => setShowResidencyForm(!showResidencyForm)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2 }}>
+                <Plus size={12} />
+              </button>
+            </div>
+            {showResidencyForm && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                <select
+                  value=""
+                  onChange={e => { handleAddResidency(e.target.value); setShowResidencyForm(false) }}
+                  style={{ flex: 1, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--border-primary)', fontSize: 11, fontFamily: 'inherit', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                >
+                  <option value="">{t('dateAvail.selectCountry') || 'Select country'}</option>
+                  {countriesList.map(c => <option key={c.countryCode} value={c.countryCode}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {data?.residency?.length === 0 && <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{t('atlas.noResidency') || 'None yet'}</span>}
+              {data?.residency?.map(r => (
+                <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', borderRadius: 6, background: 'rgba(59,130,246,0.12)' }}>
+                  <img src={`https://flagcdn.com/w40/${r.country_code.toLowerCase()}.png`} alt={r.country_code} style={{ width: 16, height: 12, borderRadius: 2, objectFit: 'cover' }} />
+                  <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{resolveName(r.country_code)}</span>
+                  <button onClick={() => handleDeleteResidency(r.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 0, display: 'flex' }}>
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Volunteered in */}
+          <div style={{
+            padding: '10px 12px',
+            borderRadius: 14,
+            background: dark ? 'rgba(10,10,15,0.55)' : 'rgba(255,255,255,0.55)',
+            backdropFilter: 'blur(18px) saturate(180%)',
+            WebkitBackdropFilter: 'blur(18px) saturate(180%)',
+            border: '1px solid ' + (dark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)'),
+            boxShadow: dark ? '0 8px 26px rgba(0,0,0,0.25)' : '0 8px 26px rgba(0,0,0,0.10)',
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600, color: 'var(--text-faint)' }}>
+                <HeartHandshake size={12} />
+                {t('atlas.volunteeredIn') || 'Volunteered in'}
+              </div>
+              <button onClick={() => setShowVolunteeringForm(!showVolunteeringForm)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 2 }}>
+                <Plus size={12} />
+              </button>
+            </div>
+            {showVolunteeringForm && (
+              <div style={{ display: 'flex', gap: 4, marginBottom: 6 }}>
+                <select
+                  value=""
+                  onChange={e => { handleAddVolunteering(e.target.value); setShowVolunteeringForm(false) }}
+                  style={{ flex: 1, padding: '4px 6px', borderRadius: 6, border: '1px solid var(--border-primary)', fontSize: 11, fontFamily: 'inherit', background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+                >
+                  <option value="">{t('dateAvail.selectCountry') || 'Select country'}</option>
+                  {countriesList.map(c => <option key={c.countryCode} value={c.countryCode}>{c.name}</option>)}
+                </select>
+              </div>
+            )}
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+              {data?.volunteering?.length === 0 && <span style={{ fontSize: 10, color: 'var(--text-faint)' }}>{t('atlas.noVolunteering') || 'None yet'}</span>}
+              {data?.volunteering?.map(v => (
+                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', borderRadius: 6, background: 'rgba(245,158,11,0.12)' }}>
+                  <img src={`https://flagcdn.com/w40/${v.country_code.toLowerCase()}.png`} alt={v.country_code} style={{ width: 16, height: 12, borderRadius: 2, objectFit: 'cover' }} />
+                  <span style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{resolveName(v.country_code)}</span>
+                  <button onClick={() => handleDeleteVolunteering(v.id)} style={{ border: 'none', background: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 0, display: 'flex' }}>
+                    <X size={10} />
+                  </button>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -1489,6 +1690,16 @@ function SidebarContent({ data, stats, countries, selectedCountry, countryDetail
               <p className="text-sm font-bold" style={{ color: tp }}>{resolveName(selectedCountry)}</p>
               <p className="text-[10px] mb-1" style={{ color: tf }}>{countryDetail.places.length} {t('atlas.places')} · {countryDetail.trips.length} Trips</p>
               <div className="flex flex-wrap gap-1">
+                {countryDetail.isResidency && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'rgba(59,130,246,0.12)', color: '#3b82f6' }}>
+                    <Home size={9} /> {t('atlas.legend.lived')}
+                  </span>
+                )}
+                {countryDetail.isVolunteering && (
+                  <span className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold" style={{ background: 'rgba(245,158,11,0.12)', color: '#f59e0b' }}>
+                    <HeartHandshake size={9} /> {t('atlas.legend.volunteered')}
+                  </span>
+                )}
                 {countryDetail.trips.slice(0, 3).map(trip => (
                   <button key={trip.id} onClick={() => onTripClick(trip.id)}
                     className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-semibold transition-opacity hover:opacity-75"

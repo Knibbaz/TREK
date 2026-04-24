@@ -86,16 +86,16 @@ function seedCategories(db: Database.Database): void {
 function seedAddons(db: Database.Database): void {
   try {
     const defaultAddons = [
-      { id: 'packing', name: 'Lists', description: 'Packing lists and to-do tasks for your trips', type: 'trip', icon: 'ListChecks', enabled: 1, sort_order: 0 },
-      { id: 'budget', name: 'Budget Planner', description: 'Track expenses and plan your travel budget', type: 'trip', icon: 'Wallet', enabled: 1, sort_order: 1 },
-      { id: 'documents', name: 'Documents', description: 'Store and manage travel documents', type: 'trip', icon: 'FileText', enabled: 1, sort_order: 2 },
+      { id: 'packing', name: 'Lists', description: 'Packing lists and to-do tasks for your trips', type: 'trip', icon: 'ListChecks', enabled: 0, sort_order: 0 },
+      { id: 'budget', name: 'Budget Planner', description: 'Track expenses and plan your travel budget', type: 'trip', icon: 'Wallet', enabled: 0, sort_order: 1 },
+      { id: 'documents', name: 'Documents', description: 'Store and manage travel documents', type: 'trip', icon: 'FileText', enabled: 0, sort_order: 2 },
       { id: 'vacay', name: 'Vacay', description: 'Personal vacation day planner with calendar view', type: 'global', icon: 'CalendarDays', enabled: 1, sort_order: 10 },
       { id: 'atlas', name: 'Atlas', description: 'World map of your visited countries with travel stats', type: 'global', icon: 'Globe', enabled: 1, sort_order: 11 },
       { id: 'groups', name: 'Groups', description: 'Organize trips into shared groups', type: 'global', icon: 'Users', enabled: 1, sort_order: 14 },
       { id: 'mcp', name: 'MCP', description: 'Model Context Protocol for AI assistant integration', type: 'integration', icon: 'Terminal', enabled: 0, sort_order: 12 },
       { id: 'naver_list_import', name: 'Naver List Import', description: 'Import places from shared Naver Maps lists', type: 'trip', icon: 'Link2', enabled: 1, sort_order: 13 },
-      { id: 'explore', name: 'Explore', description: 'Discover and purchase ready-made trips', type: 'global', icon: 'Compass', enabled: 1, sort_order: 12 },
-      { id: 'collab', name: 'Collab', description: 'Notes, polls, and live chat for trip collaboration', type: 'trip', icon: 'Users', enabled: 1, sort_order: 6 },
+      { id: 'explore', name: 'Explore', description: 'Discover and purchase ready-made trips', type: 'global', icon: 'Compass', enabled: 0, sort_order: 12 },
+      { id: 'collab', name: 'Collab', description: 'Notes, polls, and live chat for trip collaboration', type: 'trip', icon: 'Users', enabled: 0, sort_order: 6 },
       { id: 'journey', name: 'Journey', description: 'Trip tracking & travel journal — check-ins, photos, daily stories', type: 'global', icon: 'Compass', enabled: 0, sort_order: 35 },
     ];
     const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');

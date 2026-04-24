@@ -629,4 +629,13 @@ export const exploreApi = {
     apiClient.delete(`/addons/explore/trips/${sourceTripId}/community-places/${placeId}`).then(r => r.data),
 }
 
+export const atlasApi = {
+  listResidency: () => apiClient.get('/addons/atlas/residency').then(r => r.data),
+  createResidency: (data: Record<string, unknown>) => apiClient.post('/addons/atlas/residency', data).then(r => r.data),
+  deleteResidency: (id: number) => apiClient.delete(`/addons/atlas/residency/${id}`).then(r => r.data),
+  listVolunteering: () => apiClient.get('/addons/atlas/volunteering').then(r => r.data),
+  createVolunteering: (data: Record<string, unknown>) => apiClient.post('/addons/atlas/volunteering', data).then(r => r.data),
+  deleteVolunteering: (id: number) => apiClient.delete(`/addons/atlas/volunteering/${id}`).then(r => r.data),
+}
+
 export default apiClient

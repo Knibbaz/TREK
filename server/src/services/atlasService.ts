@@ -253,9 +253,55 @@ function getUserTrips(userId: number): Trip[] {
   return db.prepare(`
     SELECT DISTINCT t.* FROM trips t
     LEFT JOIN trip_members m ON m.trip_id = t.id AND m.user_id = ?
-    WHERE t.user_id = ? OR m.user_id = ?
+    LEFT JOIN group_trips gt ON gt.trip_id = t.id
+    LEFT JOIN group_members gm ON gm.group_id = gt.group_id AND gm.user_id = ?
+    WHERE t.user_id = ? OR m.user_id IS NOT NULL OR gm.user_id IS NOT NULL
     ORDER BY t.start_date DESC
   `).all(userId, userId, userId) as Trip[];
+}
+
+// ── Residency & Volunteering ────────────────────────────────────────────────
+
+export function listResidency(userId: number) {
+  return db.prepare(
+    'SELECT id, country_code, city, start_date, end_date, notes FROM user_residency WHERE user_id = ? ORDER BY start_date DESC'
+  ).all(userId);
+}
+
+export function createResidency(userId: number, data: { country_code: string; city?: string; start_date?: string; end_date?: string; notes?: string }) {
+  const info = db.prepare(
+    'INSERT INTO user_residency (user_id, country_code, city, start_date, end_date, notes) VALUES (?, ?, ?, ?, ?, ?)'
+  ).run(userId, data.country_code.toUpperCase(), data.city || null, data.start_date || null, data.end_date || null, data.notes || null);
+  return db.prepare('SELECT id, country_code, city, start_date, end_date, notes FROM user_residency WHERE id = ?').get(info.lastInsertRowid);
+}
+
+export function deleteResidency(userId: number, id: number) {
+  const existing = db.prepare('SELECT user_id FROM user_residency WHERE id = ?').get(id) as { user_id: number } | undefined;
+  if (!existing) return false;
+  if (existing.user_id !== userId) return false;
+  db.prepare('DELETE FROM user_residency WHERE id = ?').run(id);
+  return true;
+}
+
+export function listVolunteering(userId: number) {
+  return db.prepare(
+    'SELECT id, country_code, city, organization, start_date, end_date, notes FROM user_volunteering WHERE user_id = ? ORDER BY start_date DESC'
+  ).all(userId);
+}
+
+export function createVolunteering(userId: number, data: { country_code: string; city?: string; organization?: string; start_date?: string; end_date?: string; notes?: string }) {
+  const info = db.prepare(
+    'INSERT INTO user_volunteering (user_id, country_code, city, organization, start_date, end_date, notes) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(userId, data.country_code.toUpperCase(), data.city || null, data.organization || null, data.start_date || null, data.end_date || null, data.notes || null);
+  return db.prepare('SELECT id, country_code, city, organization, start_date, end_date, notes FROM user_volunteering WHERE id = ?').get(info.lastInsertRowid);
+}
+
+export function deleteVolunteering(userId: number, id: number) {
+  const existing = db.prepare('SELECT user_id FROM user_volunteering WHERE id = ?').get(id) as { user_id: number } | undefined;
+  if (!existing) return false;
+  if (existing.user_id !== userId) return false;
+  db.prepare('DELETE FROM user_volunteering WHERE id = ?').run(id);
+  return true;
 }
 
 function getPlacesForTrips(tripIds: number[]): Place[] {
@@ -318,10 +364,13 @@ export async function getStats(userId: number) {
   const trips = getUserTrips(userId);
   const tripIds = trips.map(t => t.id);
 
+  const residency = listResidency(userId) as Array<{ country_code: string; city: string | null; start_date: string | null; end_date: string | null; notes: string | null }>;
+  const volunteering = listVolunteering(userId) as Array<{ country_code: string; city: string | null; organization: string | null; start_date: string | null; end_date: string | null; notes: string | null }>;
+
   if (tripIds.length === 0) {
     const manualCountries = db.prepare('SELECT country_code FROM visited_countries WHERE user_id = ?').all(userId) as { country_code: string }[];
     const countries = manualCountries.map(mc => ({ code: mc.country_code, placeCount: 0, tripCount: 0, firstVisit: null, lastVisit: null }));
-    return { countries, trips: [], stats: { totalTrips: 0, totalPlaces: 0, totalCountries: countries.length, totalDays: 0 } };
+    return { countries, residency, volunteering, trips: [], stats: { totalTrips: 0, totalPlaces: 0, totalCountries: countries.length, totalDays: 0 } };
   }
 
   const places = getPlacesForTrips(tripIds);
@@ -424,6 +473,8 @@ export async function getStats(userId: number) {
 
   return {
     countries,
+    residency,
+    volunteering,
     stats: {
       totalTrips: trips.length,
       totalPlaces: places.length,
@@ -464,7 +515,9 @@ export function getCountryPlaces(userId: number, code: string) {
   const matchingTrips = trips.filter(t => matchingTripIds.has(t.id)).map(t => ({ id: t.id, title: t.title, start_date: t.start_date, end_date: t.end_date }));
 
   const isManuallyMarked = !!(db.prepare('SELECT 1 FROM visited_countries WHERE user_id = ? AND country_code = ?').get(userId, code));
-  return { places: matchingPlaces, trips: matchingTrips, manually_marked: isManuallyMarked };
+  const isResidency = !!(db.prepare('SELECT 1 FROM user_residency WHERE user_id = ? AND country_code = ?').get(userId, code));
+  const isVolunteering = !!(db.prepare('SELECT 1 FROM user_volunteering WHERE user_id = ? AND country_code = ?').get(userId, code));
+  return { places: matchingPlaces, trips: matchingTrips, manually_marked: isManuallyMarked, isResidency, isVolunteering };
 }
 
 // ── Mark / unmark country ───────────────────────────────────────────────────

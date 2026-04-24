@@ -614,6 +614,33 @@ function createTables(db: Database.Database): void {
       UNIQUE(place_id, user_id)
     );
     CREATE INDEX IF NOT EXISTS idx_place_votes_place ON place_votes(place_id);
+
+    CREATE TABLE IF NOT EXISTS user_residency (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      country_code TEXT NOT NULL,
+      city TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, country_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_residency_user ON user_residency(user_id);
+
+    CREATE TABLE IF NOT EXISTS user_volunteering (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      country_code TEXT NOT NULL,
+      city TEXT,
+      organization TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, country_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_volunteering_user ON user_volunteering(user_id);
   `);
 }
 

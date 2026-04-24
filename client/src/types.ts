@@ -225,6 +225,7 @@ export interface Settings {
   mapbox_quality_mode?: boolean
   booking_affiliate_id?: string
   map_nav_zoom?: number
+  home_country?: string
 }
 
 export interface DateProposalMember {

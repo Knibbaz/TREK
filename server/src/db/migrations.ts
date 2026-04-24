@@ -2392,6 +2392,37 @@ function runMigrations(db: Database.Database): void {
         db.exec("ALTER TABLE date_proposals ADD COLUMN reminder_sent INTEGER NOT NULL DEFAULT 0");
       }
     },
+    // Migration: User residency and volunteering for Atlas
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_residency (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          country_code TEXT NOT NULL,
+          city TEXT,
+          start_date TEXT,
+          end_date TEXT,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, country_code)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_residency_user ON user_residency(user_id);
+
+        CREATE TABLE IF NOT EXISTS user_volunteering (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          country_code TEXT NOT NULL,
+          city TEXT,
+          organization TEXT,
+          start_date TEXT,
+          end_date TEXT,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, country_code)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_volunteering_user ON user_volunteering(user_id);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

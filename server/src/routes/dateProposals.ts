@@ -21,7 +21,7 @@ function canEdit(role: string): boolean {
 
 function getGroupMembers(groupId: string): Array<{ id: number; username: string; avatar_url: string | null }> {
   return db.prepare(`
-    SELECT u.id, u.username, u.avatar_url
+    SELECT u.id, u.username, u.avatar AS avatar_url
     FROM group_members gm JOIN users u ON u.id = gm.user_id
     WHERE gm.group_id = ?
     ORDER BY CASE gm.role WHEN 'owner' THEN 0 WHEN 'admin' THEN 1 ELSE 2 END, u.username
