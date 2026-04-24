@@ -56,12 +56,16 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
   const [route, setRoute] = useState<[number, number][][] | null>(null)
   const [routeInfo, setRouteInfo] = useState<RouteResult | null>(null)
   const [routeSegments, setRouteSegments] = useState<RouteSegment[]>([])
+  const [isCalculating, setIsCalculating] = useState(false)
   const routeCalcEnabled = useSettingsStore((s) => s.settings.route_calculation) !== false
   const routeAbortRef = useRef<AbortController | null>(null)
   const reservationsForSignature = useTripStore((s) => s.reservations)
 
   const updateRouteForDay = useCallback(async (dayId: number | null, connectDays = false) => {
     if (routeAbortRef.current) routeAbortRef.current.abort()
+    setIsCalculating(true)
+    try {
+    // ── inner ──────────────────────────────────────────────────────────────
 
     const currentAssignments = useTripStore.getState().assignments || {}
     const allReservations = useTripStore.getState().reservations || []
@@ -205,6 +209,10 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
       if (err instanceof Error && err.name !== 'AbortError') setRouteSegments([])
       else if (!(err instanceof Error)) setRouteSegments([])
     }
+    // ── end inner ──────────────────────────────────────────────────────────
+    } finally {
+      setIsCalculating(false)
+    }
   }, [routeCalcEnabled])
 
   // Stable signature for transport reservations on the selected day
@@ -230,5 +238,5 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedDayId, selectedDayAssignments, allAssignmentsSignature, transportSignature])
 
-  return { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay }
+  return { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay, isCalculating }
 }

@@ -397,7 +397,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     })
   }, [places, mapCategoryFilter, mapPlacesFilter, assignments, expandedDayIds])
 
-  const { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay } = useRouteCalculation({ assignments } as any, selectedDayId)
+  const { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay, isCalculating: isRouteCalculating } = useRouteCalculation({ assignments } as any, selectedDayId)
 
   const handleSelectDay = useCallback((dayId, skipFit) => {
     const changed = dayId !== selectedDayId
@@ -950,6 +950,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   lastActionLabel={lastActionLabel}
                   onUndo={handleUndo}
                   onRouteRefresh={() => { if (selectedDayId) updateRouteForDay(selectedDayId) }}
+                  isRouteCalculating={isRouteCalculating}
                   onAddBookingToAssignment={can('day_edit', trip) ? (dayId, assignmentId) => { tripActions.setSelectedDay(dayId); setBookingForAssignmentId(assignmentId); setEditingReservation(null); setShowReservationModal(true) } : undefined}
                 />
                 {!leftCollapsed && (

@@ -4,7 +4,7 @@ declare global { interface Window { __dragData: DragDataPayload | null } }
 
 import React, { useState, useEffect, useRef, useMemo } from 'react'
 import ReactDOM from 'react-dom'
-import { ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Navigation, RotateCcw, ExternalLink, Clock, Pencil, GripVertical, Ticket, Plus, FileText, Check, Trash2, Info, MapPin, Star, Heart, Camera, Lightbulb, Flag, Bookmark, Train, Bus, Plane, Car, Ship, Coffee, ShoppingBag, AlertTriangle, FileDown, Lock, Hotel, Utensils, Users, Undo2, X, Route as RouteIcon } from 'lucide-react'
+import { ChevronDown, ChevronRight, ChevronUp, ChevronsDownUp, ChevronsUpDown, Navigation, RotateCcw, ExternalLink, Clock, Pencil, GripVertical, Ticket, Plus, FileText, Check, Trash2, Info, MapPin, Star, Heart, Camera, Lightbulb, Flag, Bookmark, Train, Bus, Plane, Car, Ship, Coffee, ShoppingBag, AlertTriangle, FileDown, Lock, Hotel, Utensils, Users, Undo2, X, Route as RouteIcon, Loader2 } from 'lucide-react'
 
 const RES_ICONS = { flight: Plane, hotel: Hotel, restaurant: Utensils, train: Train, car: Car, cruise: Ship, event: Ticket, tour: Users, other: FileText }
 import { assignmentsApi, reservationsApi } from '../../api/client'
@@ -185,6 +185,7 @@ interface DayPlanSidebarProps {
   lastActionLabel?: string | null
   onUndo?: () => void
   onRouteRefresh?: () => void
+  isRouteCalculating?: boolean
   onAddTransport?: (dayId: number) => void
   onEditTransport?: (reservation: Reservation) => void
   onEditReservation?: (reservation: Reservation) => void
@@ -213,6 +214,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
   lastActionLabel = null,
   onUndo,
   onRouteRefresh,
+  isRouteCalculating = false,
   onAddTransport,
   onEditTransport,
   onEditReservation,
@@ -239,6 +241,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
   const [editingDayId, setEditingDayId] = useState(null)
   const [editTitle, setEditTitle] = useState('')
   const [isCalculating, setIsCalculating] = useState(false)
+  const [routeDone, setRouteDone] = useState(false)
   const [routeInfo, setRouteInfo] = useState(null)
   const [draggingId, setDraggingId] = useState(null)
   const [lockedIds, setLockedIds] = useState(new Set())
@@ -342,6 +345,16 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
   // Initialize missing transport positions outside of render to avoid setState-during-render
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { days.forEach(day => initTransportPositions(day.id)) }, [days, reservations])
+
+  const prevIsCalculating = useRef(false)
+  useEffect(() => {
+    if (prevIsCalculating.current && !isRouteCalculating) {
+      setRouteDone(true)
+      const t = setTimeout(() => setRouteDone(false), 2000)
+      return () => clearTimeout(t)
+    }
+    prevIsCalculating.current = isRouteCalculating
+  }, [isRouteCalculating])
 
   const toggleDay = (dayId, e) => {
     e.stopPropagation()
@@ -1996,19 +2009,34 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
                   {/* Routen-Werkzeuge (ausgewählter Tag, 2+ Orte) */}
                   {isSelected && getDayAssignments(day.id).length >= 2 && (
                     <div style={{ padding: '10px 16px 12px', borderTop: '1px solid var(--border-faint)', display: 'flex', flexDirection: 'column', gap: 7 }}>
-                      {routeInfo && (
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-hover)', borderRadius: 8, padding: '5px 10px' }}>
-                          <span>{routeInfo.distance}</span>
-                          <span style={{ color: 'var(--text-faint)' }}>·</span>
-                          <span>{routeInfo.duration}</span>
-                        </div>
-                      )}
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 12, fontSize: 12, color: 'var(--text-secondary)', background: 'var(--bg-hover)', borderRadius: 8, padding: '5px 10px', minHeight: 28, alignItems: 'center' }}>
+                        {isRouteCalculating ? (
+                          <>
+                            <Loader2 size={12} style={{ animation: 'spin 1s linear infinite', flexShrink: 0 }} />
+                            <span>{t('dayplan.routeCalculating')}</span>
+                          </>
+                        ) : routeDone ? (
+                          <>
+                            <Check size={12} style={{ color: '#16a34a', flexShrink: 0 }} />
+                            <span style={{ color: '#16a34a' }}>{t('dayplan.routeReady')}</span>
+                          </>
+                        ) : routeInfo ? (
+                          <>
+                            <span>{routeInfo.distance}</span>
+                            <span style={{ color: 'var(--text-faint)' }}>·</span>
+                            <span>{routeInfo.duration}</span>
+                          </>
+                        ) : (
+                          <span style={{ color: 'var(--text-faint)', fontStyle: 'italic' }}>{t('dayplan.noRoute')}</span>
+                        )}
+                      </div>
 
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={handleOptimize} style={{
+                        <button onClick={handleOptimize} disabled={isRouteCalculating} style={{
                           flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
                           padding: '6px 0', fontSize: 11, fontWeight: 500, borderRadius: 8, border: 'none',
-                          background: 'var(--bg-hover)', color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit',
+                          background: 'var(--bg-hover)', color: 'var(--text-secondary)', cursor: isRouteCalculating ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                          opacity: isRouteCalculating ? 0.5 : 1,
                         }}>
                           <RotateCcw size={12} strokeWidth={2} />
                           {t('dayplan.optimize')}
