@@ -1,7 +1,9 @@
 import express, { Request, Response } from 'express';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
+import { db } from '../db/database';
 import * as svc from '../services/groupsService';
+import { broadcastToGroup } from '../websocket';
 
 const router = express.Router();
 
@@ -62,6 +64,11 @@ router.post('/:id/members', (req: Request, res: Response) => {
   if (!user_id) return res.status(400).json({ error: 'user_id required' });
   const result = svc.addMemberToGroup(groupId, parseInt(user_id), userId, role || 'member');
   if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  const addedUser = db.prepare('SELECT id, username, avatar_url FROM users WHERE id = ?').get(user_id) as { id: number; username: string; avatar_url: string | null } | undefined;
+  broadcastToGroup(groupId, 'group:memberJoined', {
+    groupId,
+    user: addedUser || { id: parseInt(user_id), username: '', avatar_url: null },
+  }, req.headers['x-socket-id'] as string);
   const group = svc.getGroup(userId, groupId);
   res.json({ group });
 });
@@ -73,6 +80,10 @@ router.delete('/:id/members/:userId', (req: Request, res: Response) => {
   const memberUserId = parseInt(req.params.userId);
   const result = svc.removeMemberFromGroup(groupId, memberUserId, userId);
   if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  broadcastToGroup(groupId, 'group:memberLeft', {
+    groupId,
+    userId: memberUserId,
+  }, req.headers['x-socket-id'] as string);
   res.json({ success: true });
 });
 
@@ -85,6 +96,11 @@ router.put('/:id/members/:userId/role', (req: Request, res: Response) => {
   if (!role || (role !== 'admin' && role !== 'member')) return res.status(400).json({ error: 'role must be admin or member' });
   const result = svc.updateMemberRole(groupId, memberUserId, userId, role);
   if (!result.success) return res.status(result.error?.includes('owner') ? 403 : 400).json({ error: result.error });
+  broadcastToGroup(groupId, 'group:memberRoleUpdated', {
+    groupId,
+    userId: memberUserId,
+    role,
+  }, req.headers['x-socket-id'] as string);
   res.json({ success: true });
 });
 
@@ -155,6 +171,14 @@ router.post('/join/:token', (req: Request, res: Response) => {
   const userId = (req as AuthRequest).user.id;
   const result = svc.joinGroupWithToken(userId, req.params.token);
   if (!result.success) return res.status(result.status || 400).json({ error: result.error });
+  // Notify all clients in the group room that a new member joined
+  if (result.groupId) {
+    const user = db.prepare('SELECT id, username, avatar_url FROM users WHERE id = ?').get(userId) as { id: number; username: string; avatar_url: string | null } | undefined;
+    broadcastToGroup(result.groupId, 'group:memberJoined', {
+      groupId: result.groupId,
+      user: user || { id: userId, username: '', avatar_url: null },
+    }, req.headers['x-socket-id'] as string);
+  }
   res.json({ success: true, groupId: result.groupId });
 });
 

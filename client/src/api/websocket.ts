@@ -9,6 +9,7 @@ let reconnectDelay = 1000
 const MAX_RECONNECT_DELAY = 30000
 const listeners = new Set<WebSocketListener>()
 const activeTrips = new Set<string>()
+const activeGroups = new Set<string>()
 let shouldReconnect = false
 let refetchCallback: RefetchCallback | null = null
 let mySocketId: string | null = null
@@ -127,6 +128,13 @@ async function connectInternal(_isReconnect = false): Promise<void> {
         }
       }
     }
+    if (activeGroups.size > 0) {
+      activeGroups.forEach(groupId => {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+          socket.send(JSON.stringify({ type: 'joinGroup', groupId }))
+        }
+      })
+    }
   }
 
   socket.onmessage = handleMessage
@@ -160,6 +168,7 @@ export function disconnect(): void {
     reconnectTimer = null
   }
   activeTrips.clear()
+  activeGroups.clear()
   if (socket) {
     socket.onclose = null
     socket.close()
@@ -178,6 +187,20 @@ export function leaveTrip(tripId: number | string): void {
   activeTrips.delete(String(tripId))
   if (socket && socket.readyState === WebSocket.OPEN) {
     socket.send(JSON.stringify({ type: 'leave', tripId: String(tripId) }))
+  }
+}
+
+export function joinGroup(groupId: number | string): void {
+  activeGroups.add(String(groupId))
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: 'joinGroup', groupId: String(groupId) }))
+  }
+}
+
+export function leaveGroup(groupId: number | string): void {
+  activeGroups.delete(String(groupId))
+  if (socket && socket.readyState === WebSocket.OPEN) {
+    socket.send(JSON.stringify({ type: 'leaveGroup', groupId: String(groupId) }))
   }
 }
 

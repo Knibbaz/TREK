@@ -4,6 +4,7 @@ import { useTranslation } from '../i18n'
 import { useGroupsStore } from '../store/groupsStore'
 import { useAuthStore } from '../store/authStore'
 import { tripsApi, groupsApi } from '../api/client'
+import { joinGroup, leaveGroup, addListener, removeListener } from '../api/websocket'
 import Navbar from '../components/Layout/Navbar'
 import Modal from '../components/shared/Modal'
 import {
@@ -59,6 +60,40 @@ export default function GroupsPage(): React.ReactElement {
 
   useEffect(() => { loadGroups() }, [])
   useEffect(() => { clearError() }, [view])
+
+  // Join WebSocket rooms for all groups and listen for live updates
+  useEffect(() => {
+    groups.forEach(g => joinGroup(g.id))
+
+    const handler = (event: Record<string, unknown>) => {
+      const gid = (event as any).groupId as number
+      if (!gid) return
+      if (event.type === 'group:memberJoined' || event.type === 'group:memberLeft' || event.type === 'group:memberRoleUpdated') {
+        // If the current user was removed from the group they're viewing, kick them back to list
+        if (event.type === 'group:memberLeft' && currentGroup?.id === gid) {
+          const removedUserId = (event as any).userId as number
+          if (removedUserId === user?.id) {
+            setView('list')
+            setCurrentGroup(null)
+            loadGroups()
+            return
+          }
+        }
+        // Refresh current group detail if open
+        if (currentGroup?.id === gid) {
+          getGroup(gid)
+        }
+        // Also refresh the groups list so member counts stay correct
+        loadGroups()
+      }
+    }
+    addListener(handler)
+
+    return () => {
+      groups.forEach(g => leaveGroup(g.id))
+      removeListener(handler)
+    }
+  }, [groups, currentGroup])
 
   // Close member menu on outside click
   useEffect(() => {

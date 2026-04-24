@@ -1,5 +1,5 @@
 import { WebSocketServer, WebSocket } from 'ws';
-import { db, canAccessTrip } from './db/database';
+import { db, canAccessTrip, canAccessGroup } from './db/database';
 import { consumeEphemeralToken } from './services/ephemeralTokens';
 import { User } from './types';
 import http from 'node:http';
@@ -11,8 +11,14 @@ interface NomadWebSocket extends WebSocket {
 // Room management: tripId -> Set<WebSocket>
 const rooms = new Map<number, Set<NomadWebSocket>>();
 
-// Track which rooms each socket is in
+// Group room management: groupId -> Set<WebSocket>
+const groupRooms = new Map<number, Set<NomadWebSocket>>();
+
+// Track which trip rooms each socket is in
 const socketRooms = new WeakMap<NomadWebSocket, Set<number>>();
+
+// Track which group rooms each socket is in
+const socketGroups = new WeakMap<NomadWebSocket, Set<number>>();
 
 // Track user info per socket
 const socketUser = new WeakMap<NomadWebSocket, User>();
@@ -95,6 +101,7 @@ function setupWebSocket(server: http.Server): void {
     socketId.set(nws, sid);
     socketUser.set(nws, user);
     socketRooms.set(nws, new Set());
+    socketGroups.set(nws, new Set());
     nws.send(JSON.stringify({ type: 'welcome', socketId: sid }));
 
     nws.on('pong', () => { nws.isAlive = true; });
@@ -116,7 +123,7 @@ function setupWebSocket(server: http.Server): void {
         }
       }
 
-      let msg: { type: string; tripId?: number | string };
+      let msg: { type: string; tripId?: number | string; groupId?: number | string };
       try {
         msg = JSON.parse(data.toString());
       } catch {
@@ -145,14 +152,39 @@ function setupWebSocket(server: http.Server): void {
         leaveRoom(nws, tripId);
         nws.send(JSON.stringify({ type: 'left', tripId }));
       }
+
+      if (msg.type === 'joinGroup' && msg.groupId) {
+        const groupId = Number(msg.groupId);
+        if (!canAccessGroup(groupId, user.id)) {
+          nws.send(JSON.stringify({ type: 'error', message: 'Access denied' }));
+          return;
+        }
+        if (!groupRooms.has(groupId)) groupRooms.set(groupId, new Set());
+        groupRooms.get(groupId).add(nws);
+        socketGroups.get(nws).add(groupId);
+        nws.send(JSON.stringify({ type: 'joinedGroup', groupId }));
+      }
+
+      if (msg.type === 'leaveGroup' && msg.groupId) {
+        const groupId = Number(msg.groupId);
+        leaveGroupRoom(nws, groupId);
+        nws.send(JSON.stringify({ type: 'leftGroup', groupId }));
+      }
     });
 
     nws.on('close', () => {
-      // Clean up all rooms this socket was in
+      // Clean up all trip rooms this socket was in
       const myRooms = socketRooms.get(nws);
       if (myRooms) {
         for (const tripId of myRooms) {
           leaveRoom(nws, tripId);
+        }
+      }
+      // Clean up all group rooms this socket was in
+      const myGroups = socketGroups.get(nws);
+      if (myGroups) {
+        for (const groupId of myGroups) {
+          leaveGroupRoom(nws, groupId);
         }
       }
     });
@@ -169,6 +201,16 @@ function leaveRoom(ws: NomadWebSocket, tripId: number): void {
   }
   const myRooms = socketRooms.get(ws);
   if (myRooms) myRooms.delete(tripId);
+}
+
+function leaveGroupRoom(ws: NomadWebSocket, groupId: number): void {
+  const room = groupRooms.get(groupId);
+  if (room) {
+    room.delete(ws);
+    if (room.size === 0) groupRooms.delete(groupId);
+  }
+  const myGroups = socketGroups.get(ws);
+  if (myGroups) myGroups.delete(groupId);
 }
 
 /**
@@ -204,6 +246,23 @@ function broadcastToUser(userId: number, payload: Record<string, unknown>, exclu
   }
 }
 
+/**
+ * Broadcast an event to all sockets in a group room, optionally excluding a socket.
+ */
+function broadcastToGroup(groupId: number | string, eventType: string, payload: Record<string, unknown>, excludeSid?: number | string): void {
+  const gid = Number(groupId);
+  const room = groupRooms.get(gid);
+  if (!room || room.size === 0) return;
+
+  const excludeNum = excludeSid ? Number(excludeSid) : null;
+
+  for (const ws of room) {
+    if (ws.readyState !== 1) continue;
+    if (excludeNum && socketId.get(ws) === excludeNum) continue;
+    ws.send(JSON.stringify({ type: eventType, groupId: gid, ...payload }));
+  }
+}
+
 function getOnlineUserIds(): Set<number> {
   const ids = new Set<number>();
   if (!wss) return ids;
@@ -216,4 +275,4 @@ function getOnlineUserIds(): Set<number> {
   return ids;
 }
 
-export { setupWebSocket, broadcast, broadcastToUser, getOnlineUserIds };
+export { setupWebSocket, broadcast, broadcastToGroup, broadcastToUser, getOnlineUserIds };
