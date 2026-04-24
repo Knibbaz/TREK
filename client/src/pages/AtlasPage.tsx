@@ -25,6 +25,10 @@ interface AtlasStats {
   totalCountries: number
   totalDays: number
   totalCities?: number
+  conceptTrips?: number
+  plannedTrips?: number
+  activeTrips?: number
+  pastTrips?: number
 }
 
 interface ResidencyItem {
@@ -70,21 +74,47 @@ interface CountryDetail {
 
 function MobileStats({ data, stats, countries, resolveName, t, dark }: { data: AtlasData | null; stats: AtlasStats; countries: AtlasCountry[]; resolveName: (code: string) => string; t: TranslationFn; dark: boolean }): React.ReactElement {
   const tp = dark ? '#f1f5f9' : '#0f172a'
+  const tm = dark ? '#94a3b8' : '#64748b'
   const tf = dark ? '#475569' : '#94a3b8'
   const { continents, lastTrip, nextTrip, streak, firstYear, tripsThisYear } = data || {}
   const CL = { 'Europe': t('atlas.europe'), 'Asia': t('atlas.asia'), 'North America': t('atlas.northAmerica'), 'South America': t('atlas.southAmerica'), 'Africa': t('atlas.africa'), 'Oceania': t('atlas.oceania') }
   const thisYear = new Date().getFullYear()
 
+  const hasTripBreakdown = (stats.conceptTrips || 0) > 0 || (stats.plannedTrips || 0) > 0
+
   return (
     <div className="space-y-4">
       {/* Stats grid */}
       <div className="grid grid-cols-5 gap-2">
-        {[[stats.totalCountries, t('atlas.countries')], [stats.totalTrips, t('atlas.trips')], [stats.totalPlaces, t('atlas.places')], [stats.totalCities || 0, t('atlas.cities')], [stats.totalDays, t('atlas.days')]].map(([v, l], i) => (
-          <div key={i} className="text-center py-2">
-            <p className="text-xl font-black tabular-nums" style={{ color: tp }}>{v}</p>
-            <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: tf }}>{l}</p>
-          </div>
-        ))}
+        <div className="text-center py-2">
+          <p className="text-xl font-black tabular-nums" style={{ color: tp }}>{stats.totalCountries}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: tf }}>{t('atlas.countries')}</p>
+        </div>
+        <div className="text-center py-2">
+          <p className="text-xl font-black tabular-nums" style={{ color: tp }}>{stats.totalTrips}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: tf }}>{t('atlas.trips')}</p>
+          {hasTripBreakdown && (
+            <p className="text-[8px] mt-0.5" style={{ color: tf, opacity: 0.7, lineHeight: 1.3 }}>
+              {[
+                (stats.conceptTrips || 0) > 0 && `${stats.conceptTrips} ${t('atlas.conceptShort')}`,
+                (stats.plannedTrips || 0) > 0 && `${stats.plannedTrips} ${t('atlas.plannedShort')}`,
+                (stats.pastTrips || 0) > 0 && `${stats.pastTrips} ${t('atlas.pastShort')}`,
+              ].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+        <div className="text-center py-2">
+          <p className="text-xl font-black tabular-nums" style={{ color: tp }}>{stats.totalPlaces}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: tf }}>{t('atlas.places')}</p>
+        </div>
+        <div className="text-center py-2">
+          <p className="text-xl font-black tabular-nums" style={{ color: tp }}>{stats.totalCities || 0}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: tf }}>{t('atlas.cities')}</p>
+        </div>
+        <div className="text-center py-2">
+          <p className="text-xl font-black tabular-nums" style={{ color: tp }}>{stats.totalDays}</p>
+          <p className="text-[9px] font-semibold uppercase tracking-wide" style={{ color: tf }}>{t('atlas.days')}</p>
+        </div>
       </div>
       {/* Continents */}
       <div className="grid grid-cols-6 gap-1">
@@ -1133,7 +1163,12 @@ export default function AtlasPage(): React.ReactElement {
               <p className="text-3xl font-black tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>{stats.totalCountries}</p>
               <p className="text-[9px] font-semibold uppercase tracking-wide mt-1" style={{ color: 'var(--text-faint)' }}>{t('atlas.countries')}</p>
             </div>
-            {[[stats.totalTrips, t('atlas.trips')], [stats.totalPlaces, t('atlas.places')], [stats.totalCities || 0, t('atlas.cities')], [stats.totalDays, t('atlas.days')]].map(([v, l], i) => (
+            {/* Trips — with breakdown if applicable */}
+            <div className="text-center px-1">
+              <p className="text-xl font-black tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>{stats.totalTrips}</p>
+              <p className="text-[9px] font-semibold uppercase tracking-wide mt-1" style={{ color: 'var(--text-faint)' }}>{t('atlas.trips')}</p>
+            </div>
+            {[[stats.totalPlaces, t('atlas.places')], [stats.totalCities || 0, t('atlas.cities')], [stats.totalDays, t('atlas.days')]].map(([v, l], i) => (
               <div key={i} className="text-center px-1">
                 <p className="text-xl font-black tabular-nums leading-none" style={{ color: 'var(--text-primary)' }}>{v}</p>
                 <p className="text-[9px] font-semibold uppercase tracking-wide mt-1" style={{ color: 'var(--text-faint)' }}>{l}</p>
@@ -1663,7 +1698,21 @@ function SidebarContent({ data, stats, countries, selectedCountry, countryDetail
         <span className="text-sm font-medium" style={{ color: tm }}>{t('atlas.countries')}</span>
       </div>
       {/* Other stats */}
-      {[[stats.totalTrips, t('atlas.trips')], [stats.totalPlaces, t('atlas.places')], [stats.totalCities || 0, t('atlas.cities')], [stats.totalDays, t('atlas.days')]].map(([v, l], i) => (
+      {/* Trips — with concept/planned/past breakdown */}
+      <div className="flex flex-col items-center justify-center px-3 py-5 shrink-0">
+        <span className="text-2xl font-black tabular-nums leading-none" style={{ color: tp }}>{stats.totalTrips}</span>
+        <span className="text-[9px] font-semibold mt-1.5 uppercase tracking-wide whitespace-nowrap" style={{ color: tf }}>{t('atlas.trips')}</span>
+        {((stats.conceptTrips || 0) > 0 || (stats.plannedTrips || 0) > 0) && (
+          <span className="text-[8px] mt-0.5" style={{ color: tf, opacity: 0.7, lineHeight: 1.3, maxWidth: 80, textAlign: 'center' }}>
+            {[
+              (stats.conceptTrips || 0) > 0 && `${stats.conceptTrips} ${t('atlas.conceptShort')}`,
+              (stats.plannedTrips || 0) > 0 && `${stats.plannedTrips} ${t('atlas.plannedShort')}`,
+              (stats.pastTrips || 0) > 0 && `${stats.pastTrips} ${t('atlas.pastShort')}`,
+            ].filter(Boolean).join(' · ')}
+          </span>
+        )}
+      </div>
+      {[[stats.totalPlaces, t('atlas.places')], [stats.totalCities || 0, t('atlas.cities')], [stats.totalDays, t('atlas.days')]].map(([v, l], i) => (
         <div key={i} className="flex flex-col items-center justify-center px-3 py-5 shrink-0">
           <span className="text-2xl font-black tabular-nums leading-none" style={{ color: tp }}>{v}</span>
           <span className="text-[9px] font-semibold mt-1.5 uppercase tracking-wide whitespace-nowrap" style={{ color: tf }}>{l}</span>
@@ -1701,6 +1750,21 @@ function SidebarContent({ data, stats, countries, selectedCountry, countryDetail
             <div className="min-w-0">
               <p className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: tf }}>{t('atlas.lastTrip')}</p>
               <p className="text-[13px] font-bold truncate" style={{ color: tp }}>{lastTrip.title}</p>
+            </div>
+          </button>
+        )}
+        {/* Next trip */}
+        {nextTrip && (
+          <button onClick={() => onTripClick(nextTrip.id)} className="flex items-center gap-2.5 text-left transition-opacity hover:opacity-75">
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center text-lg shrink-0" style={{ background: bg(0.06) }}>
+              <Calendar size={16} style={{ color: tm }} />
+            </div>
+            <div className="min-w-0">
+              <p className="text-[9px] uppercase tracking-wider font-semibold" style={{ color: tf }}>{t('atlas.nextTrip')}</p>
+              <p className="text-[13px] font-bold truncate" style={{ color: tp }}>{nextTrip.title}</p>
+              {nextTrip.daysUntil !== undefined && nextTrip.daysUntil > 0 && (
+                <p className="text-[9px]" style={{ color: tf }}>{nextTrip.daysUntil} {t('atlas.daysLeft')}</p>
+              )}
             </div>
           </button>
         )}

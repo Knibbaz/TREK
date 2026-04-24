@@ -441,7 +441,16 @@ export async function getStats(userId: number) {
   });
 
   const now = new Date().toISOString().split('T')[0];
-  const pastTrips = trips.filter(t => t.end_date && t.end_date <= now).sort((a, b) => b.end_date!.localeCompare(a.end_date!));
+
+  // ── Trip classification ────────────────────────────────────────────────────
+  // Concept trips: no start_date and no end_date (idea / draft)
+  // Planned trips: start_date in the future
+  // Past trips: end_date in the past (or in progress if end_date >= now)
+  const conceptTrips = trips.filter(t => !t.start_date && !t.end_date);
+  const plannedTrips = trips.filter(t => t.start_date && t.start_date > now);
+  const activeTrips = trips.filter(t => t.start_date && t.start_date <= now && t.end_date && t.end_date >= now);
+  const pastTrips = trips.filter(t => t.end_date && t.end_date < now).sort((a, b) => b.end_date!.localeCompare(a.end_date!));
+
   const lastTrip: { id: number; title: string; start_date?: string | null; end_date?: string | null; countryCode?: string } | null = pastTrips[0]
     ? { id: pastTrips[0].id, title: pastTrips[0].title, start_date: pastTrips[0].start_date, end_date: pastTrips[0].end_date }
     : null;
@@ -453,7 +462,7 @@ export async function getStats(userId: number) {
     }
   }
 
-  const futureTrips = trips.filter(t => t.start_date && t.start_date > now).sort((a, b) => a.start_date!.localeCompare(b.start_date!));
+  const futureTrips = plannedTrips.sort((a, b) => a.start_date!.localeCompare(b.start_date!));
   const nextTrip: { id: number; title: string; start_date?: string | null; daysUntil?: number } | null = futureTrips[0]
     ? { id: futureTrips[0].id, title: futureTrips[0].title, start_date: futureTrips[0].start_date }
     : null;
@@ -481,6 +490,10 @@ export async function getStats(userId: number) {
       totalCountries: countries.length,
       totalDays,
       totalCities,
+      conceptTrips: conceptTrips.length,
+      plannedTrips: plannedTrips.length,
+      activeTrips: activeTrips.length,
+      pastTrips: pastTrips.length,
     },
     mostVisited,
     continents,

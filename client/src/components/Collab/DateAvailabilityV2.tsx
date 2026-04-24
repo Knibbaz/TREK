@@ -161,8 +161,15 @@ function MonthSelector({ fromMonth, toMonth, onChange }: MonthSelectorProps) {
 
 // ── MonthGrid ─────────────────────────────────────────────────────────────────
 
-const DAY_LABELS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
+const DAY_LABELS = ['M', 'D', 'W', 'D', 'V', 'Z', 'Z']
 const STATUS_CYCLE: Array<'yes' | 'no' | 'maybe' | null> = ['yes', 'maybe', 'no', null]
+
+// Status colors — subtle, matching the app palette
+const STATUS_COLOR = {
+  yes:   'var(--accent)',
+  maybe: '#a78bfa',
+  no:    '#f87171',
+} as const
 
 interface MonthGridProps {
   year: number
@@ -171,28 +178,39 @@ interface MonthGridProps {
   myStatus: Record<string, 'yes' | 'no' | 'maybe'>
   onToggle: (date: string) => void
   publicHolidays: Record<string, { name: string }>
+  viewMode: 'mine' | 'group'
 }
 
-function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays }: MonthGridProps) {
+function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays, viewMode }: MonthGridProps) {
   const { t } = useTranslation()
   const [tooltip, setTooltip] = useState<{ date: string; x: number; y: number; overlays: DayOverlay[] } | null>(null)
-  const count = daysInMonth(year, month)
-  const first = firstDayOfWeek(year, month)
-  const cells: (string | null)[] = [...Array(first).fill(null)]
-  for (let d = 1; d <= count; d++) cells.push(isoDate(new Date(year, month, d)))
+
+  const pad = (n: number) => String(n).padStart(2, '0')
+
+  const todayStr = useMemo(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  }, [])
+
+  // Build week rows like Vacay
+  const weeks = useMemo(() => {
+    const startDow = firstDayOfWeek(year, month)
+    const count = daysInMonth(year, month)
+    const cells: (number | null)[] = Array(startDow).fill(null)
+    for (let d = 1; d <= count; d++) cells.push(d)
+    while (cells.length % 7 !== 0) cells.push(null)
+    const w: (number | null)[][] = []
+    for (let i = 0; i < cells.length; i += 7) w.push(cells.slice(i, i + 7))
+    return w
+  }, [year, month])
 
   const getOverlays = (date: string): DayOverlay[] => {
     const overlays: DayOverlay[] = []
-    // Public holiday
     if (publicHolidays[date]) {
       overlays.push({ type: 'public', color: '#f59e0b', label: publicHolidays[date].name })
     }
-    // Company holiday
     const ch = proposal.companyHolidays?.find(h => h.date === date)
-    if (ch) {
-      overlays.push({ type: 'company', color: ch.color, label: ch.name })
-    }
-    // Vacation days
+    if (ch) overlays.push({ type: 'company', color: ch.color, label: ch.name })
     proposal.vacationDays?.forEach(v => {
       if (date >= v.start_date && date <= v.end_date) {
         const member = proposal.members.find(m => m.id === v.user_id)
@@ -203,87 +221,131 @@ function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays }
   }
 
   return (
-    <div style={{ position: 'relative' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 2 }}>
-        {DAY_LABELS.map((l, i) => <div key={i} style={{ textAlign: 'center', fontSize: 10, color: 'var(--text-faint)', fontWeight: 600 }}>{l}</div>)}
+    <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-primary)' }}>
+      {/* Day headers */}
+      <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border-secondary)' }}>
+        {DAY_LABELS.map((l, i) => (
+          <div key={i} className="text-center py-1 text-[10px] font-semibold"
+            style={{ color: i >= 5 ? 'var(--text-faint)' : 'var(--text-muted)' }}>
+            {l}
+          </div>
+        ))}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
-        {cells.map((date, idx) => {
-          if (!date) return <div key={idx} />
-          const inRange = date >= proposal.period_start && date <= proposal.period_end
-          const dayNum = new Date(date + 'T00:00:00').getDate()
-          if (!inRange) {
-            return <div key={date} style={{ aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'var(--text-faint)', opacity: 0.3 }}>{dayNum}</div>
-          }
 
-          const overlays = getOverlays(date)
-          const mine = myStatus[date]
-          const entries = proposal.availability.filter(a => a.date === date)
-          const yesCount = entries.filter(e => e.status === 'yes').length
-          const maybeCount = entries.filter(e => e.status === 'maybe').length
-          const noCount = entries.filter(e => e.status === 'no').length
-          const total = proposal.members.length
+      {/* Week rows */}
+      <div>
+        {weeks.map((week, wi) => (
+          <div key={wi} className="grid grid-cols-7">
+            {week.map((day, di) => {
+              const isWeekend = di >= 5
 
-          // Group consensus background
-          let bg = 'var(--bg-hover)'
-          let textColor = 'var(--text-secondary)'
-          if (entries.length > 0) {
-            if (yesCount === total) { bg = '#16a34a'; textColor = '#fff' }           // iedereen kan
-            else if (noCount === total) { bg = '#dc2626'; textColor = '#fff' }        // niemand kan
-            else if (yesCount > 0 && noCount === 0) { bg = '#84cc16'; textColor = '#166534' } // alleen ja+misschien
-            else if (noCount > 0 && yesCount === 0 && maybeCount > 0) { bg = '#f59e0b'; textColor = '#fff' } // misschien + nee
-            else { bg = '#ea580c'; textColor = '#fff' }                               // gemengd
-          }
+              if (day === null) return (
+                <div key={di} style={{
+                  height: 32,
+                  borderTop: '1px solid var(--border-secondary)',
+                  borderRight: di < 6 ? '1px solid var(--border-secondary)' : undefined,
+                  background: isWeekend ? 'var(--bg-secondary)' : 'transparent',
+                }} />
+              )
 
-          const hasOverlays = overlays.length > 0
-          const borderColor = mine ? 'var(--accent)' : hasOverlays ? overlays[0].color : 'transparent'
+              const dateStr = `${year}-${pad(month + 1)}-${pad(day)}`
+              const inRange = dateStr >= proposal.period_start && dateStr <= proposal.period_end
+              const isToday = dateStr === todayStr
+              const overlays = getOverlays(dateStr)
+              const mine = myStatus[dateStr]
+              const entries = proposal.availability.filter(a => a.date === dateStr)
+              const yesCount  = entries.filter(e => e.status === 'yes').length
+              const maybeCount = entries.filter(e => e.status === 'maybe').length
+              const noCount   = entries.filter(e => e.status === 'no').length
+              const total     = proposal.members.length
+              const notYet    = total - entries.length
 
-          const mineSymbol = mine === 'yes' ? '✓' : mine === 'maybe' ? '?' : mine === 'no' ? '✕' : null
-          const mineColor = mine === 'yes' ? '#16a34a' : mine === 'maybe' ? '#f59e0b' : '#dc2626'
-
-          return (
-            <div
-              key={date}
-              onClick={() => onToggle(date)}
-              onMouseEnter={e => {
-                const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
-                setTooltip({ date, x: r.left + r.width / 2, y: r.top, overlays })
-              }}
-              onMouseLeave={() => setTooltip(null)}
-              style={{
-                aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                borderRadius: 6, cursor: 'pointer', background: bg, color: textColor,
-                fontSize: 11, fontWeight: 500,
-                border: `2px solid ${borderColor}`,
-                transition: 'background 0.1s',
-                userSelect: 'none',
-                position: 'relative',
-              }}
-            >
-              {dayNum}
-              {mineSymbol && (
-                <div style={{
-                  position: 'absolute', top: 1, right: 2,
-                  fontSize: 8, fontWeight: 900, lineHeight: 1,
-                  color: entries.length > 0 ? 'rgba(255,255,255,0.9)' : mineColor,
-                }}>
-                  {mineSymbol}
-                </div>
-              )}
-              {hasOverlays && !mineSymbol && (
-                <div style={{
-                  position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)',
-                  display: 'flex', gap: 2,
-                }}>
-                  {overlays.slice(0, 3).map((o, i) => (
-                    <div key={i} style={{ width: 4, height: 4, borderRadius: '50%', background: o.color }} />
+              return (
+                <div
+                  key={di}
+                  className="relative flex items-center justify-center select-none"
+                  style={{
+                    height: 32,
+                    borderTop: '1px solid var(--border-secondary)',
+                    borderRight: di < 6 ? '1px solid var(--border-secondary)' : undefined,
+                    background: isWeekend ? 'var(--bg-secondary)' : 'transparent',
+                    cursor: inRange ? 'pointer' : 'default',
+                    opacity: inRange ? 1 : 0.3,
+                  }}
+                  onClick={() => inRange && onToggle(dateStr)}
+                  onMouseEnter={e => {
+                    if (inRange) {
+                      e.currentTarget.style.background = 'var(--bg-hover)'
+                      const r = e.currentTarget.getBoundingClientRect()
+                      setTooltip({ date: dateStr, x: r.left + r.width / 2, y: r.top, overlays })
+                    }
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = isWeekend ? 'var(--bg-secondary)' : 'transparent'
+                    setTooltip(null)
+                  }}
+                >
+                  {/* Overlay: public / company holiday tint */}
+                  {overlays.filter(o => o.type !== 'vacation').map((o, i) => (
+                    <div key={i} className="absolute inset-[2px] rounded-sm pointer-events-none"
+                      style={{ background: o.color, opacity: 0.12 }} />
                   ))}
+
+                  {/* Mijn modus: kleur-overlay over hele cel */}
+                  {viewMode === 'mine' && mine && inRange && (
+                    <div className="absolute inset-[2px] rounded-sm pointer-events-none"
+                      style={{ background: STATUS_COLOR[mine], opacity: 0.28 }} />
+                  )}
+
+                  {/* Groep modus: smalle proportiebalk onderin */}
+                  {viewMode === 'group' && entries.length > 0 && inRange && (
+                    <div className="absolute bottom-0 left-0 right-0 flex pointer-events-none" style={{ height: 3 }}>
+                      {yesCount   > 0 && <div style={{ flex: yesCount,   background: STATUS_COLOR.yes }} />}
+                      {maybeCount > 0 && <div style={{ flex: maybeCount, background: STATUS_COLOR.maybe }} />}
+                      {noCount    > 0 && <div style={{ flex: noCount,    background: STATUS_COLOR.no }} />}
+                      {notYet     > 0 && <div style={{ flex: notYet,     background: 'var(--border-secondary)' }} />}
+                    </div>
+                  )}
+
+                  {/* Kleine dots voor vakantie/feestdagen (linksboven) */}
+                  {overlays.length > 0 && inRange && (
+                    <div className="absolute top-[3px] left-[3px] flex gap-[2px] pointer-events-none">
+                      {overlays.slice(0, 2).map((o, i) => (
+                        <div key={i} className="rounded-full" style={{ width: 4, height: 4, background: o.color }} />
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Eigen status symbool in groepsmodus (rechtsboven) */}
+                  {viewMode === 'group' && mine && inRange && (
+                    <div className="absolute top-[2px] right-[3px] pointer-events-none"
+                      style={{ fontSize: 7, fontWeight: 900, lineHeight: 1, color: STATUS_COLOR[mine] }}>
+                      {mine === 'yes' ? '✓' : mine === 'maybe' ? '◐' : '✕'}
+                    </div>
+                  )}
+
+                  {/* Dag nummer */}
+                  <span className="relative z-10 text-[11px]" style={{
+                    fontWeight: mine || entries.length > 0 ? 700 : 400,
+                    color: isToday ? '#fff'
+                      : overlays.some(o => o.type === 'public') ? '#d97706'
+                      : isWeekend ? 'var(--text-faint)'
+                      : 'var(--text-primary)',
+                    ...(isToday ? {
+                      display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                      width: 18, height: 18, borderRadius: '50%',
+                      background: 'var(--accent)',
+                    } : {}),
+                  }}>
+                    {day}
+                  </span>
                 </div>
-              )}
-            </div>
-          )
-        })}
+              )
+            })}
+          </div>
+        ))}
       </div>
+
       {tooltip && (
         <Tooltip
           {...tooltip}
@@ -309,6 +371,7 @@ interface ProposalCardProps {
 function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabilityChange, publicHolidays }: ProposalCardProps) {
   const { t } = useTranslation()
   const [viewMonth, setViewMonth] = useState<Date>(() => new Date(proposal.period_start + 'T00:00:00'))
+  const [viewMode, setViewMode] = useState<'mine' | 'group'>('group')
   const [pending, setPending] = useState<Record<string, 'yes' | 'no' | 'maybe' | null>>({})
   const [saving, setSaving] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -338,7 +401,7 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
         setPending({})
       } catch { /* noop */ }
       setSaving(false)
-    }, 600)
+    }, 300)
   }
 
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
@@ -353,17 +416,22 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
   }
   const mIdx = months.findIndex(m => m.getFullYear() === viewMonth.getFullYear() && m.getMonth() === viewMonth.getMonth())
 
-  // Legend
-  const legendItems = [
-    { color: '#16a34a', label: t('dateAvail.allYes') || 'Iedereen kan' },
-    { color: '#84cc16', label: t('dateAvail.mostYes') || 'Kan (geen nee)' },
-    { color: '#ea580c', label: t('dateAvail.mixed') || 'Gemengd' },
-    { color: '#dc2626', label: t('dateAvail.allNo') || 'Niemand kan' },
-  ]
+  const statusLegend = viewMode === 'mine'
+    ? [
+        { color: STATUS_COLOR.yes,   label: 'Kan' },
+        { color: STATUS_COLOR.maybe, label: 'Misschien' },
+        { color: STATUS_COLOR.no,    label: 'Kan niet' },
+      ]
+    : [
+        { color: STATUS_COLOR.yes,   label: 'Ja' },
+        { color: STATUS_COLOR.maybe, label: 'Misschien' },
+        { color: STATUS_COLOR.no,    label: 'Nee' },
+        { color: 'var(--border-secondary)', label: 'Geen reactie' },
+      ]
   const overlayLegend = [
-    { icon: <Plane size={10} />, color: '#3b82f6', label: t('dateAvail.vacation') || 'Verlof' },
-    { icon: <Briefcase size={10} />, color: '#ef4444', label: t('dateAvail.companyHoliday') || 'Bedrijfsfeestdag' },
-    { icon: <Globe size={10} />, color: '#f59e0b', label: t('dateAvail.publicHoliday') || 'Feestdag' },
+    { icon: <Plane size={10} />, color: '#3b82f6', label: 'Verlof' },
+    { icon: <Briefcase size={10} />, color: '#ef4444', label: 'Bedrijfsfeestdag' },
+    { icon: <Globe size={10} />, color: '#f59e0b', label: 'Feestdag' },
   ]
 
   return (
@@ -415,17 +483,41 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
         </div>
       </div>
 
-      {/* Month navigation */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px' }}>
+      {/* Month navigation + view toggle */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 16px 4px', gap: 8 }}>
         <button onClick={() => mIdx > 0 && setViewMonth(months[mIdx - 1])} disabled={mIdx === 0}
-          style={{ padding: 4, borderRadius: 6, border: 'none', background: 'transparent', cursor: mIdx > 0 ? 'pointer' : 'default', color: 'var(--text-primary)', opacity: mIdx > 0 ? 1 : 0.25 }}>
+          style={{ padding: 4, borderRadius: 6, border: 'none', background: 'transparent', cursor: mIdx > 0 ? 'pointer' : 'default', color: 'var(--text-primary)', opacity: mIdx > 0 ? 1 : 0.25, flexShrink: 0 }}>
           <ChevronLeft size={16} />
         </button>
-        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
-          {viewMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>
+            {viewMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' })}
+          </div>
+          <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-primary)', fontSize: 11 }}>
+            <button
+              onClick={() => setViewMode('mine')}
+              style={{
+                padding: '4px 10px', border: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11,
+                background: viewMode === 'mine' ? 'var(--accent)' : 'var(--bg-input)',
+                color: viewMode === 'mine' ? 'var(--accent-text)' : 'var(--text-secondary)',
+                fontWeight: viewMode === 'mine' ? 600 : 400,
+              }}>
+              Mijn beschikbaarheid
+            </button>
+            <button
+              onClick={() => setViewMode('group')}
+              style={{
+                padding: '4px 10px', border: 'none', borderLeft: '1px solid var(--border-primary)', cursor: 'pointer', fontFamily: 'inherit', fontSize: 11,
+                background: viewMode === 'group' ? 'var(--accent)' : 'var(--bg-input)',
+                color: viewMode === 'group' ? 'var(--accent-text)' : 'var(--text-secondary)',
+                fontWeight: viewMode === 'group' ? 600 : 400,
+              }}>
+              Groep
+            </button>
+          </div>
         </div>
         <button onClick={() => mIdx < months.length - 1 && setViewMonth(months[mIdx + 1])} disabled={mIdx >= months.length - 1}
-          style={{ padding: 4, borderRadius: 6, border: 'none', background: 'transparent', cursor: mIdx < months.length - 1 ? 'pointer' : 'default', color: 'var(--text-primary)', opacity: mIdx < months.length - 1 ? 1 : 0.25 }}>
+          style={{ padding: 4, borderRadius: 6, border: 'none', background: 'transparent', cursor: mIdx < months.length - 1 ? 'pointer' : 'default', color: 'var(--text-primary)', opacity: mIdx < months.length - 1 ? 1 : 0.25, flexShrink: 0 }}>
           <ChevronRight size={16} />
         </button>
       </div>
@@ -439,18 +531,26 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
           myStatus={myStatus}
           onToggle={toggleDate}
           publicHolidays={publicHolidays}
+          viewMode={viewMode}
         />
       </div>
 
       {/* Legend */}
       <div style={{ padding: '10px 16px 12px', borderTop: '1px solid var(--border-faint)', display: 'flex', flexDirection: 'column', gap: 6 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-          {legendItems.map(item => (
+          {(viewMode === 'group' ? groupLegendItems : mineLegendItems).map(item => (
             <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color, flexShrink: 0 }} />
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color, flexShrink: 0, border: (item as any).border ? '1px solid var(--border-primary)' : 'none' }} />
               {item.label}
             </div>
           ))}
+          {viewMode === 'group' && (
+            <div style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 'auto' }}>
+              <span style={{ fontWeight: 700, color: '#16a34a' }}>✓</span> jij kan &nbsp;
+              <span style={{ fontWeight: 700, color: '#f59e0b' }}>?</span> jij misschien &nbsp;
+              <span style={{ fontWeight: 700, color: '#dc2626' }}>✕</span> jij niet
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           {overlayLegend.map(item => (
@@ -459,11 +559,6 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
               {item.label}
             </div>
           ))}
-          <div style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 'auto' }}>
-            <span style={{ fontWeight: 700, color: '#16a34a' }}>✓</span> = kan &nbsp;
-            <span style={{ fontWeight: 700, color: '#f59e0b' }}>?</span> = misschien &nbsp;
-            <span style={{ fontWeight: 700, color: '#dc2626' }}>✕</span> = kan niet
-          </div>
         </div>
       </div>
     </div>
