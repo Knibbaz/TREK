@@ -2208,6 +2208,53 @@ function runMigrations(db: Database.Database): void {
     () => {
       try { db.exec("ALTER TABLE places ADD COLUMN price_type TEXT DEFAULT 'total'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
+    // Migration: Groups addon tables
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS groups (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          cover_image TEXT,
+          created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS group_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'admin', 'member')),
+          invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS group_trips (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          added_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, trip_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+        CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+        CREATE INDEX IF NOT EXISTS idx_group_trips_group ON group_trips(group_id);
+        CREATE INDEX IF NOT EXISTS idx_group_trips_trip ON group_trips(trip_id);
+      `);
+    },
+    // Migration: Register Groups addon
+    () => {
+      try {
+        db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .run('groups', 'Groups', 'Organize trips into shared groups', 'global', 'Users', 1, 11);
+      } catch (err: any) {
+        console.warn('[migrations] Non-fatal migration step failed:', err);
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

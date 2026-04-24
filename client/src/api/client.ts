@@ -548,6 +548,30 @@ export const inAppNotificationsApi = {
     apiClient.post(`/notifications/in-app/${id}/respond`, { response }).then(r => r.data),
 }
 
+export const groupsApi = {
+  list: () => apiClient.get('/addons/groups').then(r => r.data),
+  create: (data: { name: string; description?: string; cover_image?: string }) =>
+    apiClient.post('/addons/groups', data).then(r => r.data),
+  get: (id: number) => apiClient.get(`/addons/groups/${id}`).then(r => r.data),
+  update: (id: number, data: { name?: string; description?: string | null; cover_image?: string | null }) =>
+    apiClient.put(`/addons/groups/${id}`, data).then(r => r.data),
+  delete: (id: number) => apiClient.delete(`/addons/groups/${id}`).then(r => r.data),
+
+  addMember: (id: number, userId: number, role?: string) =>
+    apiClient.post(`/addons/groups/${id}/members`, { user_id: userId, role }).then(r => r.data),
+  removeMember: (id: number, userId: number) =>
+    apiClient.delete(`/addons/groups/${id}/members/${userId}`).then(r => r.data),
+  updateMemberRole: (id: number, userId: number, role: string) =>
+    apiClient.put(`/addons/groups/${id}/members/${userId}/role`, { role }).then(r => r.data),
+
+  addTrip: (id: number, tripId: number) =>
+    apiClient.post(`/addons/groups/${id}/trips`, { trip_id: tripId }).then(r => r.data),
+  removeTrip: (id: number, tripId: number) =>
+    apiClient.delete(`/addons/groups/${id}/trips/${tripId}`).then(r => r.data),
+
+  searchUsers: (q: string) => apiClient.get('/addons/groups/users/search', { params: { q } }).then(r => r.data),
+}
+
 export const exploreApi = {
   listTrips: (filter?: 'all' | 'curated' | 'community') =>
     apiClient.get('/addons/explore/trips', { params: filter && filter !== 'all' ? { filter } : undefined }).then(r => r.data),

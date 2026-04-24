@@ -8,6 +8,7 @@ import { useTranslation } from '../i18n'
 import { getApiErrorMessage } from '../types'
 import Navbar from '../components/Layout/Navbar'
 import DemoBanner from '../components/Layout/DemoBanner'
+import GroupQuickLinks from '../components/Groups/GroupQuickLinks'
 import CurrencyWidget from '../components/Dashboard/CurrencyWidget'
 import TimezoneWidget from '../components/Dashboard/TimezoneWidget'
 import TripFormModal from '../components/Trips/TripFormModal'
@@ -817,6 +818,9 @@ export default function DashboardPage(): React.ReactElement {
               />
             </div>
           )}
+
+          {/* Groups quick links */}
+          <GroupQuickLinks />
 
           {/* Mobile: Quick Actions */}
           <div className="md:hidden grid grid-cols-3 gap-2 mb-6">

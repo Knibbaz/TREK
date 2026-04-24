@@ -15,6 +15,7 @@ import VacayPage from './pages/VacayPage'
 import AtlasPage from './pages/AtlasPage'
 import JourneyPage from './pages/JourneyPage'
 import JourneyDetailPage from './pages/JourneyDetailPage'
+import GroupsPage from './pages/GroupsPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
 import ExplorePage from './pages/ExplorePage'
 import SharedTripPage from './pages/SharedTripPage'
@@ -289,6 +290,14 @@ export default function App() {
           element={
             <ProtectedRoute addonId="journey">
               <JourneyDetailPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/groups"
+          element={
+            <ProtectedRoute>
+              <GroupsPage />
             </ProtectedRoute>
           }
         />
