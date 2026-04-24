@@ -117,21 +117,13 @@ export default function CollabPanel({ tripId, tripMembers = [], collabFeatures }
                 {p === 'whatsnext' && <WhatsNextWidget tripMembers={tripMembers} />}
               </div>
             ))}
-            {rightPanels.length === 3 && (
-              <>
-                <div style={{ ...card, flex: 1 }}>
-                  <CollabNotes tripId={tripId} currentUser={user} />
-                </div>
-                <div style={{ flex: 1, display: 'flex', gap: 12, overflow: 'hidden', minHeight: 0 }}>
-                  <div style={{ ...card, flex: 1 }}>
-                    <CollabPolls tripId={tripId} currentUser={user} />
-                  </div>
-                  <div style={{ ...card, flex: 1 }}>
-                    <WhatsNextWidget tripMembers={tripMembers} />
-                  </div>
-                </div>
-              </>
-            )}
+            {rightPanels.length >= 3 && rightPanels.map(p => (
+              <div key={p} style={{ ...card, flex: 1 }}>
+                {p === 'notes' && <CollabNotes tripId={tripId} currentUser={user} />}
+                {p === 'polls' && <CollabPolls tripId={tripId} currentUser={user} />}
+                {p === 'whatsnext' && <WhatsNextWidget tripMembers={tripMembers} />}
+              </div>
+            ))}
           </div>
         </div>
       )
@@ -139,18 +131,6 @@ export default function CollabPanel({ tripId, tripMembers = [], collabFeatures }
 
     // Chat off — remaining panels share full width
     const panels = rightPanels
-    if (panels.length === 1) {
-      return (
-        <div style={{ height: '100%', display: 'flex', gap: 12, padding: 12, overflow: 'hidden', minHeight: 0 }}>
-          <div style={{ ...card, flex: 1 }}>
-            {panels[0] === 'notes' && <CollabNotes tripId={tripId} currentUser={user} />}
-            {panels[0] === 'polls' && <CollabPolls tripId={tripId} currentUser={user} />}
-            {panels[0] === 'whatsnext' && <WhatsNextWidget tripMembers={tripMembers} />}
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div style={{ height: '100%', display: 'flex', gap: 12, padding: 12, overflow: 'hidden', minHeight: 0 }}>
         {panels.map(p => (
@@ -158,6 +138,7 @@ export default function CollabPanel({ tripId, tripMembers = [], collabFeatures }
             {p === 'notes' && <CollabNotes tripId={tripId} currentUser={user} />}
             {p === 'polls' && <CollabPolls tripId={tripId} currentUser={user} />}
             {p === 'whatsnext' && <WhatsNextWidget tripMembers={tripMembers} />}
+            {p === 'availability' && <DateAvailability tripId={tripId} />}
           </div>
         ))}
       </div>

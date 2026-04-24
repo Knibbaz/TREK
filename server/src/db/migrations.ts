@@ -2273,6 +2273,32 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_group_invite_group ON group_invite_tokens(group_id);
       `);
     },
+    // Migration: Date availability proposals for group trip planning
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS date_proposals (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          title TEXT NOT NULL,
+          period_start TEXT NOT NULL,
+          period_end TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_date_proposals_group ON date_proposals(group_id);
+
+        CREATE TABLE IF NOT EXISTS date_availability (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+          UNIQUE(proposal_id, user_id, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_date_avail_proposal ON date_availability(proposal_id);
+        CREATE INDEX IF NOT EXISTS idx_date_avail_user ON date_availability(user_id);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

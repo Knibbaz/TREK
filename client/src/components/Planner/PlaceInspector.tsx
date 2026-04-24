@@ -115,25 +115,26 @@ interface PlaceInspectorProps {
   assignments: AssignmentsMap
   reservations?: Reservation[]
   onClose: () => void
-  onEdit: () => void
-  onDelete: () => void
-  onAssignToDay: (placeId: number, dayId?: number) => void
-  onRemoveAssignment: (assignmentId: number, dayId: number) => void
+  onEdit?: () => void
+  onDelete?: () => void
+  onAssignToDay?: (placeId: number, dayId?: number) => void
+  onRemoveAssignment?: (assignmentId: number, dayId: number) => void
   files: TripFile[]
   onFileUpload?: (fd: FormData) => Promise<void>
   tripMembers?: TripMember[]
-  onSetParticipants: (assignmentId: number, dayId: number, participantIds: number[]) => void
-  onUpdatePlace: (placeId: number, data: Partial<Place>) => void
+  onSetParticipants?: (assignmentId: number, dayId: number, participantIds: number[]) => void
+  onUpdatePlace?: (placeId: number, data: Partial<Place>) => void
   tripId?: string | number
   leftWidth?: number
   rightWidth?: number
+  mode?: 'bottom' | 'right'
 }
 
 export default function PlaceInspector({
   place, categories, days, selectedDayId, selectedAssignmentId, assignments, reservations = [],
   onClose, onEdit, onDelete, onAssignToDay, onRemoveAssignment,
   files, onFileUpload, tripMembers = [], onSetParticipants, onUpdatePlace,
-  tripId, leftWidth = 0, rightWidth = 0,
+  tripId, leftWidth = 0, rightWidth = 0, mode = 'bottom',
 }: PlaceInspectorProps) {
   const { t, locale, language } = useTranslation()
   const timeFormat = useSettingsStore(s => s.settings.time_format) || '24h'
@@ -281,7 +282,18 @@ export default function PlaceInspector({
       onDragEnd={() => {
         window.__dragData = null
       }}
-      style={{
+      style={mode === 'right' ? {
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        bottom: 0,
+        width: 420,
+        zIndex: 50,
+        fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif",
+        cursor: isDraggable ? 'grab' : 'default',
+        display: 'flex',
+        flexDirection: 'column',
+      } : {
         position: 'absolute',
         bottom: 20,
         left: `calc(${leftWidth}px + (100% - ${leftWidth}px - ${rightWidth}px) / 2)`,
@@ -296,10 +308,11 @@ export default function PlaceInspector({
         background: 'var(--bg-elevated)',
         backdropFilter: 'blur(40px) saturate(180%)',
         WebkitBackdropFilter: 'blur(40px) saturate(180%)',
-        borderRadius: 20,
+        borderRadius: mode === 'right' ? '20px 0 0 20px' : 20,
         boxShadow: '0 8px 40px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
         overflow: 'hidden',
-        maxHeight: '60vh',
+        maxHeight: mode === 'right' ? '100%' : '60vh',
+        height: mode === 'right' ? '100%' : undefined,
         display: 'flex',
         flexDirection: 'column',
       }}>
@@ -357,6 +370,25 @@ export default function PlaceInspector({
                   }}>
                     <CatIcon size={10} />
                     <span className="hidden sm:inline">{category.name}</span>
+                  </span>
+                )
+              })()}
+              {selectedDay && (() => {
+                const dayNumber = days.findIndex(d => d.id === selectedDayId) + 1
+                const dateStr = selectedDay.date
+                  ? new Date(selectedDay.date + 'T00:00:00Z').toLocaleDateString(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })
+                  : ''
+                return (
+                  <span style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 4,
+                    fontSize: 11, fontWeight: 500,
+                    color: 'var(--accent)',
+                    background: 'var(--accent)15',
+                    border: '1px solid var(--accent)30',
+                    padding: '2px 8px', borderRadius: 99,
+                  }}>
+                    <CalendarDays size={10} />
+                    {t('dayplan.dayN', { n: dayNumber })}{dateStr ? ` · ${dateStr}` : ''}
                   </span>
                 )
               })()}
@@ -846,14 +878,14 @@ export default function PlaceInspector({
             </div>
           )}
           {selectedDayId && assignmentInDay ? (
-            <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
+            <ActionButton onClick={() => onRemoveAssignment?.(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
               label={<><span className="hidden sm:inline">{t('inspector.removeFromDay')}</span><span className="sm:hidden">{t('inspector.remove')}</span></>} />
           ) : (
             <div style={{ position: 'relative' }}>
               <ActionButton
                 onClick={() => {
                   if (selectedDayId) {
-                    onAssignToDay(place.id)
+                    onAssignToDay?.(place.id)
                   } else {
                     setShowDayPicker(v => !v)
                   }
@@ -889,7 +921,7 @@ export default function PlaceInspector({
                     <button
                       key={day.id}
                       onClick={() => {
-                        onAssignToDay(place.id, day.id)
+                        onAssignToDay?.(place.id, day.id)
                         setShowDayPicker(false)
                       }}
                       style={{
@@ -957,8 +989,8 @@ export default function PlaceInspector({
               )}
             </label>
           )}
-          <ActionButton onClick={onEdit} variant="ghost" icon={<Edit2 size={13} />} label={<span className="hidden sm:inline">{t('common.edit')}</span>} />
-          <ActionButton onClick={onDelete} variant="danger" icon={<Trash2 size={13} />} label={<span className="hidden sm:inline">{t('common.delete')}</span>} />
+          {onEdit && <ActionButton onClick={onEdit} variant="ghost" icon={<Edit2 size={13} />} label={<span className="hidden sm:inline">{t('common.edit')}</span>} />}
+          {onDelete && <ActionButton onClick={onDelete} variant="danger" icon={<Trash2 size={13} />} label={<span className="hidden sm:inline">{t('common.delete')}</span>} />}
         </div>
       </div>
     </div>
@@ -1034,7 +1066,7 @@ interface ParticipantsBoxProps {
   tripMembers: TripMember[]
   participantIds: number[]
   allJoined: boolean
-  onSetParticipants: (assignmentId: number, dayId: number, participantIds: number[]) => void
+  onSetParticipants?: (assignmentId: number, dayId: number, participantIds: number[]) => void
   selectedAssignmentId: number | null
   selectedDayId: number | null
   t: (key: string) => string

@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { useGroupsStore } from '../store/groupsStore'
 import { useAuthStore } from '../store/authStore'
-import { tripsApi } from '../api/client'
+import { tripsApi, groupsApi } from '../api/client'
 import Navbar from '../components/Layout/Navbar'
 import Modal from '../components/shared/Modal'
 import {
@@ -11,6 +11,7 @@ import {
   User, MapPin, CalendarDays, ExternalLink, MoreHorizontal,
   Link2, Copy, Check
 } from 'lucide-react'
+import DateAvailability from '../components/Collab/DateAvailability'
 import toast from 'react-hot-toast'
 
 interface TripOption {
@@ -493,6 +494,7 @@ export default function GroupsPage(): React.ReactElement {
 
         {/* Detail view */}
         {view === 'detail' && currentGroup && (
+          <div className="flex flex-col gap-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Members */}
             <div className="lg:col-span-2">
@@ -659,6 +661,15 @@ export default function GroupsPage(): React.ReactElement {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Date availability proposals */}
+          <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <DateAvailability
+              groupId={currentGroup.id}
+              canCreate={canManageMembers || currentGroup.role === 'member'}
+            />
+          </div>
           </div>
         )}
       </div>

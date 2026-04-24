@@ -487,6 +487,16 @@ export const collabApi = {
   linkPreview: (tripId: number | string, url: string) => apiClient.get(`/trips/${tripId}/collab/link-preview?url=${encodeURIComponent(url)}`).then(r => r.data),
 }
 
+export const dateProposalsApi = {
+  list: (groupId: number | string) => apiClient.get(`/groups/${groupId}/date-proposals`).then(r => r.data),
+  create: (groupId: number | string, data: { title?: string; period_start: string; period_end: string }) =>
+    apiClient.post(`/groups/${groupId}/date-proposals`, data).then(r => r.data),
+  delete: (groupId: number | string, proposalId: number) =>
+    apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),
+  setAvailability: (groupId: number | string, proposalId: number, responses: Record<string, 'yes' | 'no' | 'maybe' | null>) =>
+    apiClient.put(`/groups/${groupId}/date-proposals/${proposalId}/availability`, { responses }).then(r => r.data),
+}
+
 export const backupApi = {
   list: () => apiClient.get('/backup/list').then(r => r.data),
   create: () => apiClient.post('/backup/create').then(r => r.data),

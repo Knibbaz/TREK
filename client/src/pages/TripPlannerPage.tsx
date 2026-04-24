@@ -7,6 +7,7 @@ import { useSettingsStore } from '../store/settingsStore'
 import { MapViewAuto as MapView } from '../components/Map/MapViewAuto'
 import { getCached, fetchPhoto } from '../services/photoService'
 import DayPlanSidebar from '../components/Planner/DayPlanSidebar'
+import TripOverviewPanel from '../components/Planner/TripOverviewPanel'
 import PlacesSidebar from '../components/Planner/PlacesSidebar'
 import PlaceInspector from '../components/Planner/PlaceInspector'
 import DayDetailPanel from '../components/Planner/DayDetailPanel'
@@ -26,7 +27,7 @@ import BudgetPanel from '../components/Budget/BudgetPanel'
 import CollabPanel from '../components/Collab/CollabPanel'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
-import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Users, Train, Eye, Pencil } from 'lucide-react'
+import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Users, Train } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
 import { accommodationRepo } from '../repo/accommodationRepo'
@@ -419,6 +420,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const handleMarkerClick = useCallback((placeId) => {
     if (placeId === undefined) {
       setSelectedPlaceId(null)
+      tripActions.setSelectedDay(null)
       return
     }
     // Find every assignment for this place (same place can sit on several
@@ -430,12 +432,15 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
     if (matching.length === 0) {
       setSelectedPlaceId(prev => prev === placeId ? null : placeId)
+      tripActions.setSelectedDay(null)
     } else if (matching.length === 1) {
       const only = matching[0]
       if (selectedAssignmentId === only.id) {
         setSelectedPlaceId(null)
+        tripActions.setSelectedDay(null)
       } else {
         selectAssignment(only.id, placeId)
+        tripActions.setSelectedDay(only.day_id)
       }
     } else {
       const currentIdx = matching.findIndex(a => a.id === selectedAssignmentId)
@@ -444,8 +449,10 @@ export default function TripPlannerPage(): React.ReactElement | null {
         // cycled past the last occurrence — clear selection so the next
         // click starts fresh at occurrence 0.
         setSelectedPlaceId(null)
+        tripActions.setSelectedDay(null)
       } else {
         selectAssignment(matching[nextIdx].id, placeId)
+        tripActions.setSelectedDay(matching[nextIdx].day_id)
       }
     }
     setLeftCollapsed(false); setRightCollapsed(false)
@@ -816,39 +823,16 @@ export default function TripPlannerPage(): React.ReactElement | null {
           activeTab={activeTab}
           onChange={handleTabChange}
         />
+        {/* Mode toggle hidden — view mode kept for future use */}
+        {/*
         {activeTab === 'plan' && (
           <div style={{ position: 'absolute', right: 12, display: 'flex', alignItems: 'center', gap: 2,
             background: 'var(--bg-tertiary)', borderRadius: 8, padding: 2 }}>
-            <button
-              onClick={() => setPlannerMode('edit')}
-              title={t('planner.mode.edit')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-                background: plannerMode === 'edit' ? 'var(--bg-card)' : 'transparent',
-                color: plannerMode === 'edit' ? 'var(--text-primary)' : 'var(--text-faint)',
-                boxShadow: plannerMode === 'edit' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s',
-              }}
-            >
-              <Pencil size={12} />
-              <span className="hidden sm:inline">{t('planner.mode.edit')}</span>
-            </button>
-            <button
-              onClick={() => { setPlannerMode('view'); updateRouteForDay(null, true) }}
-              title={t('planner.mode.view')}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 6, border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 500,
-                background: plannerMode === 'view' ? 'var(--bg-card)' : 'transparent',
-                color: plannerMode === 'view' ? 'var(--text-primary)' : 'var(--text-faint)',
-                boxShadow: plannerMode === 'view' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                transition: 'all 0.15s',
-              }}
-            >
-              <Eye size={12} />
-              <span className="hidden sm:inline">{t('planner.mode.view')}</span>
-            </button>
+            <button onClick={() => setPlannerMode('edit')} ... >...</button>
+            <button onClick={() => { setPlannerMode('view'); updateRouteForDay(null, true) }} ... >...</button>
           </div>
         )}
+        */}
       </div>
 
       {/* Offset by navbar + tab bar (44px) */}
@@ -861,8 +845,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
               dayPlaces={plannerMode === 'view' ? allAssignedPlaces : dayPlaces}
               route={route}
               routeSegments={routeSegments}
-              selectedPlaceId={plannerMode === 'view' ? null : selectedPlaceId}
-              onMarkerClick={plannerMode === 'view' ? undefined : handleMarkerClick}
+              selectedPlaceId={selectedPlaceId}
+              onMarkerClick={handleMarkerClick}
               onMapClick={plannerMode === 'view' ? undefined : handleMapClick}
               onMapContextMenu={plannerMode === 'view' ? undefined : handleMapContextMenu}
               center={defaultCenter}
@@ -870,10 +854,11 @@ export default function TripPlannerPage(): React.ReactElement | null {
               tileUrl={mapTileUrl}
               fitKey={fitKey}
               dayOrderMap={plannerMode === 'view' ? viewDayOrderMap : dayOrderMap}
-              leftWidth={plannerMode === 'view' ? (leftCollapsed ? 0 : leftWidth) : (leftCollapsed ? 0 : leftWidth)}
+              leftWidth={plannerMode === 'view' ? 0 : (leftCollapsed ? 0 : leftWidth)}
               rightWidth={plannerMode === 'view' ? 0 : (rightCollapsed ? 0 : rightWidth)}
               hasInspector={plannerMode === 'view' ? false : !!selectedPlace}
               hasDayDetail={plannerMode === 'view' ? false : (!!showDayDetail && !selectedPlace)}
+              hasBottomBar={plannerMode === 'view'}
               reservations={reservations}
               showReservationStats={settings.route_calculation !== false}
               visibleConnectionIds={visibleConnections}
@@ -884,7 +869,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
             />
 
 
-            <div className="hidden md:block" style={{ position: 'absolute', left: 10, top: 10, bottom: 10, zIndex: 20 }}>
+            <div className="hidden md:block" style={{ position: 'absolute', left: 10, top: 10, bottom: 10, zIndex: 20, display: plannerMode === 'view' ? 'none' : undefined }}>
               <button onClick={() => setLeftCollapsed(c => !c)}
                 style={{
                   position: leftCollapsed ? 'fixed' : 'absolute', top: leftCollapsed ? 'calc(var(--nav-h) + 44px + 14px)' : 14, left: leftCollapsed ? 10 : undefined, right: leftCollapsed ? undefined : -28, zIndex: -1,
@@ -1067,7 +1052,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                 assignments={assignments}
                 reservations={reservations}
                 onClose={() => setSelectedPlaceId(null)}
-                onEdit={() => {
+                onEdit={plannerMode === 'view' ? undefined : () => {
                   if (selectedAssignmentId) {
                     const assignmentObj = Object.values(assignments).flat().find(a => a.id === selectedAssignmentId)
                     const placeWithAssignmentTimes = assignmentObj?.place ? { ...selectedPlace, place_time: assignmentObj.place.place_time, end_time: assignmentObj.place.end_time } : selectedPlace
@@ -1078,13 +1063,13 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   setEditingAssignmentId(selectedAssignmentId || null)
                   setShowPlaceForm(true)
                 }}
-                onDelete={() => handleDeletePlace(selectedPlace.id)}
-                onAssignToDay={handleAssignToDay}
-                onRemoveAssignment={handleRemoveAssignment}
+                onDelete={plannerMode === 'view' ? undefined : () => handleDeletePlace(selectedPlace.id)}
+                onAssignToDay={plannerMode === 'view' ? undefined : handleAssignToDay}
+                onRemoveAssignment={plannerMode === 'view' ? undefined : handleRemoveAssignment}
                 files={files}
-                onFileUpload={canUploadFiles ? (fd) => tripActions.addFile(tripId, fd) : undefined}
+                onFileUpload={plannerMode === 'view' ? undefined : canUploadFiles ? (fd) => tripActions.addFile(tripId, fd) : undefined}
                 tripMembers={tripMembers}
-                onSetParticipants={async (assignmentId, dayId, userIds) => {
+                onSetParticipants={plannerMode === 'view' ? undefined : async (assignmentId, dayId, userIds) => {
                   try {
                     const data = await assignmentsApi.setParticipants(tripId, assignmentId, userIds)
                     useTripStore.setState(state => ({
@@ -1097,10 +1082,23 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     }))
                   } catch {}
                 }}
-                onUpdatePlace={async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
+                onUpdatePlace={plannerMode === 'view' ? undefined : async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
                 tripId={tripId}
                 leftWidth={(isMobile || window.innerWidth < 900) ? 0 : (leftCollapsed ? 0 : leftWidth)}
                 rightWidth={(isMobile || window.innerWidth < 900) ? 0 : (rightCollapsed ? 0 : rightWidth)}
+                mode={plannerMode === 'view' ? 'right' : 'bottom'}
+              />
+            )}
+
+            {plannerMode === 'view' && !isMobile && (
+              <TripOverviewPanel
+                days={days}
+                categories={categories}
+                assignments={assignments}
+                selectedPlaceId={selectedPlaceId}
+                selectedDayId={selectedDayId}
+                onPlaceClick={handlePlaceClick}
+                onSelectDay={(dayId) => { if (dayId) tripActions.setSelectedDay(dayId); else tripActions.setSelectedDay(null) }}
               />
             )}
 
@@ -1116,7 +1114,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     assignments={assignments}
                     reservations={reservations}
                     onClose={() => setSelectedPlaceId(null)}
-                    onEdit={() => {
+                    onEdit={plannerMode === 'view' ? undefined : () => {
                       if (selectedAssignmentId) {
                         const assignmentObj = Object.values(assignments).flat().find(a => a.id === selectedAssignmentId)
                         const placeWithAssignmentTimes = assignmentObj?.place ? { ...selectedPlace, place_time: assignmentObj.place.place_time, end_time: assignmentObj.place.end_time } : selectedPlace
@@ -1128,13 +1126,13 @@ export default function TripPlannerPage(): React.ReactElement | null {
                       setShowPlaceForm(true)
                       setSelectedPlaceId(null)
                     }}
-                    onDelete={() => { handleDeletePlace(selectedPlace.id); setSelectedPlaceId(null) }}
-                    onAssignToDay={handleAssignToDay}
-                    onRemoveAssignment={handleRemoveAssignment}
+                    onDelete={plannerMode === 'view' ? undefined : () => { handleDeletePlace(selectedPlace.id); setSelectedPlaceId(null) }}
+                    onAssignToDay={plannerMode === 'view' ? undefined : handleAssignToDay}
+                    onRemoveAssignment={plannerMode === 'view' ? undefined : handleRemoveAssignment}
                     files={files}
-                    onFileUpload={canUploadFiles ? (fd) => tripActions.addFile(tripId, fd) : undefined}
+                    onFileUpload={plannerMode === 'view' ? undefined : canUploadFiles ? (fd) => tripActions.addFile(tripId, fd) : undefined}
                     tripMembers={tripMembers}
-                    onSetParticipants={async (assignmentId, dayId, userIds) => {
+                    onSetParticipants={plannerMode === 'view' ? undefined : async (assignmentId, dayId, userIds) => {
                       try {
                         const data = await assignmentsApi.setParticipants(tripId, assignmentId, userIds)
                         useTripStore.setState(state => ({
@@ -1147,7 +1145,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                         }))
                       } catch {}
                     }}
-                    onUpdatePlace={async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
+                    onUpdatePlace={plannerMode === 'view' ? undefined : async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
                     tripId={tripId}
                     leftWidth={0}
                     rightWidth={0}

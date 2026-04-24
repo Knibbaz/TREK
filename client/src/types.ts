@@ -227,6 +227,32 @@ export interface Settings {
   map_nav_zoom?: number
 }
 
+export interface DateProposalMember {
+  id: number
+  username: string
+  avatar_url?: string | null
+}
+
+export interface DateAvailabilityEntry {
+  user_id: number
+  date: string
+  status: 'yes' | 'no' | 'maybe'
+  username: string
+}
+
+export interface DateProposal {
+  id: number
+  group_id: number
+  created_by: number
+  creator_name: string
+  title: string
+  period_start: string
+  period_end: string
+  created_at: string
+  availability: DateAvailabilityEntry[]
+  members: DateProposalMember[]
+}
+
 export interface AssignmentsMap {
   [dayId: string]: Assignment[]
 }

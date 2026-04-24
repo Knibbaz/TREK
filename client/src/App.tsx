@@ -220,6 +220,7 @@ export default function App() {
         <Route path="/register" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/join-group/:token" element={<GroupJoinPage />} />
         {/* OAuth 2.1 consent page — intentionally outside ProtectedRoute */}
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
         <Route

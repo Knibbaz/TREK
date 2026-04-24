@@ -2500,6 +2500,25 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'groups.join.redirecting': 'Redirecting...',
   'groups.join.join': 'Join Group',
   'groups.join.loginRequired': 'Sign in or create an account to join this group.',
+
+  // Date availability
+  'collab.tabs.availability': 'Dates',
+  'dateAvail.title': 'When can everyone go?',
+  'dateAvail.newProposal': 'New proposal',
+  'dateAvail.titlePlaceholder': 'Optional title, e.g. "Summer trip"',
+  'dateAvail.from': 'From',
+  'dateAvail.to': 'To',
+  'dateAvail.create': 'Create',
+  'dateAvail.formRequired': 'Start and end date are required',
+  'dateAvail.endBeforeStart': 'End date must be after start date',
+  'dateAvail.responded': 'responded',
+  'dateAvail.noMembers': 'No members yet',
+  'dateAvail.clickToToggle': 'Click a day to mark availability',
+  'dateAvail.empty': 'No proposals yet. Start one to find the best dates!',
+  'dateAvail.yes': 'yes',
+  'dateAvail.maybe': 'maybe',
+  'dateAvail.no': 'no',
+  'dateAvail.notYetFilled': 'not yet filled in',
 }
 
 export default en

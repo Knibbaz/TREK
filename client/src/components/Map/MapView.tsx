@@ -400,6 +400,7 @@ export const MapView = memo(function MapView({
   rightWidth = 0,
   hasInspector = false,
   hasDayDetail = false,
+  hasBottomBar = false,
   reservations = [] as Reservation[],
   showReservationStats = false,
   visibleConnectionIds = [] as number[],
@@ -415,11 +416,11 @@ export const MapView = memo(function MapView({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
     if (isMobile) return { padding: [40, 20] }
     const top = 60
-    const bottom = hasInspector ? 320 : hasDayDetail ? 280 : 60
+    const bottom = hasInspector ? 320 : hasDayDetail ? 280 : hasBottomBar ? 200 : 60
     const left = leftWidth + 40
     const right = rightWidth + 40
     return { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] }
-  }, [leftWidth, rightWidth, hasInspector, hasDayDetail])
+  }, [leftWidth, rightWidth, hasInspector, hasDayDetail, hasBottomBar])
 
   // Hover state for the single tooltip overlay (replaces per-marker <Tooltip>)
   const [hoveredPlace, setHoveredPlace] = useState<any>(null)

@@ -2436,6 +2436,25 @@ const nl: Record<string, string> = {
   'transport.modalTitle.edit': 'Vervoer bewerken',
   'transport.title': 'Transport',
   'transport.addManual': 'Handmatig transport',
+
+  // Beschikbaarheid datums
+  'collab.tabs.availability': 'Datums',
+  'dateAvail.title': 'Wanneer kan iedereen?',
+  'dateAvail.newProposal': 'Nieuw voorstel',
+  'dateAvail.titlePlaceholder': 'Optionele titel, bijv. "Zomervakantie"',
+  'dateAvail.from': 'Van',
+  'dateAvail.to': 'Tot',
+  'dateAvail.create': 'Aanmaken',
+  'dateAvail.formRequired': 'Start- en einddatum zijn verplicht',
+  'dateAvail.endBeforeStart': 'Einddatum moet na startdatum liggen',
+  'dateAvail.responded': 'ingevuld',
+  'dateAvail.noMembers': 'Nog geen deelnemers',
+  'dateAvail.clickToToggle': 'Klik op een dag om beschikbaarheid aan te geven',
+  'dateAvail.empty': 'Nog geen voorstellen. Maak er een aan om de beste datums te vinden!',
+  'dateAvail.yes': 'ja',
+  'dateAvail.maybe': 'misschien',
+  'dateAvail.no': 'nee',
+  'dateAvail.notYetFilled': 'nog niet ingevuld',
 }
 
 export default nl

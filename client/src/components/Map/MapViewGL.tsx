@@ -45,6 +45,7 @@ interface Props {
   rightWidth?: number
   hasInspector?: boolean
   hasDayDetail?: boolean
+  hasBottomBar?: boolean
   reservations?: Reservation[]
   visibleConnectionIds?: number[]
   showReservationStats?: boolean
@@ -144,6 +145,7 @@ export function MapViewGL({
   rightWidth = 0,
   hasInspector = false,
   hasDayDetail = false,
+  hasBottomBar = false,
   reservations = [],
   visibleConnectionIds = [],
   showReservationStats = false,
@@ -504,9 +506,9 @@ export function MapViewGL({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
     if (isMobile) return { top: 40, right: 20, bottom: 40, left: 20 }
     const top = 60
-    const bottom = hasInspector ? 320 : hasDayDetail ? 280 : 60
+    const bottom = hasInspector ? 320 : hasDayDetail ? 280 : hasBottomBar ? 200 : 60
     return { top, right: rightWidth + 40, bottom, left: leftWidth + 40 }
-  }, [leftWidth, rightWidth, hasInspector, hasDayDetail])
+  }, [leftWidth, rightWidth, hasInspector, hasDayDetail, hasBottomBar])
 
   // Also fit when the places collection changes so the initial render
   // zooms to the trip instead of the default center.
