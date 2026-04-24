@@ -46,6 +46,20 @@ export interface BlobCacheEntry {
   cachedAt: number;
 }
 
+export interface RouteCacheEntry {
+  /** Cache key: "lat1,lng1;lat2,lng2" rounded to 5 decimals */
+  key: string;
+  /** JSON-stringified [lat, lng][] array */
+  coordinates: string;
+  distance: number;
+  duration: number;
+  distanceText: string;
+  durationText: string;
+  walkingText: string;
+  drivingText: string;
+  cachedAt: number;
+}
+
 // ── Dexie class ────────────────────────────────────────────────────────────────
 
 class TrekOfflineDb extends Dexie {
@@ -64,6 +78,7 @@ class TrekOfflineDb extends Dexie {
   mutationQueue!: Table<QueuedMutation, string>;
   syncMeta!: Table<SyncMeta, number>;
   blobCache!: Table<BlobCacheEntry, string>;
+  routeCache!: Table<RouteCacheEntry, string>;
 
   constructor() {
     super('trek-offline');
@@ -87,6 +102,10 @@ class TrekOfflineDb extends Dexie {
       tripMembers:    '[tripId+id], tripId',
       tags:           'id',
       categories:     'id',
+    });
+
+    this.version(3).stores({
+      routeCache: 'key, cachedAt',
     });
   }
 }
