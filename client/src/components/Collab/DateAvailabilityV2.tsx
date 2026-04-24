@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { createPortal } from 'react-dom'
 import toast from 'react-hot-toast'
 import {
@@ -8,7 +8,8 @@ import {
 import { dateProposalsApi, availabilityApi, settingsApi } from '../../api/client'
 import { addListener, removeListener } from '../../api/websocket'
 import { useAuthStore } from '../../store/authStore'
-import { useTranslation } from '../../i18n'
+import { useTranslation, getLocaleForLanguage } from '../../i18n'
+import { getAllCountries, hasHolidaySupport } from '../../i18n/countryNames'
 import type { DateProposal, DateAvailabilityEntry, VacationDay, CompanyHoliday } from '../../types'
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -529,10 +530,10 @@ interface SettingsPanelProps {
 }
 
 function SettingsPanel({ groupId }: SettingsPanelProps) {
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const { user } = useAuthStore()
   const [region, setRegion] = useState('')
-  const [countries, setCountries] = useState<Array<{ countryCode: string; name: string }>>([])
+  const countries = useMemo(() => getAllCountries(getLocaleForLanguage(language)), [language])
   const [vacationDays, setVacationDays] = useState<VacationDay[]>([])
   const [companyHolidays, setCompanyHolidays] = useState<CompanyHoliday[]>([])
   const [showVacationForm, setShowVacationForm] = useState(false)
@@ -543,15 +544,13 @@ function SettingsPanel({ groupId }: SettingsPanelProps) {
 
   const load = useCallback(async () => {
     try {
-      const [vd, ch, cData, sData] = await Promise.all([
+      const [vd, ch, sData] = await Promise.all([
         availabilityApi.listVacationDays(),
         availabilityApi.listCompanyHolidays(),
-        availabilityApi.listHolidayCountries().catch(() => ({ countries: [] })),
         settingsApi.get().catch(() => ({ settings: {} })),
       ])
       setVacationDays((vd as any).vacationDays || [])
       setCompanyHolidays((ch as any).companyHolidays || [])
-      setCountries((cData as any).countries || [])
       const settings = (sData as any).settings || {}
       if (settings.holiday_region) setRegion(settings.holiday_region)
       else if (settings.home_country) setRegion(settings.home_country)

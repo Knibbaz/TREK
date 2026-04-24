@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react'
 import { User, Save, Lock, KeyRound, AlertTriangle, Shield, Camera, Trash2, Copy, Download, Printer } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useTranslation } from '../../i18n'
+import { useTranslation, getLocaleForLanguage } from '../../i18n'
 import { useAuthStore } from '../../store/authStore'
 import { useToast } from '../shared/Toast'
-import { authApi, adminApi, availabilityApi } from '../../api/client'
+import { authApi, adminApi } from '../../api/client'
 import { useSettingsStore } from '../../store/settingsStore'
+import { getAllCountries } from '../../i18n/countryNames'
 import { getApiErrorMessage } from '../../types'
 import type { UserWithOidc } from '../../types'
 import Section from './Section'
@@ -17,7 +18,7 @@ export default function AccountTab(): React.ReactElement {
   const { settings, updateSetting, loadSettings } = useSettingsStore()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const toast = useToast()
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
@@ -27,7 +28,7 @@ export default function AccountTab(): React.ReactElement {
   // Profile
   const [username, setUsername] = useState<string>(user?.username || '')
   const [email, setEmail] = useState<string>(user?.email || '')
-  const [countries, setCountries] = useState<Array<{ countryCode: string; name: string }>>([])
+  const countries = getAllCountries(getLocaleForLanguage(language))
 
   useEffect(() => {
     setUsername(user?.username || '')
@@ -36,9 +37,6 @@ export default function AccountTab(): React.ReactElement {
 
   useEffect(() => {
     loadSettings()
-    availabilityApi.listHolidayCountries()
-      .then((data: any) => setCountries(data.countries || []))
-      .catch(() => {})
   }, [loadSettings])
 
   // Password

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getIntlLanguage, getLocaleForLanguage, useTranslation } from '../i18n'
+import { getAllCountries } from '../i18n/countryNames'
 import { useSettingsStore } from '../store/settingsStore'
 import Navbar from '../components/Layout/Navbar'
 import apiClient, { mapsApi, atlasApi } from '../api/client'
@@ -180,7 +181,7 @@ export default function AtlasPage(): React.ReactElement {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<boolean>(false)
   const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [countryDetail, setCountryDetail] = useState<CountryDetail | null>(null)
-  const [countriesList, setCountriesList] = useState<Array<{ countryCode: string; name: string }>>([])
+  const countriesList = useMemo(() => getAllCountries(getLocaleForLanguage(language)), [language])
   const [showResidencyForm, setShowResidencyForm] = useState(false)
   const [showVolunteeringForm, setShowVolunteeringForm] = useState(false)
   const [geoData, setGeoData] = useState<GeoJsonFeatureCollection | null>(null)
@@ -244,11 +245,9 @@ export default function AtlasPage(): React.ReactElement {
     Promise.all([
       apiClient.get('/addons/atlas/stats'),
       apiClient.get('/addons/atlas/bucket-list'),
-      apiClient.get('/availability/holidays/countries').catch(() => ({ data: { countries: [] } })),
-    ]).then(([statsRes, bucketRes, countriesRes]) => {
+    ]).then(([statsRes, bucketRes]) => {
       setData(statsRes.data)
       setBucketList(bucketRes.data.items || [])
-      setCountriesList(countriesRes.data.countries || [])
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
