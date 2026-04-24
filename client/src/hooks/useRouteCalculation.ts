@@ -1,16 +1,56 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useSettingsStore } from '../store/settingsStore'
 import { useTripStore } from '../store/tripStore'
-import { calculateSegments } from '../components/Map/RouteCalculator'
+import { calculateSegments, calculateRoute } from '../components/Map/RouteCalculator'
 import type { TripStoreState } from '../store/tripStore'
 import type { RouteSegment, RouteResult } from '../types'
 
 const TRANSPORT_TYPES = ['flight', 'train', 'bus', 'car', 'cruise']
 
+/** Builds segments (arrays of [lat,lng] points) from a flat ordered list of entries,
+ *  breaking the current segment whenever a transport entry is encountered. */
+function buildSegments(
+  entries: ({ kind: 'place'; lat: number; lng: number } | { kind: 'transport' })[]
+): [number, number][][] {
+  const segments: [number, number][][] = []
+  let currentSeg: [number, number][] = []
+  for (const entry of entries) {
+    if (entry.kind === 'place') {
+      currentSeg.push([entry.lat, entry.lng])
+    } else {
+      if (currentSeg.length >= 2) segments.push([...currentSeg])
+      currentSeg = []
+    }
+  }
+  if (currentSeg.length >= 2) segments.push(currentSeg)
+  return segments
+}
+
+/** Fetches actual road geometry from OSRM for each segment group and returns road coordinates.
+ *  Falls back to the original straight-line segment if OSRM fails for that segment. */
+async function fetchRoadSegments(
+  segments: [number, number][][],
+  signal: AbortSignal
+): Promise<[number, number][][]> {
+  return Promise.all(
+    segments.map(seg =>
+      calculateRoute(
+        seg.map(([lat, lng]) => ({ lat, lng })),
+        'driving',
+        { signal }
+      )
+        .then(r => r.coordinates)
+        .catch(() => seg)
+    )
+  )
+}
+
 /**
- * Manages route calculation state for a selected day. Extracts geo-coded waypoints from
- * day assignments, draws a straight-line route, and optionally fetches per-segment
- * driving/walking durations via OSRM. Aborts in-flight requests when the day changes.
+ * Manages route calculation state.
+ * - When selectedDayId is set: shows the route for that day only.
+ * - When selectedDayId is null: shows a combined route across all days.
+ * Straight lines are shown immediately as a fallback; OSRM road geometry replaces them
+ * once the async fetch resolves. Aborts in-flight requests when the day changes.
  */
 export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: number | null) {
   const [route, setRoute] = useState<[number, number][][] | null>(null)
@@ -22,11 +62,8 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
 
   const updateRouteForDay = useCallback(async (dayId: number | null) => {
     if (routeAbortRef.current) routeAbortRef.current.abort()
-    if (!dayId) { setRoute(null); setRouteSegments([]); return }
-    // Read directly from store (not a render-phase ref) so callers after optimistic
-    // updates or non-optimistic deletes always see the latest assignments.
+
     const currentAssignments = useTripStore.getState().assignments || {}
-    const da = (currentAssignments[String(dayId)] || []).slice().sort((a, b) => a.order_index - b.order_index)
     const allReservations = useTripStore.getState().reservations || []
     const allDays = useTripStore.getState().days || []
     const dayOrder = (id: number | null | undefined): number | null => {
@@ -34,9 +71,89 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
       const d = allDays.find(x => x.id === id)
       return d ? ((d as any).day_number ?? allDays.indexOf(d)) : null
     }
+
+    type Entry = { kind: 'place'; lat: number; lng: number } | { kind: 'transport' }
+
+    if (!dayId) {
+      // ── No day selected: build combined route across all days ──────────────
+      const sortedDays = [...allDays].sort((a, b) => {
+        const oa = (a as any).day_number ?? allDays.indexOf(a)
+        const ob = (b as any).day_number ?? allDays.indexOf(b)
+        return oa - ob
+      })
+
+      const allEntries: Entry[] = []
+      const allWaypoints: { lat: number; lng: number }[] = []
+
+      for (const day of sortedDays) {
+        const da = (currentAssignments[String(day.id)] || [])
+          .slice()
+          .sort((a, b) => a.order_index - b.order_index)
+
+        const thisOrder = dayOrder(day.id)
+        const dayTransports = thisOrder == null ? [] : allReservations.filter(r => {
+          if (!TRANSPORT_TYPES.includes(r.type)) return false
+          if (r.day_id == null) return false
+          const endId = r.end_day_id ?? r.day_id
+          if (r.day_id === endId) {
+            if (r.day_id !== day.id) return false
+          } else {
+            const so = dayOrder(r.day_id), eo = dayOrder(endId)
+            if (so == null || eo == null) return false
+            if (thisOrder < so || thisOrder > eo) return false
+          }
+          const pos = r.day_positions?.[day.id] ?? r.day_positions?.[String(day.id)] ?? r.day_plan_position
+          return pos != null
+        })
+
+        const dayEntries: (Entry & { pos: number })[] = [
+          ...da.filter(a => a.place?.lat && a.place?.lng).map(a => ({
+            kind: 'place' as const, lat: a.place.lat!, lng: a.place.lng!, pos: a.order_index,
+          })),
+          ...dayTransports.map(r => ({
+            kind: 'transport' as const,
+            pos: (r.day_positions?.[day.id] ?? r.day_positions?.[String(day.id)] ?? r.day_plan_position) as number,
+          })),
+        ].sort((a, b) => a.pos - b.pos)
+
+        // Between days: insert a transport break so day boundaries split the route
+        if (allEntries.length > 0 && dayEntries.some(e => e.kind === 'place')) {
+          allEntries.push({ kind: 'transport' })
+        }
+        allEntries.push(...dayEntries)
+        da.filter(a => a.place?.lat && a.place?.lng).forEach(a =>
+          allWaypoints.push({ lat: a.place.lat!, lng: a.place.lng! })
+        )
+      }
+
+      const segments = buildSegments(allEntries)
+      if (segments.length === 0) { setRoute(null); setRouteSegments([]); return }
+      setRoute(segments)
+      if (!routeCalcEnabled) { setRouteSegments([]); return }
+      const controller = new AbortController()
+      routeAbortRef.current = controller
+      try {
+        const [roadSegs, calcSegs] = await Promise.all([
+          fetchRoadSegments(segments, controller.signal),
+          allWaypoints.length >= 2
+            ? calculateSegments(allWaypoints, { signal: controller.signal })
+            : Promise.resolve([] as RouteSegment[]),
+        ])
+        if (!controller.signal.aborted) {
+          setRoute(roadSegs.length > 0 ? roadSegs : null)
+          setRouteSegments(calcSegs)
+        }
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== 'AbortError') setRouteSegments([])
+        else if (!(err instanceof Error)) setRouteSegments([])
+      }
+      return
+    }
+
+    // ── Day selected: show route for that day only ──────────────────────────
+    const da = (currentAssignments[String(dayId)] || []).slice().sort((a, b) => a.order_index - b.order_index)
     const thisOrder = dayOrder(dayId)
 
-    // Transport reservations for this day with a known position — mirrors getTransportForDay semantics
     const dayTransports = thisOrder == null ? [] : allReservations.filter(r => {
       if (!TRANSPORT_TYPES.includes(r.type)) return false
       const startId = r.day_id
@@ -54,9 +171,6 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
       return pos != null
     })
 
-    // Build a unified list of places + transports sorted by effective position,
-    // then derive segments by resetting whenever a transport appears — mirrors getMergedItems order.
-    type Entry = { kind: 'place'; lat: number; lng: number } | { kind: 'transport' }
     const entries: (Entry & { pos: number })[] = [
       ...da.filter(a => a.place?.lat && a.place?.lng).map(a => ({
         kind: 'place' as const, lat: a.place.lat!, lng: a.place.lng!, pos: a.order_index,
@@ -67,18 +181,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
       })),
     ].sort((a, b) => a.pos - b.pos)
 
-    const segments: [number, number][][] = []
-    let currentSeg: [number, number][] = []
-    for (const entry of entries) {
-      if (entry.kind === 'place') {
-        currentSeg.push([entry.lat, entry.lng])
-      } else {
-        if (currentSeg.length >= 2) segments.push([...currentSeg])
-        currentSeg = []
-      }
-    }
-    if (currentSeg.length >= 2) segments.push(currentSeg)
-
+    const segments = buildSegments(entries)
     const geocodedWaypoints = da.map(a => a.place).filter(p => p?.lat && p?.lng) as { lat: number; lng: number }[]
 
     if (segments.length === 0 && geocodedWaypoints.length < 2) {
@@ -89,16 +192,21 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
     const controller = new AbortController()
     routeAbortRef.current = controller
     try {
-      const calcSegments = await calculateSegments(geocodedWaypoints, { signal: controller.signal })
-      if (!controller.signal.aborted) setRouteSegments(calcSegments)
+      const [roadSegs, calcSegs] = await Promise.all([
+        fetchRoadSegments(segments, controller.signal),
+        calculateSegments(geocodedWaypoints, { signal: controller.signal }),
+      ])
+      if (!controller.signal.aborted) {
+        setRoute(roadSegs.length > 0 ? roadSegs : null)
+        setRouteSegments(calcSegs)
+      }
     } catch (err: unknown) {
       if (err instanceof Error && err.name !== 'AbortError') setRouteSegments([])
       else if (!(err instanceof Error)) setRouteSegments([])
     }
   }, [routeCalcEnabled])
 
-  // Stable signature for transport reservations on the selected day — changes when a transport
-  // is added, removed, or repositioned, ensuring route recalc fires even on transport-only reorders.
+  // Stable signature for transport reservations on the selected day
   const transportSignature = useMemo(() => {
     if (!selectedDayId) return ''
     return reservationsForSignature
@@ -111,13 +219,15 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
       .join('|')
   }, [reservationsForSignature, selectedDayId])
 
-  // Recalculate when assignments or transport positions for the SELECTED day change
   const selectedDayAssignments = selectedDayId ? tripStore.assignments?.[String(selectedDayId)] : null
+  const allAssignmentsSignature = !selectedDayId
+    ? Object.values(tripStore.assignments || {}).flat().map(a => `${a.id}:${a.order_index}`).join('|')
+    : null
+
   useEffect(() => {
-    if (!selectedDayId) { setRoute(null); setRouteSegments([]); return }
     updateRouteForDay(selectedDayId)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedDayId, selectedDayAssignments, transportSignature])
+  }, [selectedDayId, selectedDayAssignments, allAssignmentsSignature, transportSignature])
 
   return { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay }
 }
