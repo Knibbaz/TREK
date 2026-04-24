@@ -942,6 +942,7 @@ const nl: Record<string, string> = {
   'trip.loadingPhotos': 'Plaatsfoto laden...',
   'trip.mobilePlan': 'Plan',
   'trip.mobilePlaces': 'Plaatsen',
+  'trip.toast.loadError': 'Reis laden mislukt',
   'trip.toast.placeUpdated': 'Plaats bijgewerkt',
   'trip.toast.placeAdded': 'Plaats toegevoegd',
   'trip.toast.placeDeleted': 'Plaats verwijderd',

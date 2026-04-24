@@ -128,14 +128,16 @@ export default function GroupsPage(): React.ReactElement {
       setEditDesc(group.description || '')
       setInviteLink(null)
       setInviteError(null)
-      // Try to load existing invite link
-      try {
-        const linkData = await groupsApi.getInviteLink(groupId)
-        if (linkData?.link?.token) {
-          setInviteLink(`${window.location.origin}/join-group/${linkData.link.token}`)
+      // Try to load existing invite link (owner/admin only)
+      if (group.role === 'owner' || group.role === 'admin') {
+        try {
+          const linkData = await groupsApi.getInviteLink(groupId)
+          if (linkData?.link?.token) {
+            setInviteLink(`${window.location.origin}/join-group/${linkData.link.token}`)
+          }
+        } catch {
+          // No existing link or not allowed — ignore
         }
-      } catch {
-        // No existing link or not allowed — ignore
       }
     }
   }

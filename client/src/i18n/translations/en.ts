@@ -1021,6 +1021,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'trip.loadingPhotos': 'Loading place photos...',
   'trip.mobilePlan': 'Plan',
   'trip.mobilePlaces': 'Places',
+  'trip.toast.loadError': 'Failed to load trip',
   'trip.toast.placeUpdated': 'Place updated',
   'trip.toast.placeAdded': 'Place added',
   'trip.toast.placeDeleted': 'Place deleted',
