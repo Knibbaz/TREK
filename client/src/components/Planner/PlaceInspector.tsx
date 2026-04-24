@@ -147,7 +147,7 @@ export default function PlaceInspector({
   const [budgetSelectedMembers, setBudgetSelectedMembers] = useState<Set<number>>(new Set())
   const budgetBtnRef = useRef<HTMLButtonElement>(null)
   const [hoursExpanded, setHoursExpanded] = useState(false)
-  const [filesExpanded, setFilesExpanded] = useState(false)
+  const [trackStatsExpanded, setTrackStatsExpanded] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [nameValue, setNameValue] = useState('')
@@ -226,8 +226,6 @@ export default function PlaceInspector({
   const selectedDay = days?.find(d => d.id === selectedDayId)
   const weekdayIndex = getWeekdayIndex(selectedDay?.date)
 
-  const placeFiles = (files || []).filter(f => String(f.place_id) === String(place.id) || (f.linked_place_ids || []).includes(place.id))
-
   const handleFileUpload = useCallback(async (e) => {
     const selectedFiles = Array.from((e.target as HTMLInputElement).files || [])
     if (!selectedFiles.length || !onFileUpload) return
@@ -239,7 +237,6 @@ export default function PlaceInspector({
         fd.append('place_id', place.id)
         await onFileUpload(fd)
       }
-      setFilesExpanded(true)
     } catch (err: unknown) {
       console.error('Upload failed', err)
     } finally {
@@ -247,6 +244,14 @@ export default function PlaceInspector({
       if (fileInputRef.current) fileInputRef.current.value = ''
     }
   }, [onFileUpload, place.id])
+
+  // Check if there's any content to display
+  const hasContent = googleDetails?.rating || placePrice > 0 || 
+    place.phone || googleDetails?.phone || 
+    place.description || googleDetails?.summary || 
+    place.notes || 
+    openingHours?.length > 0 || place.route_geometry ||
+    (selectedAssignmentId && (reservations.find(r => r.assignment_id === selectedAssignmentId) || tripMembers.length > 1))
 
   return (
     <div
@@ -358,28 +363,31 @@ export default function PlaceInspector({
         </div>
 
         {/* Content — scrollable */}
-        <div style={{ overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {hasContent && (
+          <div style={{ overflowY: 'auto', padding: '12px 16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
 
-          {/* Info-Chips — hidden on mobile, shown on desktop */}
-          <div className="hidden sm:flex" style={{ flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
-            {googleDetails?.rating && (() => {
-              const shortReview = (googleDetails.reviews || []).find(r => r.text && r.text.length > 5)
-              return (
-                <Chip
-                  icon={<Star size={12} fill="#facc15" color="#facc15" />}
-                  text={<>
-                    {googleDetails.rating.toFixed(1)}
-                    {googleDetails.rating_count ? <span style={{ opacity: 0.5 }}> ({googleDetails.rating_count.toLocaleString(locale)})</span> : ''}
-                    {shortReview && <span className="hidden md:inline" style={{ opacity: 0.6, fontWeight: 400, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}> · „{shortReview.text}"</span>}
-                  </>}
-                  color="var(--text-secondary)" bg="var(--bg-hover)"
-                />
-              )
-            })()}
-            {place.price > 0 && (
-              <Chip icon={<Euro size={12} />} text={`${place.price} ${place.currency || '€'}`} color="#059669" bg="#ecfdf5" />
+            {/* Info-Chips — hidden on mobile, shown on desktop */}
+            {(googleDetails?.rating || placePrice > 0) && (
+              <div className="hidden sm:flex" style={{ flexWrap: 'wrap', gap: 6, alignItems: 'center' }}>
+                {googleDetails?.rating && (() => {
+                  const shortReview = (googleDetails.reviews || []).find(r => r.text && r.text.length > 5)
+                  return (
+                    <Chip
+                      icon={<Star size={12} fill="#facc15" color="#facc15" />}
+                      text={<>
+                        {googleDetails.rating.toFixed(1)}
+                        {googleDetails.rating_count ? <span style={{ opacity: 0.5 }}> ({googleDetails.rating_count.toLocaleString(locale)})</span> : ''}
+                        {shortReview && <span className="hidden md:inline" style={{ opacity: 0.6, fontWeight: 400, fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}> · „{shortReview.text}"</span>}
+                      </>}
+                      color="var(--text-secondary)" bg="var(--bg-hover)"
+                    />
+                  )
+                })()}
+                {placePrice > 0 && (
+                  <Chip icon={<Euro size={12} />} text={`${placePrice} ${place.currency || '€'}`} color="#059669" bg="#ecfdf5" />
+                )}
+              </div>
             )}
-          </div>
 
           {/* Telefon */}
           {(place.phone || googleDetails?.phone) && (
@@ -485,174 +493,145 @@ export default function PlaceInspector({
             )
           })()}
 
-          {/* Opening hours + Files — side by side on desktop only if both exist */}
-          <div className={`grid grid-cols-1 ${openingHours?.length > 0 ? 'sm:grid-cols-2' : ''} gap-2`}>
-          {openingHours && openingHours.length > 0 && (
-            <div style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden' }}>
-              <button
-                onClick={() => setHoursExpanded(h => !h)}
-                style={{
-                  width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                  padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <Clock size={13} color="#9ca3af" />
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                    {hoursExpanded ? t('inspector.openingHours') : (convertHoursLine(openingHours[weekdayIndex] || '', timeFormat) || t('inspector.showHours'))}
-                  </span>
-                </div>
-                {hoursExpanded ? <ChevronUp size={13} color="#9ca3af" /> : <ChevronDown size={13} color="#9ca3af" />}
-              </button>
-              {hoursExpanded && (
-                <div style={{ padding: '0 12px 10px' }}>
-                  {openingHours.map((line, i) => (
-                    <div key={i} style={{
-                      fontSize: 12, color: i === weekdayIndex ? 'var(--text-primary)' : 'var(--text-muted)',
-                      fontWeight: i === weekdayIndex ? 600 : 400,
-                      padding: '2px 0',
-                    }}>{convertHoursLine(line, timeFormat)}</div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-
-          {/* GPX Track stats */}
-          {place.route_geometry && (() => {
-            try {
-              const pts: number[][] = JSON.parse(place.route_geometry)
-              if (!pts || pts.length < 2) return null
-              const hasEle = pts[0].length >= 3
-
-              // Haversine distance
-              const toRad = (d: number) => d * Math.PI / 180
-              let totalDist = 0
-              for (let i = 1; i < pts.length; i++) {
-                const [lat1, lng1] = pts[i - 1], [lat2, lng2] = pts[i]
-                const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1)
-                const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
-                totalDist += 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
-              }
-              const distKm = totalDist / 1000
-
-              // Elevation stats
-              let minEle = Infinity, maxEle = -Infinity, totalUp = 0, totalDown = 0
-              if (hasEle) {
-                for (let i = 0; i < pts.length; i++) {
-                  const e = pts[i][2]
-                  if (e < minEle) minEle = e
-                  if (e > maxEle) maxEle = e
-                  if (i > 0) {
-                    const diff = e - pts[i - 1][2]
-                    if (diff > 0) totalUp += diff; else totalDown += Math.abs(diff)
-                  }
-                }
-              }
-
-              // Elevation profile SVG
-              const chartW = 280, chartH = 60
-              const elevations = hasEle ? pts.map(p => p[2]) : []
-              let pathD = ''
-              if (elevations.length > 1) {
-                const step = Math.max(1, Math.floor(elevations.length / chartW))
-                const sampled = elevations.filter((_, i) => i % step === 0)
-                const eMin = Math.min(...sampled), eMax = Math.max(...sampled)
-                const range = eMax - eMin || 1
-                pathD = sampled.map((e, i) => {
-                  const x = (i / (sampled.length - 1)) * chartW
-                  const y = chartH - ((e - eMin) / range) * (chartH - 4) - 2
-                  return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
-                }).join(' ')
-              }
-
-              return (
-                <div style={{ background: 'var(--bg-hover)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <TrendingUp size={13} color="#9ca3af" />
-                    <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{t('inspector.trackStats')}</span>
-                  </div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
-                      <MapPin size={12} color="#3b82f6" />
-                      {distKm < 1 ? `${Math.round(totalDist)} m` : `${distKm.toFixed(1)} km`}
+          {/* Opening hours + GPX Track stats — side by side on desktop only if both exist */}
+          {(openingHours?.length > 0 || place.route_geometry) && (
+            <div className={`grid grid-cols-1 ${(openingHours?.length > 0 && place.route_geometry) ? 'sm:grid-cols-2' : ''} gap-2`}>
+              {openingHours && openingHours.length > 0 && (
+                <div style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden' }}>
+                  <button
+                    onClick={() => setHoursExpanded(h => !h)}
+                    style={{
+                      width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      padding: '8px 12px', background: 'none', border: 'none', cursor: 'pointer',
+                      fontFamily: 'inherit',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <Clock size={13} color="#9ca3af" />
+                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
+                        {hoursExpanded ? t('inspector.openingHours') : (convertHoursLine(openingHours[weekdayIndex] || '', timeFormat) || t('inspector.showHours'))}
+                      </span>
                     </div>
-                    {hasEle && (
-                      <>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
-                          <Mountain size={12} color="#22c55e" />
-                          {Math.round(maxEle)} m
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
-                          <Mountain size={12} color="#ef4444" />
-                          {Math.round(minEle)} m
-                        </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                          ↑{Math.round(totalUp)} m &nbsp;↓{Math.round(totalDown)} m
-                        </div>
-                      </>
-                    )}
-                  </div>
-                  {pathD && (
-                    <svg width="100%" viewBox={`0 0 ${chartW} ${chartH}`} preserveAspectRatio="none" style={{ display: 'block', borderRadius: 6, background: 'var(--bg-tertiary)' }}>
-                      <defs>
-                        <linearGradient id={`ele-grad-${place.id}`} x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
-                          <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
-                        </linearGradient>
-                      </defs>
-                      <path d={`${pathD} L${chartW},${chartH} L0,${chartH} Z`} fill={`url(#ele-grad-${place.id})`} />
-                      <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                    </svg>
+                    {hoursExpanded ? <ChevronUp size={13} color="#9ca3af" /> : <ChevronDown size={13} color="#9ca3af" />}
+                  </button>
+                  {hoursExpanded && (
+                    <div style={{ padding: '0 12px 10px' }}>
+                      {openingHours.map((line, i) => (
+                        <div key={i} style={{
+                          fontSize: 12, color: i === weekdayIndex ? 'var(--text-primary)' : 'var(--text-muted)',
+                          fontWeight: i === weekdayIndex ? 600 : 400,
+                          padding: '2px 0',
+                        }}>{convertHoursLine(line, timeFormat)}</div>
+                      ))}
+                    </div>
                   )}
                 </div>
-              )
-            } catch { return null }
-          })()}
-
-          {/* Files section */}
-          {(placeFiles.length > 0 || onFileUpload) && (
-            <div style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', alignItems: 'center', padding: '8px 12px', gap: 6 }}>
-                <button
-                  onClick={() => setFilesExpanded(f => !f)}
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: 0, fontFamily: 'inherit', textAlign: 'left' }}
-                >
-                  <FileText size={13} color="#9ca3af" />
-                  <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>
-                    {placeFiles.length > 0 ? t('inspector.filesCount', { count: placeFiles.length }) : t('inspector.files')}
-                  </span>
-                  {filesExpanded ? <ChevronUp size={12} color="#9ca3af" /> : <ChevronDown size={12} color="#9ca3af" />}
-                </button>
-                {onFileUpload && (
-                  <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: 'var(--text-muted)', padding: '2px 6px', borderRadius: 6, background: 'var(--bg-tertiary)' }}>
-                    <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
-                    {isUploading ? (
-                      <span style={{ fontSize: 11 }}>…</span>
-                    ) : (
-                      <><Upload size={11} strokeWidth={2} /> {t('common.upload')}</>
-                    )}
-                  </label>
-                )}
-              </div>
-              {filesExpanded && placeFiles.length > 0 && (
-                <div style={{ padding: '0 12px 10px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {placeFiles.map(f => (
-                    <button key={f.id} onClick={() => openFile(f.url).catch(() => {})} style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none', cursor: 'pointer', background: 'none', border: 'none', width: '100%', textAlign: 'left' }}>
-                      {(f.mime_type || '').startsWith('image/') ? <FileImage size={12} color="#6b7280" /> : <File size={12} color="#6b7280" />}
-                      <span style={{ fontSize: 12, color: 'var(--text-secondary)', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.original_name}</span>
-                      {f.file_size && <span style={{ fontSize: 11, color: 'var(--text-faint)', flexShrink: 0 }}>{formatFileSize(f.file_size)}</span>}
-                    </button>
-                  ))}
-                </div>
               )}
+
+              {/* GPX Track stats */}
+              {place.route_geometry && (() => {
+                try {
+                  const pts: number[][] = JSON.parse(place.route_geometry)
+                  if (!pts || pts.length < 2) return null
+                  const hasEle = pts[0].length >= 3
+
+                  // Haversine distance
+                  const toRad = (d: number) => d * Math.PI / 180
+                  let totalDist = 0
+                  for (let i = 1; i < pts.length; i++) {
+                    const [lat1, lng1] = pts[i - 1], [lat2, lng2] = pts[i]
+                    const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1)
+                    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2
+                    totalDist += 6371000 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+                  }
+                  const distKm = totalDist / 1000
+
+                  // Elevation stats
+                  let minEle = Infinity, maxEle = -Infinity, totalUp = 0, totalDown = 0
+                  if (hasEle) {
+                    for (let i = 0; i < pts.length; i++) {
+                      const e = pts[i][2]
+                      if (e < minEle) minEle = e
+                      if (e > maxEle) maxEle = e
+                      if (i > 0) {
+                        const diff = e - pts[i - 1][2]
+                        if (diff > 0) totalUp += diff; else totalDown += Math.abs(diff)
+                      }
+                    }
+                  }
+
+                  // Elevation profile SVG
+                  const chartW = 280, chartH = 60
+                  const elevations = hasEle ? pts.map(p => p[2]) : []
+                  let pathD = ''
+                  if (elevations.length > 1) {
+                    const step = Math.max(1, Math.floor(elevations.length / chartW))
+                    const sampled = elevations.filter((_, i) => i % step === 0)
+                    const eMin = Math.min(...sampled), eMax = Math.max(...sampled)
+                    const range = eMax - eMin || 1
+                    pathD = sampled.map((e, i) => {
+                      const x = (i / (sampled.length - 1)) * chartW
+                      const y = chartH - ((e - eMin) / range) * (chartH - 4) - 2
+                      return `${i === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`
+                    }).join(' ')
+                  }
+
+                  return (
+                    <div style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden' }}>
+                      <button
+                        onClick={() => setTrackStatsExpanded(e => !e)}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', padding: '10px 12px', fontFamily: 'inherit', textAlign: 'left' }}
+                      >
+                        <TrendingUp size={13} color="#9ca3af" />
+                        <span style={{ fontSize: 12, color: 'var(--text-secondary)', fontWeight: 500 }}>{t('inspector.trackStats')}</span>
+                        {trackStatsExpanded ? <ChevronUp size={13} color="#9ca3af" /> : <ChevronDown size={13} color="#9ca3af" />}
+                      </button>
+                      {trackStatsExpanded && (
+                        <div style={{ padding: '0 12px 10px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
+                              <MapPin size={12} color="#3b82f6" />
+                              {distKm < 1 ? `${Math.round(totalDist)} m` : `${distKm.toFixed(1)} km`}
+                            </div>
+                            {hasEle && (
+                              <>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
+                                  <Mountain size={12} color="#22c55e" />
+                                  {Math.round(maxEle)} m
+                                </div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', fontWeight: 600 }}>
+                                  <Mountain size={12} color="#ef4444" />
+                                  {Math.round(minEle)} m
+                                </div>
+                                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                                  ↑{Math.round(totalUp)} m &nbsp;↓{Math.round(totalDown)} m
+                                </div>
+                              </>
+                            )}
+                          </div>
+                          {pathD && (
+                            <svg width="100%" viewBox={`0 0 ${chartW} ${chartH}`} preserveAspectRatio="none" style={{ display: 'block', borderRadius: 6, background: 'var(--bg-tertiary)' }}>
+                              <defs>
+                                <linearGradient id={`ele-grad-${place.id}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#3b82f6" stopOpacity="0.25" />
+                                  <stop offset="100%" stopColor="#3b82f6" stopOpacity="0.02" />
+                                </linearGradient>
+                              </defs>
+                              <path d={`${pathD} L${chartW},${chartH} L0,${chartH} Z`} fill={`url(#ele-grad-${place.id})`} />
+                              <path d={pathD} fill="none" stroke="#3b82f6" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                            </svg>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                } catch { return null }
+              })()}
             </div>
           )}
-          </div>
 
         </div>
+        )}
 
         {/* Footer actions */}
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-faint)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -860,6 +839,16 @@ export default function PlaceInspector({
               label={<span className="hidden sm:inline">{t('inspector.website')}</span>} />
           )}
           <div style={{ flex: 1 }} />
+          {onFileUpload && (
+            <label style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 4, padding: '6px 12px', borderRadius: 10, minHeight: 30, fontSize: 12, fontWeight: 500, fontFamily: 'inherit', background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: 'none', transition: 'background 0.15s' }}>
+              <input ref={fileInputRef} type="file" multiple style={{ display: 'none' }} onChange={handleFileUpload} />
+              {isUploading ? (
+                <span style={{ fontSize: 11 }}>…</span>
+              ) : (
+                <><Upload size={13} strokeWidth={2} /> <span className="hidden sm:inline">{t('common.upload')}</span></>
+              )}
+            </label>
+          )}
           <ActionButton onClick={onEdit} variant="ghost" icon={<Edit2 size={13} />} label={<span className="hidden sm:inline">{t('common.edit')}</span>} />
           <ActionButton onClick={onDelete} variant="danger" icon={<Trash2 size={13} />} label={<span className="hidden sm:inline">{t('common.delete')}</span>} />
         </div>
