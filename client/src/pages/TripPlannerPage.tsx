@@ -399,12 +399,12 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   const { route, routeSegments, routeInfo, setRoute, setRouteInfo, updateRouteForDay, isCalculating: isRouteCalculating } = useRouteCalculation({ assignments } as any, selectedDayId)
 
-  const handleSelectDay = useCallback((dayId, skipFit) => {
+  const handleSelectDay = useCallback(async (dayId, skipFit) => {
     const changed = dayId !== selectedDayId
     tripActions.setSelectedDay(dayId)
     if (changed && !skipFit) setFitKey(k => k + 1)
     setMobileSidebarOpen(null)
-    updateRouteForDay(dayId)
+    await updateRouteForDay(dayId)
   }, [updateRouteForDay, selectedDayId])
 
   const handlePlaceClick = useCallback((placeId, assignmentId) => {
@@ -528,7 +528,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     try {
       await tripActions.deletePlace(tripId, deletePlaceId)
       if (selectedPlaceId === deletePlaceId) setSelectedPlaceId(null)
-      updateRouteForDay(selectedDayId)
+      await updateRouteForDay(selectedDayId)
       toast.success(t('trip.toast.placeDeleted'))
       if (capturedPlace) {
         pushUndo(t('undo.deletePlace'), async () => {
@@ -562,7 +562,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
       await tripActions.deletePlacesMany(tripId, targetIds)
       if (selectedPlaceId != null && targetIds.includes(selectedPlaceId)) setSelectedPlaceId(null)
       if (!ids) setDeletePlaceIds(null)
-      updateRouteForDay(selectedDayId)
+      await updateRouteForDay(selectedDayId)
       toast.success(t('trip.toast.placesDeleted', { count: capturedPlaces.length }))
       if (capturedPlaces.length > 0) {
         pushUndo(t('undo.deletePlaces'), async () => {
@@ -587,7 +587,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     try {
       const assignment = await tripActions.assignPlaceToDay(tripId, target, placeId, position)
       toast.success(t('trip.toast.assignedToDay'))
-      updateRouteForDay(target)
+      await updateRouteForDay(target)
       if (assignment?.id) {
         const capturedAssignmentId = assignment.id
         const capturedTarget = target
@@ -605,7 +605,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
     const capturedOrderIndex = capturedAssignment?.order_index ?? 0
     try {
       await tripActions.removeAssignment(tripId, dayId, assignmentId)
-      updateRouteForDay(dayId)
+      await updateRouteForDay(dayId)
       if (capturedPlaceId != null) {
         const capturedDayId = dayId
         const capturedPos = capturedOrderIndex
@@ -617,20 +617,17 @@ export default function TripPlannerPage(): React.ReactElement | null {
     catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) }
   }, [tripId, toast, updateRouteForDay, pushUndo])
 
-  const handleReorder = useCallback((dayId, orderedIds) => {
+  const handleReorder = useCallback(async (dayId, orderedIds) => {
     const prevIds = (useTripStore.getState().assignments[String(dayId)] || [])
       .slice().sort((a, b) => a.order_index - b.order_index).map(a => a.id)
     try {
-      tripActions.reorderAssignments(tripId, dayId, orderedIds)
-        .then(() => {
-          const capturedDayId = dayId
-          const capturedPrevIds = prevIds
-          pushUndo(t('undo.reorder'), async () => {
-            await tripActions.reorderAssignments(tripId, capturedDayId, capturedPrevIds)
-          })
-        })
-        .catch(err => toast.error(err instanceof Error ? err.message : t('trip.toast.reorderError')))
-      updateRouteForDay(dayId)
+      await tripActions.reorderAssignments(tripId, dayId, orderedIds)
+      const capturedDayId = dayId
+      const capturedPrevIds = prevIds
+      pushUndo(t('undo.reorder'), async () => {
+        await tripActions.reorderAssignments(tripId, capturedDayId, capturedPrevIds)
+      })
+      await updateRouteForDay(dayId)
     }
     catch { toast.error(t('trip.toast.reorderError')) }
   }, [tripId, toast, pushUndo, updateRouteForDay])

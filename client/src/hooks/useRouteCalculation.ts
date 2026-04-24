@@ -129,7 +129,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
         })
 
         const dayEntries: (Entry & { pos: number })[] = [
-          ...da.filter(a => a.place?.lat && a.place?.lng).map(a => ({
+          ...da.filter(a => a.place?.lat != null && a.place?.lng != null).map(a => ({
             kind: 'place' as const, lat: a.place.lat!, lng: a.place.lng!,
             route_geometry: a.place.route_geometry || undefined, pos: a.order_index,
           })),
@@ -145,7 +145,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
           allEntries.push({ kind: 'transport' })
         }
         allEntries.push(...dayEntries)
-        da.filter(a => a.place?.lat && a.place?.lng).forEach(a =>
+        da.filter(a => a.place?.lat != null && a.place?.lng != null).forEach(a =>
           allWaypoints.push({ lat: a.place.lat!, lng: a.place.lng! })
         )
       }
@@ -198,7 +198,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
     })
 
     const entries: (Entry & { pos: number })[] = [
-      ...da.filter(a => a.place?.lat && a.place?.lng).map(a => ({
+      ...da.filter(a => a.place?.lat != null && a.place?.lng != null).map(a => ({
         kind: 'place' as const, lat: a.place.lat!, lng: a.place.lng!,
         route_geometry: a.place.route_geometry || undefined, pos: a.order_index,
       })),
@@ -210,7 +210,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
 
     const segments = buildSegments(entries)
     const gpxSegs = extractGpxSegments(entries)
-    const geocodedWaypoints = da.map(a => a.place).filter(p => p?.lat && p?.lng) as { lat: number; lng: number }[]
+    const geocodedWaypoints = da.map(a => a.place).filter(p => p?.lat != null && p?.lng != null) as { lat: number; lng: number }[]
 
     if (segments.length === 0 && geocodedWaypoints.length < 2 && gpxSegs.length === 0) {
       setRoute(null); setRouteSegments([]); return
