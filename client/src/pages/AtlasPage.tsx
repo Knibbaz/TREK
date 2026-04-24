@@ -197,6 +197,11 @@ export default function AtlasPage(): React.ReactElement {
   const [confirmAction, setConfirmAction] = useState<{ type: 'mark' | 'unmark' | 'choose' | 'bucket' | 'choose-region' | 'unmark-region'; code: string; name: string; regionCode?: string; countryName?: string } | null>(null)
   const [bucketMonth, setBucketMonth] = useState(0)
   const [bucketYear, setBucketYear] = useState(0)
+  const [showMoreActions, setShowMoreActions] = useState(false)
+
+  useEffect(() => {
+    if (!confirmAction) setShowMoreActions(false)
+  }, [confirmAction])
 
   // Bucket list
   interface BucketItem { id: number; name: string; lat: number | null; lng: number | null; country_code: string | null; notes: string | null; target_date: string | null }
@@ -674,6 +679,8 @@ export default function AtlasPage(): React.ReactElement {
       await atlasApi.createResidency({ country_code: countryCode })
       const r = await apiClient.get('/addons/atlas/stats')
       setData(r.data)
+      setConfirmAction(null)
+      setShowMoreActions(false)
     } catch {}
   }
 
@@ -691,6 +698,8 @@ export default function AtlasPage(): React.ReactElement {
       await atlasApi.createVolunteering({ country_code: countryCode })
       const r = await apiClient.get('/addons/atlas/stats')
       setData(r.data)
+      setConfirmAction(null)
+      setShowMoreActions(false)
     } catch {}
   }
 
@@ -1204,6 +1213,7 @@ export default function AtlasPage(): React.ReactElement {
                     })
                   } catch {}
                   setConfirmAction(null)
+                  setShowMoreActions(false)
                 }}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
@@ -1214,7 +1224,7 @@ export default function AtlasPage(): React.ReactElement {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.markVisitedHint')}</div>
                   </div>
                 </button>
-                <button onClick={() => setConfirmAction({ ...confirmAction, type: 'bucket' as any })}
+                <button onClick={() => { setConfirmAction({ ...confirmAction, type: 'bucket' }); setShowMoreActions(false) }}
                   style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
                   onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
                   onMouseLeave={e => e.currentTarget.style.background = 'none'}>
@@ -1224,6 +1234,41 @@ export default function AtlasPage(): React.ReactElement {
                     <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addToBucketHint')}</div>
                   </div>
                 </button>
+
+                {!showMoreActions && (
+                  <button onClick={() => setShowMoreActions(true)}
+                    style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, width: '100%', padding: '8px 16px', borderRadius: 12, border: 'none', background: 'none', cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, color: 'var(--text-faint)', transition: 'color 0.12s' }}
+                    onMouseEnter={e => e.currentTarget.style.color = 'var(--text-secondary)'}
+                    onMouseLeave={e => e.currentTarget.style.color = 'var(--text-faint)'}>
+                    <ChevronRight size={14} style={{ transform: 'rotate(90deg)' }} />
+                    {t('common.showMore')}
+                  </button>
+                )}
+
+                {showMoreActions && (
+                  <>
+                    <button onClick={() => handleAddResidency(confirmAction.code)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <Home size={18} style={{ color: '#3b82f6', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.addLivedIn')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addLivedInHint')}</div>
+                      </div>
+                    </button>
+                    <button onClick={() => handleAddVolunteering(confirmAction.code)}
+                      style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '12px 16px', borderRadius: 12, border: '1px solid var(--border-primary)', background: 'none', cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', transition: 'background 0.12s' }}
+                      onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+                      onMouseLeave={e => e.currentTarget.style.background = 'none'}>
+                      <HeartHandshake size={18} style={{ color: '#f59e0b', flexShrink: 0 }} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('atlas.addVolunteered')}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>{t('atlas.addVolunteeredHint')}</div>
+                      </div>
+                    </button>
+                  </>
+                )}
               </div>
             )}
 

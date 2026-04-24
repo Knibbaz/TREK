@@ -15,7 +15,10 @@ import type { DateProposal, DateAvailabilityEntry, VacationDay, CompanyHoliday }
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function isoDate(d: Date): string {
-  return d.toISOString().slice(0, 10)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
 }
 
 function daysInMonth(year: number, month: number): number {
@@ -99,9 +102,9 @@ function Tooltip({ date, x, y, overlays, availability, members }: TooltipProps) 
           {entries.map(e => (
             <div key={e.user_id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
               <span style={{
-                fontWeight: 700,
-                color: e.status === 'yes' ? '#16a34a' : e.status === 'maybe' ? '#ea580c' : '#dc2626',
-              }}>{e.status === 'yes' ? '✓' : e.status === 'maybe' ? '~' : '✗'}</span>
+                fontWeight: 900, fontSize: 12,
+                color: e.status === 'yes' ? '#16a34a' : e.status === 'maybe' ? '#f59e0b' : '#dc2626',
+              }}>{e.status === 'yes' ? '✓' : e.status === 'maybe' ? '?' : '✕'}</span>
               <span style={{ color: 'var(--text-primary)' }}>{e.username}</span>
             </div>
           ))}
@@ -218,18 +221,25 @@ function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays }
           const entries = proposal.availability.filter(a => a.date === date)
           const yesCount = entries.filter(e => e.status === 'yes').length
           const maybeCount = entries.filter(e => e.status === 'maybe').length
+          const noCount = entries.filter(e => e.status === 'no').length
           const total = proposal.members.length
 
-          // Base color from group consensus
+          // Group consensus background
           let bg = 'var(--bg-hover)'
           let textColor = 'var(--text-secondary)'
-          if (yesCount === total && total > 0) { bg = '#16a34a'; textColor = '#fff' }
-          else if (yesCount + maybeCount > 0) { bg = '#ea580c'; textColor = '#fff' }
-          else if (entries.length > 0) { bg = '#dc2626'; textColor = '#fff' }
+          if (entries.length > 0) {
+            if (yesCount === total) { bg = '#16a34a'; textColor = '#fff' }           // iedereen kan
+            else if (noCount === total) { bg = '#dc2626'; textColor = '#fff' }        // niemand kan
+            else if (yesCount > 0 && noCount === 0) { bg = '#84cc16'; textColor = '#166534' } // alleen ja+misschien
+            else if (noCount > 0 && yesCount === 0 && maybeCount > 0) { bg = '#f59e0b'; textColor = '#fff' } // misschien + nee
+            else { bg = '#ea580c'; textColor = '#fff' }                               // gemengd
+          }
 
-          // If there are overlays, tint the background
           const hasOverlays = overlays.length > 0
           const borderColor = mine ? 'var(--accent)' : hasOverlays ? overlays[0].color : 'transparent'
+
+          const mineSymbol = mine === 'yes' ? '✓' : mine === 'maybe' ? '?' : mine === 'no' ? '✕' : null
+          const mineColor = mine === 'yes' ? '#16a34a' : mine === 'maybe' ? '#f59e0b' : '#dc2626'
 
           return (
             <div
@@ -243,7 +253,7 @@ function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays }
               style={{
                 aspectRatio: '1', display: 'flex', alignItems: 'center', justifyContent: 'center',
                 borderRadius: 6, cursor: 'pointer', background: bg, color: textColor,
-                fontSize: 11, fontWeight: mine ? 700 : 400,
+                fontSize: 11, fontWeight: 500,
                 border: `2px solid ${borderColor}`,
                 transition: 'background 0.1s',
                 userSelect: 'none',
@@ -251,7 +261,16 @@ function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays }
               }}
             >
               {dayNum}
-              {hasOverlays && !mine && (
+              {mineSymbol && (
+                <div style={{
+                  position: 'absolute', top: 1, right: 2,
+                  fontSize: 8, fontWeight: 900, lineHeight: 1,
+                  color: entries.length > 0 ? 'rgba(255,255,255,0.9)' : mineColor,
+                }}>
+                  {mineSymbol}
+                </div>
+              )}
+              {hasOverlays && !mineSymbol && (
                 <div style={{
                   position: 'absolute', bottom: 2, left: '50%', transform: 'translateX(-50%)',
                   display: 'flex', gap: 2,
@@ -336,11 +355,15 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
 
   // Legend
   const legendItems = [
-    { icon: <Users size={10} />, color: '#16a34a', label: t('dateAvail.allYes') || 'All yes' },
-    { icon: <Users size={10} />, color: '#ea580c', label: t('dateAvail.someYes') || 'Some yes' },
-    { icon: <Plane size={10} />, color: '#3b82f6', label: t('dateAvail.vacation') || 'Vacation' },
-    { icon: <Briefcase size={10} />, color: '#ef4444', label: t('dateAvail.companyHoliday') || 'Company holiday' },
-    { icon: <Globe size={10} />, color: '#f59e0b', label: t('dateAvail.publicHoliday') || 'Public holiday' },
+    { color: '#16a34a', label: t('dateAvail.allYes') || 'Iedereen kan' },
+    { color: '#84cc16', label: t('dateAvail.mostYes') || 'Kan (geen nee)' },
+    { color: '#ea580c', label: t('dateAvail.mixed') || 'Gemengd' },
+    { color: '#dc2626', label: t('dateAvail.allNo') || 'Niemand kan' },
+  ]
+  const overlayLegend = [
+    { icon: <Plane size={10} />, color: '#3b82f6', label: t('dateAvail.vacation') || 'Verlof' },
+    { icon: <Briefcase size={10} />, color: '#ef4444', label: t('dateAvail.companyHoliday') || 'Bedrijfsfeestdag' },
+    { icon: <Globe size={10} />, color: '#f59e0b', label: t('dateAvail.publicHoliday') || 'Feestdag' },
   ]
 
   return (
@@ -420,15 +443,27 @@ function ProposalCard({ proposal, groupId, currentUserId, onDelete, onAvailabili
       </div>
 
       {/* Legend */}
-      <div style={{ padding: '0 16px 12px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', borderTop: '1px solid var(--border-faint)', paddingTop: 10 }}>
-        {legendItems.map(item => (
-          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
-            <span style={{ color: item.color }}>{item.icon}</span>
-            {item.label}
+      <div style={{ padding: '10px 16px 12px', borderTop: '1px solid var(--border-faint)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {legendItems.map(item => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: item.color, flexShrink: 0 }} />
+              {item.label}
+            </div>
+          ))}
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+          {overlayLegend.map(item => (
+            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, color: 'var(--text-secondary)' }}>
+              <span style={{ color: item.color }}>{item.icon}</span>
+              {item.label}
+            </div>
+          ))}
+          <div style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 'auto' }}>
+            <span style={{ fontWeight: 700, color: '#16a34a' }}>✓</span> = kan &nbsp;
+            <span style={{ fontWeight: 700, color: '#f59e0b' }}>?</span> = misschien &nbsp;
+            <span style={{ fontWeight: 700, color: '#dc2626' }}>✕</span> = kan niet
           </div>
-        ))}
-        <div style={{ fontSize: 11, color: 'var(--text-faint)', marginLeft: 'auto' }}>
-          ✓ = {t('dateAvail.yes')} · ~ = {t('dateAvail.maybe')} · ✗ = {t('dateAvail.no')}
         </div>
       </div>
     </div>
