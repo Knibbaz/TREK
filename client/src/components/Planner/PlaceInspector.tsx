@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { openFile } from '../../utils/fileDownload'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp } from 'lucide-react'
+import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, BedDouble } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import { mapsApi } from '../../api/client'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -135,6 +135,7 @@ export default function PlaceInspector({
 }: PlaceInspectorProps) {
   const { t, locale, language } = useTranslation()
   const timeFormat = useSettingsStore(s => s.settings.time_format) || '24h'
+  const bookingAffiliateId = useSettingsStore(s => s.settings.booking_affiliate_id)
   const [hoursExpanded, setHoursExpanded] = useState(false)
   const [filesExpanded, setFilesExpanded] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -167,6 +168,10 @@ export default function PlaceInspector({
   if (!place) return null
 
   const category = categories?.find(c => c.id === place.category_id)
+  const isHotel = category?.icon === 'BedDouble'
+  const bookingUrl = isHotel
+    ? `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(place.name)}${bookingAffiliateId ? `&aid=${bookingAffiliateId}` : ''}`
+    : null
   const dayAssignments = selectedDayId ? (assignments[String(selectedDayId)] || []) : []
   const assignmentInDay = selectedDayId ? dayAssignments.find(a => a.place?.id === place.id) : null
 
@@ -605,6 +610,24 @@ export default function PlaceInspector({
 
         {/* Footer actions */}
         <div style={{ padding: '10px 16px', borderTop: '1px solid var(--border-faint)', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+          {bookingUrl && (
+            <a
+              href={bookingUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 6,
+                padding: '6px 14px', borderRadius: 99, border: 'none',
+                background: '#003580', color: '#fff',
+                fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                textDecoration: 'none', cursor: 'pointer',
+                flexShrink: 0,
+              }}
+            >
+              <BedDouble size={13} />
+              Booking.com
+            </a>
+          )}
           {selectedDayId && (
             assignmentInDay ? (
               <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}

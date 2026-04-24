@@ -2185,6 +2185,25 @@ function runMigrations(db: Database.Database): void {
     () => {
       try { db.exec("ALTER TABLE places ADD COLUMN import_source TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
+    // Migration 80: Migrate default category icons from emoji to lucide icon names
+    () => {
+      const iconMap: Record<string, string> = {
+        '🏨': 'BedDouble',
+        '🍽️': 'UtensilsCrossed',
+        '🏛️': 'Landmark',
+        '🛍️': 'ShoppingBag',
+        '🚌': 'Bus',
+        '🎯': 'Activity',
+        '☕': 'Coffee',
+        '🏖️': 'Waves',
+        '🌿': 'TreePine',
+        '📍': 'MapPin',
+      };
+      const update = db.prepare('UPDATE categories SET icon = ? WHERE icon = ? AND user_id IS NULL');
+      for (const [emoji, lucide] of Object.entries(iconMap)) {
+        update.run(lucide, emoji);
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

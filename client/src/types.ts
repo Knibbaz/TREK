@@ -222,6 +222,7 @@ export interface Settings {
   mapbox_style?: string
   mapbox_3d_enabled?: boolean
   mapbox_quality_mode?: boolean
+  booking_affiliate_id?: string
 }
 
 export interface AssignmentsMap {
