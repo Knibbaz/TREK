@@ -181,6 +181,7 @@ const nl: Record<string, string> = {
   'settings.mapTip': 'Rechts-klik en sleep om de kaart te roteren/kantelen. Middenklik om een locatie toe te voegen (rechts-klik is voor rotatie).',
   'settings.latitude': 'Breedtegraad',
   'settings.longitude': 'Lengtegraad',
+  'settings.navZoom': 'Navigatie zoomniveau',
   'settings.saveMap': 'Kaart opslaan',
   'settings.apiKeys': 'API-sleutels',
   'settings.mapsKey': 'Google Maps API-sleutel',

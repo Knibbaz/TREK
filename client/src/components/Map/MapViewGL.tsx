@@ -153,6 +153,7 @@ export function MapViewGL({
   const mapboxToken = useSettingsStore(s => s.settings.mapbox_access_token || '')
   const mapbox3d = useSettingsStore(s => s.settings.mapbox_3d_enabled !== false)
   const mapboxQuality = useSettingsStore(s => s.settings.mapbox_quality_mode === true)
+  const navZoom = useSettingsStore(s => s.settings.map_nav_zoom ?? 14)
   const showEndpointLabels = useSettingsStore(s => s.settings.map_booking_labels) !== false
   const placesPhotosEnabled = useAuthStore(s => s.placesPhotosEnabled)
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(getAllThumbs)
@@ -544,12 +545,12 @@ export function MapViewGL({
     try {
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: 14,
+        zoom: navZoom,
         pitch: mapbox3d ? 45 : 0,
         duration: 600,
       })
     } catch { /* noop */ }
-  }, [selectedPlaceId, mapbox3d]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedPlaceId, mapbox3d, navZoom]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // External center/zoom prop changes — jump without animation
   useEffect(() => {

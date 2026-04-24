@@ -18,6 +18,7 @@ function categoryIconSvg(iconName: string | null | undefined, size: number): str
   } catch { return '' }
 }
 import type { Place } from '../../types'
+import { useSettingsStore } from '../../store/settingsStore'
 
 // Fix default marker icons for vite
 delete L.Icon.Default.prototype._getIconUrl
@@ -127,16 +128,17 @@ interface SelectionControllerProps {
 function SelectionController({ places, selectedPlaceId, dayPlaces, paddingOpts }: SelectionControllerProps) {
   const map = useMap()
   const prev = useRef(null)
+  const navZoom = useSettingsStore(s => s.settings.map_nav_zoom ?? 14)
 
   useEffect(() => {
     if (selectedPlaceId && selectedPlaceId !== prev.current) {
       const selected = places.find(p => p.id === selectedPlaceId)
       if (selected?.lat && selected?.lng) {
-        map.flyTo([selected.lat, selected.lng], 14, { animate: true, duration: 0.6 })
+        map.flyTo([selected.lat, selected.lng], navZoom, { animate: true, duration: 0.6 })
       }
     }
     prev.current = selectedPlaceId
-  }, [selectedPlaceId, places, map])
+  }, [selectedPlaceId, places, map, navZoom])
 
   return null
 }

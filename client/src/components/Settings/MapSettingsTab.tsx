@@ -146,6 +146,7 @@ export default function MapSettingsTab(): React.ReactElement {
   const [defaultLat, setDefaultLat] = useState<number | string>(settings.default_lat || 48.8566)
   const [defaultLng, setDefaultLng] = useState<number | string>(settings.default_lng || 2.3522)
   const [defaultZoom, setDefaultZoom] = useState<number | string>(settings.default_zoom || 10)
+  const [navZoom, setNavZoom] = useState<number | string>(settings.map_nav_zoom ?? 14)
 
   useEffect(() => {
     setProvider((settings.map_provider as Provider) || 'leaflet')
@@ -157,6 +158,7 @@ export default function MapSettingsTab(): React.ReactElement {
     setDefaultLat(settings.default_lat || 48.8566)
     setDefaultLng(settings.default_lng || 2.3522)
     setDefaultZoom(settings.default_zoom || 10)
+    setNavZoom(settings.map_nav_zoom ?? 14)
   }, [settings])
 
   const handleMapClick = useCallback((mapInfo) => {
@@ -197,6 +199,7 @@ export default function MapSettingsTab(): React.ReactElement {
         default_lat: parseFloat(String(defaultLat)),
         default_lng: parseFloat(String(defaultLng)),
         default_zoom: parseInt(String(defaultZoom)),
+        map_nav_zoom: Math.min(22, Math.max(1, parseInt(String(navZoom)) || 14)),
       })
       toast.success(t('settings.toast.mapSaved'))
     } catch (err: unknown) {
@@ -378,6 +381,21 @@ export default function MapSettingsTab(): React.ReactElement {
             value={defaultLng}
             onChange={(e) => setDefaultLng(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">{t('settings.navZoom')}</label>
+          <input
+            type="number"
+            min={1}
+            max={22}
+            step={1}
+            value={navZoom}
+            onChange={(e) => setNavZoom(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent dark:bg-slate-900 dark:text-white"
           />
         </div>
       </div>
