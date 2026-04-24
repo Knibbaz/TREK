@@ -48,8 +48,6 @@ router.post('/', authenticate, async (req: Request, res: Response) => {
     endpoints, needs_review
   });
 
-  console.log('Created reservation:', reservation, 'Accommodation created:', accommodationCreated);
-
   if (accommodationCreated) {
     broadcast(tripId, 'accommodation:created', {}, req.headers['x-socket-id'] as string);
   }

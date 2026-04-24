@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { tripsApi, exploreApi } from '../api/client'
 import { useAuthStore } from '../store/authStore'
 import { useSettingsStore } from '../store/settingsStore'
@@ -154,8 +154,34 @@ interface TripCardProps {
   dark?: boolean
 }
 
+function SpotlightStats({ trip, totalDays, t }: { trip: DashboardTrip; totalDays: number; t: TripCardProps['t'] }): React.ReactElement {
+  const days = useCountUp(trip.day_count || totalDays)
+  const places = useCountUp(trip.place_count || 0)
+  const buddies = useCountUp(trip.shared_count || 0)
+
+  return (
+    <div style={{ display: 'flex', gap: 16 }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 24, fontWeight: 700 }}>{days}</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{t('dashboard.stats.days')}</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 24, fontWeight: 700 }}>{places}</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{t('dashboard.stats.places')}</div>
+      </div>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{ fontSize: 24, fontWeight: 700 }}>{buddies}</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{t('dashboard.stats.buddies')}</div>
+      </div>
+    </div>
+  )
+}
+
 function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale, dark }: TripCardProps): React.ReactElement {
   const status = getTripStatus(trip)
+  const days = useCountUp(trip.day_count || totalDays)
+  const places = useCountUp(trip.place_count || 0)
+  const buddies = useCountUp(trip.shared_count || 0)
 
   const coverBg = trip.cover_image
     ? `url(${trip.cover_image}) center/cover no-repeat`
@@ -237,15 +263,7 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
           </div>
         </div>
       </div>
-      <div className="text-center">
-        <p className="text-[22px] font-extrabold tracking-[-0.02em] leading-none tabular-nums">{places}</p>
-        <p className="text-[9px] uppercase tracking-[0.1em] opacity-70 font-semibold mt-1">{t('dashboard.mobile.places')}</p>
-      </div>
-      <div className="text-center">
-        <p className="text-[22px] font-extrabold tracking-[-0.02em] leading-none tabular-nums">{buddies}</p>
-        <p className="text-[9px] uppercase tracking-[0.1em] opacity-70 font-semibold mt-1">{t('dashboard.mobile.buddies')}</p>
-      </div>
-    </div>
+    </LiquidGlass>
   )
 }
 
@@ -347,194 +365,6 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
 
         {/* Stats */}
         <SpotlightStats trip={trip} totalDays={totalDays} t={t} />
-      </div>
-    </div>
-  )
-}
-
-// ── Mobile Trip Card (upcoming style) ────────────────────────────────────────
-function MobileTripCard({ trip, onEdit, onCopy, onDelete, onArchive, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
-  const status = getTripStatus(trip)
-  const until = daysUntil(trip.start_date)
-  const duration = trip.start_date && trip.end_date
-    ? Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000) + 1
-    : trip.day_count || null
-
-  const badgeText = status === 'ongoing' ? t('dashboard.mobile.ongoing')
-    : status === 'today' ? t('dashboard.mobile.startsToday')
-    : status === 'tomorrow' ? t('dashboard.mobile.tomorrow')
-    : until && until > 0 ? (until < 30 ? t('dashboard.mobile.inDays', { count: until }) : until < 365 ? t('dashboard.mobile.inMonths', { count: Math.round(until / 30) }) : `In ${Math.round(until / 365)}y`)
-    : status === 'past' ? t('dashboard.mobile.completed')
-    : null
-
-  return (
-    <div
-      onClick={() => onClick?.(trip)}
-      className="group rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden cursor-pointer transition-[transform,box-shadow,border-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:shadow-md"
-      style={{ background: 'var(--bg-card)', isolation: 'isolate' }}
-    >
-      {/* Cover */}
-      <div className="relative h-[120px] overflow-hidden" style={{ background: trip.cover_image ? undefined : tripGradient(trip.id) }}>
-        {trip.cover_image && (
-          <img src={trip.cover_image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[800ms] ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.08]" alt="" />
-        )}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.5) 100%)' }} />
-
-        {/* Action buttons top-right */}
-        <div className="absolute top-3 right-3 z-[2] flex gap-1">
-          {onEdit && <button title={t('common.edit')} onClick={e => { e.stopPropagation(); onEdit(trip) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white"><Edit2 size={12} /></button>}
-          {onCopy && <button title={t('dashboard.copyTrip')} onClick={e => { e.stopPropagation(); onCopy(trip) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white"><Copy size={12} /></button>}
-          {onArchive && <button title={t('dashboard.archive')} onClick={e => { e.stopPropagation(); onArchive(trip.id) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white"><Archive size={12} /></button>}
-          {onDelete && <button title={t('common.delete')} onClick={e => { e.stopPropagation(); onDelete(trip) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-red-300"><Trash2 size={12} /></button>}
-        </div>
-
-        {(onEdit || onCopy || onArchive || onDelete || onPublish) && (
-        <div style={{ display: 'flex', gap: 6, borderTop: '1px solid #f3f4f6', paddingTop: 10 }}
-          onClick={e => e.stopPropagation()}>
-          {onEdit && <CardAction onClick={() => onEdit(trip)} icon={<Edit2 size={12} />} label={t('common.edit')} />}
-          {onCopy && <CardAction onClick={() => onCopy(trip)} icon={<Copy size={12} />} label={t('dashboard.copyTrip')} />}
-          {onPublish && <CardAction onClick={() => onPublish(trip)} icon={<Compass size={12} />} label={t('dashboard.publishExplore')} />}
-          {onArchive && <CardAction onClick={() => onArchive(trip.id)} icon={<Archive size={12} />} label={t('dashboard.archive')} />}
-          {onDelete && <CardAction onClick={() => onDelete(trip)} icon={<Trash2 size={12} />} label={t('common.delete')} danger />}
-        </div>
-        )}
-
-        {/* Title on cover */}
-        <div className="absolute bottom-3.5 left-3.5 right-3.5 z-[2] text-white">
-          <h3 className="text-[22px] font-extrabold tracking-[-0.02em] leading-none">{trip.title}</h3>
-          {trip.description && (
-            <p className="text-[11px] opacity-75 font-medium mt-1 truncate">{trip.description}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom stats */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex gap-[18px]">
-          {trip.start_date && (
-            <div className="flex flex-col gap-px">
-              <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{formatDateShort(trip.start_date, locale)}</span>
-              <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.starts')}</span>
-            </div>
-          )}
-          {duration && (
-            <div className="flex flex-col gap-px">
-              <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{duration} {duration === 1 ? t('dashboard.mobile.day') : t('dashboard.mobile.days')}</span>
-              <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.duration')}</span>
-            </div>
-          )}
-          <div className="flex flex-col gap-px">
-            <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{trip.place_count || 0}</span>
-            <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.places')}</span>
-          </div>
-          {(trip.shared_count || 0) > 0 && (
-            <div className="flex flex-col gap-px">
-              <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{trip.shared_count}</span>
-              <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.buddies')}</span>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ── Regular Trip Card (matches mobile card design) ──────────────────────────
-function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
-  const status = getTripStatus(trip)
-  const until = daysUntil(trip.start_date)
-  const duration = trip.start_date && trip.end_date
-    ? Math.ceil((new Date(trip.end_date).getTime() - new Date(trip.start_date).getTime()) / 86400000) + 1
-    : trip.day_count || null
-
-  const badgeText = status === 'ongoing' ? t('dashboard.mobile.ongoing')
-    : status === 'today' ? t('dashboard.mobile.startsToday')
-    : status === 'tomorrow' ? t('dashboard.mobile.tomorrow')
-    : until && until > 0 ? (until < 30 ? t('dashboard.mobile.inDays', { count: until }) : until < 365 ? t('dashboard.mobile.inMonths', { count: Math.round(until / 30) }) : `In ${Math.round(until / 365)}y`)
-    : status === 'past' ? t('dashboard.mobile.completed')
-    : null
-
-  return (
-    <div
-      onClick={() => onClick(trip)}
-      className="group rounded-2xl border border-zinc-200 dark:border-zinc-700 overflow-hidden cursor-pointer transition-[transform,box-shadow,border-color] duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:shadow-lg hover:border-zinc-300 dark:hover:border-zinc-600"
-      style={{ background: 'var(--bg-card)', isolation: 'isolate' }}
-    >
-      {/* Cover */}
-      <div className="relative h-[140px] overflow-hidden" style={{ background: trip.cover_image ? undefined : tripGradient(trip.id) }}>
-        {trip.cover_image && (
-          <img src={trip.cover_image} className="absolute inset-0 w-full h-full object-cover transition-transform duration-[800ms] ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[1.08]" alt="" />
-        )}
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(180deg, transparent 30%, rgba(0,0,0,0.55) 100%)' }} />
-
-        {/* Action buttons top-right — visible on hover */}
-        <div className="absolute top-3 right-3 z-[2] flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {onEdit && <button title={t('common.edit')} onClick={e => { e.stopPropagation(); onEdit(trip) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/50 transition-colors"><Edit2 size={12} /></button>}
-          {onCopy && <button title={t('dashboard.copyTrip')} onClick={e => { e.stopPropagation(); onCopy(trip) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/50 transition-colors"><Copy size={12} /></button>}
-          {onArchive && <button title={t('dashboard.archive')} onClick={e => { e.stopPropagation(); onArchive(trip.id) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white hover:bg-black/50 transition-colors"><Archive size={12} /></button>}
-          {onDelete && <button title={t('common.delete')} onClick={e => { e.stopPropagation(); onDelete(trip) }} className="w-[30px] h-[30px] rounded-[8px] bg-black/30 backdrop-blur-sm border border-white/20 flex items-center justify-center text-red-300 hover:bg-red-500/30 transition-colors"><Trash2 size={12} /></button>}
-        </div>
-
-        {/* Status badge top-left */}
-        {badgeText && (
-          <div className="absolute top-2.5 left-2.5 z-[2]">
-            <span className="inline-flex items-center gap-1 px-2 py-[3px] bg-black/40 backdrop-blur-sm border border-white/15 rounded-full text-white text-[9px] font-bold uppercase tracking-[0.06em]">
-              {status === 'ongoing' ? (
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
-              ) : status === 'past' ? (
-                <CheckCircle2 size={10} />
-              ) : (
-                <Clock size={10} />
-              )}
-              {badgeText}
-            </span>
-          </div>
-        )}
-
-        {/* Shared badge */}
-        {!trip.is_owner && (
-          <div className="absolute top-3.5 right-3.5 z-[1] group-hover:opacity-0 transition-opacity">
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-black/40 backdrop-blur-sm border border-white/15 rounded-full text-white text-[9px] font-semibold uppercase tracking-[0.06em]">
-              <Users size={9} /> {t('dashboard.shared')}
-            </span>
-          </div>
-        )}
-
-        {/* Title on cover */}
-        <div className="absolute bottom-3.5 left-3.5 right-3.5 z-[2] text-white">
-          <h3 className="text-[20px] font-extrabold tracking-[-0.02em] leading-tight">{trip.title}</h3>
-          {trip.description && (
-            <p className="text-[11px] opacity-75 font-medium mt-1 truncate">{trip.description}</p>
-          )}
-        </div>
-      </div>
-
-      {/* Bottom stats */}
-      <div className="flex items-center justify-between px-4 py-3">
-        <div className="flex gap-[18px]">
-          {trip.start_date && (
-            <div className="flex flex-col gap-px">
-              <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{formatDateShort(trip.start_date, locale)}</span>
-              <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.starts')}</span>
-            </div>
-          )}
-          {duration && (
-            <div className="flex flex-col gap-px">
-              <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{duration} {duration === 1 ? t('dashboard.mobile.day') : t('dashboard.mobile.days')}</span>
-              <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.duration')}</span>
-            </div>
-          )}
-          <div className="flex flex-col gap-px">
-            <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{trip.place_count || 0}</span>
-            <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.places')}</span>
-          </div>
-          {(trip.shared_count || 0) > 0 && (
-            <div className="flex flex-col gap-px">
-              <span className="text-[13px] font-bold tracking-[-0.01em]" style={{ color: 'var(--text-primary)' }}>{trip.shared_count}</span>
-              <span className="text-[9px] uppercase tracking-[0.06em] font-medium" style={{ color: 'var(--text-faint)' }}>{t('dashboard.mobile.buddies')}</span>
-            </div>
-          )}
-        </div>
       </div>
     </div>
   )

@@ -263,6 +263,7 @@ export interface UserWithOidc extends User {
 export interface Accommodation {
   id: number
   trip_id: number
+  place_id: number
   name: string
   address: string | null
   check_in: string | null

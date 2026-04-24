@@ -479,7 +479,6 @@ interface ReservationsPanelProps {
   assignments: AssignmentsMap
   files?: TripFile[]
   onAdd: () => void
-  onAddAutomatic: () => void
   onEdit: (reservation: Reservation) => void
   onDelete: (id: number) => void
   onNavigateToFiles: () => void
@@ -487,7 +486,7 @@ interface ReservationsPanelProps {
   addManualKey?: string
 }
 
-export default function ReservationsPanel({ tripId, reservations, days, assignments, files = [],  onAdd, onAddAutomatic, onEdit, onDelete, onNavigateToFiles, titleKey = 'reservations.title', addManualKey = 'reservations.addManual' }: ReservationsPanelProps) {
+export default function ReservationsPanel({ tripId, reservations, days, assignments, files = [],  onAdd, onEdit, onDelete, onNavigateToFiles, titleKey = 'reservations.title', addManualKey = 'reservations.addManual' }: ReservationsPanelProps) {
   const { t, locale } = useTranslation()
   const can = useCanDo()
   const trip = useTripStore((s) => s.trip)
@@ -615,21 +614,15 @@ export default function ReservationsPanel({ tripId, reservations, days, assignme
               <span className="hidden sm:inline">{t(addManualKey)}</span>
             </button>
           )}
-        </div>
-        {canEdit && (
-          <div style={{display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 12}}>
-            <button onClick={onAddAutomatic} style={{display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 99,
-            border: 'none', background: 'var(--accent)', color: 'var(--accent-text)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',}}>
+
+          {canEdit && (
+            <button onClick={onAdd} style={{display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 99,
+                border: 'none', background: 'var(--accent)', color: 'var(--accent-text)',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',}}>
               <Plus size={13}/> <span className="hidden sm:inline">{t('reservations.addAutomatically')}</span>
             </button>
-            <button onClick={onAdd} style={{display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 99,
-            border: 'none', background: 'var(--accent)', color: 'var(--accent-text)',
-            fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',}}>
-              <Plus size={13}/> <span className="hidden sm:inline">{t('reservations.addManual')}</span>
-            </button>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Content */}

@@ -5,6 +5,13 @@ import { useAuthStore } from '../../store/authStore'
 import { useTranslation } from '../../i18n'
 import type { VacayStat } from '../../types'
 
+interface VacayStatExtended extends VacayStat {
+  username: string
+  avatar_url: string | null
+  color: string | null
+  total_available: number
+}
+
 function fmtHours(h: number): string {
   const rounded = Math.round(h * 10) / 10
   return `${rounded}u`
@@ -57,17 +64,17 @@ export default function VacayStats() {
 }
 
 interface StatCardProps {
-  stat: VacayStat
+  stat: VacayStatExtended
   isMe: boolean
   canEdit: boolean
   selectedYear: number
-  onSave: (year: number, days: number, targetUserId?: number) => Promise<void>
-  t: (key: string, params?: Record<string, unknown>) => string
+  onSave: (userId: number, year: number, days: number) => Promise<void>
+  t: (key: string) => string
 }
 
 function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardProps) {
   const [editing, setEditing] = useState(false)
-  const [localDays, setLocalDays] = useState<string | number>(s.vacation_days)
+  const [localDays, setLocalDays] = useState(s.vacation_days)
   const [hoveredStat, setHoveredStat] = useState<'used' | 'remaining' | 'header' | 'comp' | null>(null)
   const stdHours = s.standard_hours_per_day ?? 8
   const pct = s.total_available > 0 ? Math.min(100, (s.used / s.total_available) * 100) : 0

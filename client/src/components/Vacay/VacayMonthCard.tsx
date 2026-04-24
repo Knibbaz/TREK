@@ -43,8 +43,8 @@ export default function VacayMonthCard({
   const weeks = useMemo(() => {
     const firstDay = new Date(year, month, 1)
     const daysInMonth = new Date(year, month + 1, 0).getDate()
-    let startDow = firstDay.getDay() - 1
-    if (startDow < 0) startDow = 6
+    let startDow = firstDay.getDay() - weekStart
+    if (startDow < 0) startDow += 7
     const cells: (number | null)[] = []
     for (let i = 0; i < startDow; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) cells.push(d)
