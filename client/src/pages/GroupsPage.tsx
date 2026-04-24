@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { useGroupsStore } from '../store/groupsStore'
 import { useAuthStore } from '../store/authStore'
+import { tripsApi } from '../api/client'
 import Navbar from '../components/Layout/Navbar'
 import Modal from '../components/shared/Modal'
 import {
@@ -10,6 +11,14 @@ import {
   User, MapPin, CalendarDays, ExternalLink, MoreHorizontal
 } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+interface TripOption {
+  id: number
+  title: string
+  cover_image?: string | null
+  start_date?: string | null
+  end_date?: string | null
+}
 
 export default function GroupsPage(): React.ReactElement {
   const { t } = useTranslation()
@@ -31,7 +40,8 @@ export default function GroupsPage(): React.ReactElement {
   const [memberResults, setMemberResults] = useState<Array<{ id: number; username: string; email: string; avatar: string | null }>>([])
   const [searchingMembers, setSearchingMembers] = useState(false)
   const [showAddTrip, setShowAddTrip] = useState(false)
-  const [tripSearch, setTripSearch] = useState('')
+  const [availableTrips, setAvailableTrips] = useState<TripOption[]>([])
+  const [tripsLoading, setTripsLoading] = useState(false)
   const [editingGroup, setEditingGroup] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
@@ -164,13 +174,34 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
+  const handleOpenAddTrip = async () => {
+    setShowAddTrip(true)
+    setTripsLoading(true)
+    try {
+      const data = await tripsApi.list()
+      const userTrips: TripOption[] = (data.trips || []).map((t: any) => ({
+        id: t.id,
+        title: t.title,
+        cover_image: t.cover_image,
+        start_date: t.start_date,
+        end_date: t.end_date,
+      }))
+      const existingIds = new Set(currentGroup?.trips?.map(gt => gt.trip_id) || [])
+      setAvailableTrips(userTrips.filter(t => !existingIds.has(t.id)))
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setTripsLoading(false)
+    }
+  }
+
   const handleAddTrip = async (tripId: number) => {
     if (!currentGroup) return
     try {
       await addTrip(currentGroup.id, tripId)
       toast.success(t('groups.toast.tripAdded') || 'Trip added')
       setShowAddTrip(false)
-      setTripSearch('')
+      setAvailableTrips([])
       getGroup(currentGroup.id)
     } catch (err: any) {
       toast.error(err.message)
@@ -190,11 +221,6 @@ export default function GroupsPage(): React.ReactElement {
 
   const canManageMembers = currentGroup?.role === 'owner' || currentGroup?.role === 'admin'
   const isOwner = currentGroup?.role === 'owner'
-
-  // Available trips to add (all trips minus already added)
-  const availableTrips = currentGroup
-    ? [] // Will be populated by parent store if needed; for now we use a simple search approach
-    : []
 
   // Cover image placeholder
   const coverStyle = (url?: string | null) => ({
@@ -463,7 +489,7 @@ export default function GroupsPage(): React.ReactElement {
                   </h2>
                   {canManageMembers && (
                     <button
-                      onClick={() => setShowAddTrip(true)}
+                      onClick={handleOpenAddTrip}
                       className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white"
                       style={{ background: 'var(--accent)' }}
                     >
@@ -639,31 +665,48 @@ export default function GroupsPage(): React.ReactElement {
       {/* Add Trip Modal */}
       <Modal
         isOpen={showAddTrip}
-        onClose={() => { setShowAddTrip(false); setTripSearch('') }}
+        onClose={() => { setShowAddTrip(false); setAvailableTrips([]) }}
         title={t('groups.addTrip') || 'Add Trip'}
         size="md"
       >
         <div className="space-y-3">
-          <p className="text-xs" style={{ color: 'var(--text-muted)' }}>
-            {t('groups.addTripHint') || 'Enter a trip ID to add it to this group.'}
-          </p>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              value={tripSearch}
-              onChange={e => setTripSearch(e.target.value)}
-              placeholder={t('groups.tripIdPlaceholder') || 'Trip ID...'}
-              className="flex-1 px-3 py-2 rounded-lg border text-sm"
-              style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
-            />
-            <button
-              onClick={() => { if (tripSearch) handleAddTrip(parseInt(tripSearch)) }}
-              disabled={!tripSearch.trim()}
-              className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
-              style={{ background: 'var(--accent)' }}
-            >
-              {t('common.add') || 'Add'}
-            </button>
+          {tripsLoading && (
+            <div className="flex justify-center py-4">
+              <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'var(--text-primary)' }} />
+            </div>
+          )}
+
+          {!tripsLoading && availableTrips.length === 0 && (
+            <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>
+              {t('groups.noTripsAvailable') || 'No trips available to add.'}
+            </p>
+          )}
+
+          <div className="space-y-1 max-h-64 overflow-y-auto">
+            {availableTrips.map(trip => (
+              <button
+                key={trip.id}
+                onClick={() => handleAddTrip(trip.id)}
+                className="w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors hover:opacity-80"
+                style={{ background: 'var(--bg-secondary)' }}
+              >
+                {trip.cover_image ? (
+                  <img src={trip.cover_image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                ) : (
+                  <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)' }}>
+                    <CalendarDays size={12} style={{ color: 'var(--text-faint)' }} />
+                  </div>
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{trip.title}</p>
+                  {(trip.start_date || trip.end_date) && (
+                    <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                      {trip.start_date || ''}{trip.start_date && trip.end_date ? ' – ' : ''}{trip.end_date || ''}
+                    </p>
+                  )}
+                </div>
+              </button>
+            ))}
           </div>
         </div>
       </Modal>
