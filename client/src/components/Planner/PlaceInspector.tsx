@@ -1,10 +1,11 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react'
 import { openFile } from '../../utils/fileDownload'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, BedDouble } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
-import { mapsApi } from '../../api/client'
+import { mapsApi, budgetApi } from '../../api/client'
+import { useToast } from '../shared/Toast'
 import { useSettingsStore } from '../../store/settingsStore'
 import { getCategoryIcon } from '../shared/categoryIcons'
 import { useTranslation } from '../../i18n'
@@ -123,6 +124,7 @@ interface PlaceInspectorProps {
   tripMembers?: TripMember[]
   onSetParticipants: (assignmentId: number, dayId: number, participantIds: number[]) => void
   onUpdatePlace: (placeId: number, data: Partial<Place>) => void
+  tripId?: string | number
   leftWidth?: number
   rightWidth?: number
 }
@@ -131,11 +133,19 @@ export default function PlaceInspector({
   place, categories, days, selectedDayId, selectedAssignmentId, assignments, reservations = [],
   onClose, onEdit, onDelete, onAssignToDay, onRemoveAssignment,
   files, onFileUpload, tripMembers = [], onSetParticipants, onUpdatePlace,
-  leftWidth = 0, rightWidth = 0,
+  tripId, leftWidth = 0, rightWidth = 0,
 }: PlaceInspectorProps) {
   const { t, locale, language } = useTranslation()
   const timeFormat = useSettingsStore(s => s.settings.time_format) || '24h'
   const bookingAffiliateId = useSettingsStore(s => s.settings.booking_affiliate_id)
+  const defaultCurrency = useSettingsStore(s => s.settings.default_currency)
+  const toast = useToast()
+  const [addingToBudget, setAddingToBudget] = useState(false)
+  const [showBudgetPopover, setShowBudgetPopover] = useState(false)
+  const [budgetPersons, setBudgetPersons] = useState('1')
+  const [budgetDays, setBudgetDays] = useState('1')
+  const [budgetSelectedMembers, setBudgetSelectedMembers] = useState<Set<number>>(new Set())
+  const budgetBtnRef = useRef<HTMLButtonElement>(null)
   const [hoursExpanded, setHoursExpanded] = useState(false)
   const [filesExpanded, setFilesExpanded] = useState(false)
   const [isUploading, setIsUploading] = useState(false)
@@ -165,9 +175,45 @@ export default function PlaceInspector({
     if (e.key === 'Escape') setEditingName(false)
   }
 
+  const openBudgetPopover = () => {
+    setBudgetPersons(String(tripMembers.length || 1))
+    setBudgetDays('1')
+    setBudgetSelectedMembers(new Set(tripMembers.map(m => m.id)))
+    setShowBudgetPopover(true)
+  }
+
+  const handleAddToBudget = async () => {
+    if (!tripId || !placePrice) return
+    const priceType = place.price_type || 'total'
+    const persons = tripMembers.length > 0 ? (budgetSelectedMembers.size || 1) : (parseInt(budgetPersons) || 1)
+    const days = parseInt(budgetDays) || 1
+    const total = priceType === 'per_person'
+      ? placePrice * persons
+      : priceType === 'per_day'
+        ? placePrice * days
+        : placePrice
+    setAddingToBudget(true)
+    try {
+      await budgetApi.create(tripId, {
+        name: place.name,
+        total_price: total,
+        persons: priceType === 'per_person' && persons > 1 ? persons : null,
+        days: priceType === 'per_day' && days > 1 ? days : null,
+        category: category?.name || 'Activity',
+      })
+      toast.success(t('inspector.addedToBudget'))
+      setShowBudgetPopover(false)
+    } catch {
+      toast.error(t('common.unknownError'))
+    } finally {
+      setAddingToBudget(false)
+    }
+  }
+
   if (!place) return null
 
   const category = categories?.find(c => c.id === place.category_id)
+  const placePrice = place.price ? parseFloat(place.price) : null
   const isHotel = category?.icon === 'BedDouble'
   const bookingUrl = isHotel
     ? `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(place.name)}${bookingAffiliateId ? `&aid=${bookingAffiliateId}` : ''}`
@@ -628,6 +674,171 @@ export default function PlaceInspector({
               Booking.com
             </a>
           )}
+          {tripId && placePrice && placePrice > 0 && (
+            <div style={{ position: 'relative' }}>
+              <button
+                ref={budgetBtnRef}
+                onClick={() => showBudgetPopover ? setShowBudgetPopover(false) : openBudgetPopover()}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 5,
+                  padding: '6px 12px', borderRadius: 10, minHeight: 30,
+                  fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                  fontFamily: 'inherit', transition: 'background 0.15s',
+                  background: showBudgetPopover ? 'var(--bg-tertiary)' : 'var(--bg-hover)',
+                  color: 'var(--text-secondary)', border: 'none',
+                }}
+                onMouseEnter={e => { if (!showBudgetPopover) e.currentTarget.style.background = 'var(--bg-tertiary)' }}
+                onMouseLeave={e => { if (!showBudgetPopover) e.currentTarget.style.background = 'var(--bg-hover)' }}
+              >
+                <Euro size={13} />
+                <span className="hidden sm:inline">{`${placePrice} ${place.currency || defaultCurrency || 'EUR'}`}</span>
+              </button>
+
+              {showBudgetPopover && (() => {
+                const priceType = place.price_type || 'total'
+                const unitPrice = placePrice || 0
+                const persons = tripMembers.length > 0 ? (budgetSelectedMembers.size || 1) : (parseInt(budgetPersons) || 1)
+                const days = parseInt(budgetDays) || 1
+                const total = priceType === 'per_person'
+                  ? unitPrice * persons
+                  : priceType === 'per_day'
+                    ? unitPrice * days
+                    : unitPrice
+                const cur = place.currency || defaultCurrency || 'EUR'
+                return (
+                  <div style={{
+                    position: 'absolute', bottom: '100%', left: 0, marginBottom: 6, zIndex: 200,
+                    background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)',
+                    borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.16)',
+                    padding: '14px 16px', minWidth: 220, display: 'flex', flexDirection: 'column', gap: 10,
+                  }}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-primary)' }}>
+                      {t('inspector.addToBudget')}
+                    </div>
+
+                    {/* Persons — only for per_person */}
+                    {priceType === 'per_person' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{t('inspector.persons')}</label>
+                        {tripMembers.length > 0 ? (
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                            {tripMembers.map(member => {
+                              const selected = budgetSelectedMembers.has(member.id)
+                              return (
+                                <button
+                                  key={member.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setBudgetSelectedMembers(prev => {
+                                      const next = new Set(prev)
+                                      if (next.has(member.id)) {
+                                        if (next.size > 1) next.delete(member.id)
+                                      } else {
+                                        next.add(member.id)
+                                      }
+                                      return next
+                                    })
+                                  }}
+                                  style={{
+                                    display: 'flex', alignItems: 'center', gap: 5,
+                                    padding: '3px 9px 3px 4px', borderRadius: 99, cursor: 'pointer',
+                                    fontFamily: 'inherit', fontSize: 11, fontWeight: 500,
+                                    border: `1.5px solid ${selected ? 'var(--accent)' : 'var(--border-primary)'}`,
+                                    background: selected ? 'var(--bg-hover)' : 'none',
+                                    color: selected ? 'var(--text-primary)' : 'var(--text-muted)',
+                                    transition: 'all 0.12s',
+                                  }}
+                                >
+                                  <div style={{
+                                    width: 18, height: 18, borderRadius: '50%', flexShrink: 0,
+                                    background: 'var(--bg-tertiary)', overflow: 'hidden',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    fontSize: 8, fontWeight: 700, color: 'var(--text-muted)',
+                                  }}>
+                                    {(member.avatar_url) ? (
+                                      <img src={member.avatar_url} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    ) : member.username?.[0]?.toUpperCase()}
+                                  </div>
+                                  {member.username}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        ) : (
+                          <input
+                            type="number"
+                            min="1"
+                            step="1"
+                            value={budgetPersons}
+                            onChange={e => setBudgetPersons(e.target.value)}
+                            autoFocus
+                            style={{
+                              padding: '5px 8px', borderRadius: 8, fontSize: 13,
+                              border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)',
+                              color: 'var(--text-primary)', fontFamily: 'inherit', outline: 'none',
+                            }}
+                          />
+                        )}
+                      </div>
+                    )}
+
+                    {/* Days — only for per_day */}
+                    {priceType === 'per_day' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 500 }}>{t('inspector.days')}</label>
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={budgetDays}
+                          onChange={e => setBudgetDays(e.target.value)}
+                          autoFocus
+                          style={{
+                            padding: '5px 8px', borderRadius: 8, fontSize: 13,
+                            border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)',
+                            color: 'var(--text-primary)', fontFamily: 'inherit', outline: 'none',
+                          }}
+                        />
+                      </div>
+                    )}
+
+                    {/* Total row */}
+                    <div style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '6px 10px', borderRadius: 8, background: 'var(--bg-hover)', fontSize: 12,
+                    }}>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {priceType === 'per_person' && `${unitPrice} × ${persons}`}
+                        {priceType === 'per_day' && `${unitPrice} × ${days}`}
+                        {priceType === 'total' && t('inspector.budgetTotal')}
+                      </span>
+                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{total.toFixed(2)} {cur}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => setShowBudgetPopover(false)}
+                        style={{
+                          flex: 1, padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500,
+                          border: '1px solid var(--border-primary)', background: 'none',
+                          color: 'var(--text-secondary)', cursor: 'pointer', fontFamily: 'inherit',
+                        }}
+                      >{t('common.cancel')}</button>
+                      <button
+                        onClick={handleAddToBudget}
+                        disabled={addingToBudget}
+                        style={{
+                          flex: 2, padding: '6px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600,
+                          border: 'none', background: 'var(--accent)', color: 'var(--accent-text)',
+                          cursor: addingToBudget ? 'default' : 'pointer', fontFamily: 'inherit',
+                        }}
+                      >{addingToBudget ? '…' : t('inspector.addToBudget')}</button>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
           {selectedDayId && (
             assignmentInDay ? (
               <ActionButton onClick={() => onRemoveAssignment(selectedDayId, assignmentInDay.id)} variant="ghost" icon={<Minus size={13} />}
@@ -692,9 +903,10 @@ interface ActionButtonProps {
   variant: 'primary' | 'ghost' | 'danger'
   icon: React.ReactNode
   label: React.ReactNode
+  disabled?: boolean
 }
 
-function ActionButton({ onClick, variant, icon, label }: ActionButtonProps) {
+function ActionButton({ onClick, variant, icon, label, disabled }: ActionButtonProps) {
   const base = {
     primary: { background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', hoverBg: 'var(--text-secondary)' },
     ghost: { background: 'var(--bg-hover)', color: 'var(--text-secondary)', border: 'none', hoverBg: 'var(--bg-tertiary)' },
@@ -704,14 +916,16 @@ function ActionButton({ onClick, variant, icon, label }: ActionButtonProps) {
   return (
     <button
       onClick={onClick}
+      disabled={disabled}
       style={{
         display: 'flex', alignItems: 'center', gap: 5,
         padding: '6px 12px', borderRadius: 10, minHeight: 30,
-        fontSize: 12, fontWeight: 500, cursor: 'pointer',
+        fontSize: 12, fontWeight: 500, cursor: disabled ? 'default' : 'pointer',
         fontFamily: 'inherit', transition: 'background 0.15s, opacity 0.15s',
         background: s.background, color: s.color, border: s.border,
+        opacity: disabled ? 0.5 : 1,
       }}
-      onMouseEnter={e => e.currentTarget.style.background = s.hoverBg}
+      onMouseEnter={e => { if (!disabled) e.currentTarget.style.background = s.hoverBg }}
       onMouseLeave={e => e.currentTarget.style.background = s.background}
     >
       {icon}{label}

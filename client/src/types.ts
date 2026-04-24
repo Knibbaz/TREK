@@ -50,6 +50,7 @@ export interface Place {
   category_id: number | null
   icon: string | null
   price: string | null
+  price_type: 'total' | 'per_person' | 'per_day' | null
   currency: string | null
   image_url: string | null
   google_place_id: string | null

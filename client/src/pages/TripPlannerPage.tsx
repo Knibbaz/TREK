@@ -1041,6 +1041,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                   } catch {}
                 }}
                 onUpdatePlace={async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
+                tripId={tripId}
                 leftWidth={(isMobile || window.innerWidth < 900) ? 0 : (leftCollapsed ? 0 : leftWidth)}
                 rightWidth={(isMobile || window.innerWidth < 900) ? 0 : (rightCollapsed ? 0 : rightWidth)}
               />
@@ -1090,6 +1091,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                       } catch {}
                     }}
                     onUpdatePlace={async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
+                    tripId={tripId}
                     leftWidth={0}
                     rightWidth={0}
                   />

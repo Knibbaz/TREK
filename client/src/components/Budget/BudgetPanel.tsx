@@ -68,6 +68,7 @@ function hexLighten(hex: string, amount: number): string {
   return `#${[mix(r), mix(g), mix(b)].map(v => v.toString(16).padStart(2, '0')).join('')}`
 }
 import CustomSelect from '../shared/CustomSelect'
+import ConfirmDialog from '../shared/ConfirmDialog'
 import { budgetApi } from '../../api/client'
 import { CustomDatePicker } from '../shared/CustomDateTimePicker'
 import type { BudgetItem, BudgetMember } from '../../types'
@@ -628,6 +629,7 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
   const handleAddItem = async (category, data) => { try { await addBudgetItem(tripId, { ...data, category }) } catch {} }
   const handleUpdateField = async (id, field, value) => { try { await updateBudgetItem(tripId, id, { [field]: value }) } catch {} }
   const handleDeleteItem = async (id) => { try { await deleteBudgetItem(tripId, id) } catch {} }
+  const [confirmDeleteCat, setConfirmDeleteCat] = useState<string | null>(null)
   const handleDeleteCategory = async (cat) => {
     const items = grouped.get(cat) || []
     for (const item of Array.from(items)) await deleteBudgetItem(tripId, item.id)
@@ -842,7 +844,7 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <span style={{ fontSize: 13, fontWeight: 500, opacity: 0.9 }}>{fmt(subtotal, currency)}</span>
                     {canEdit && (
-                      <button onClick={() => handleDeleteCategory(cat)} title={t('budget.deleteCategory')}
+                      <button onClick={() => setConfirmDeleteCat(cat)} title={t('budget.deleteCategory')}
                         style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 4, color: '#fff', cursor: 'pointer', padding: '3px 6px', display: 'flex', alignItems: 'center', opacity: 0.6 }}
                         onMouseEnter={e => e.currentTarget.style.opacity = '1'} onMouseLeave={e => e.currentTarget.style.opacity = '0.6'}>
                         <Trash2 size={13} />
@@ -1228,6 +1230,14 @@ export default function BudgetPanel({ tripId, tripMembers = [] }: BudgetPanelPro
 
         </div>
       </div>
+
+      <ConfirmDialog
+        isOpen={confirmDeleteCat !== null}
+        onClose={() => setConfirmDeleteCat(null)}
+        onConfirm={() => handleDeleteCategory(confirmDeleteCat)}
+        title={t('budget.deleteCategoryTitle')}
+        message={t('budget.deleteCategoryMessage', { cat: confirmDeleteCat ?? '' })}
+      />
     </div>
   )
 }

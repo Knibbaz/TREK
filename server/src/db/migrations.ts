@@ -2204,6 +2204,10 @@ function runMigrations(db: Database.Database): void {
         update.run(lucide, emoji);
       }
     },
+    // Migration 81: Add price_type column to places
+    () => {
+      try { db.exec("ALTER TABLE places ADD COLUMN price_type TEXT DEFAULT 'total'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
   ];
 
   if (currentVersion < migrations.length) {
