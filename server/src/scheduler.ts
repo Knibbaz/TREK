@@ -353,6 +353,73 @@ function stop(): void {
   if (versionCheckTask) { versionCheckTask.stop(); versionCheckTask = null; }
   if (idempotencyCleanupTask) { idempotencyCleanupTask.stop(); idempotencyCleanupTask = null; }
   if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
+  if (dateProposalReminderTask) { dateProposalReminderTask.stop(); dateProposalReminderTask = null; }
 }
 
-export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, startTrekPhotoCacheCleanup, loadSettings, saveSettings, VALID_INTERVALS };
+// Date proposal deadline reminders: daily 9 AM, send email to group members who
+// haven't filled in their availability, when the deadline is within reminder_days.
+let dateProposalReminderTask: ScheduledTask | null = null;
+
+function startDateProposalReminders(): void {
+  if (dateProposalReminderTask) { dateProposalReminderTask.stop(); dateProposalReminderTask = null; }
+
+  const tz = process.env.TZ || 'UTC';
+  dateProposalReminderTask = cron.schedule('0 9 * * *', async () => {
+    try {
+      const { db } = require('./db/database');
+      const { sendEmail } = require('./services/notifications');
+      const { logInfo, logError } = require('./services/auditLog');
+
+      // Find proposals that have a deadline, haven't been reminded yet,
+      // and the reminder window starts today (deadline - reminder_days <= today <= deadline).
+      const proposals = db.prepare(`
+        SELECT dp.id, dp.title, dp.group_id, dp.deadline, dp.reminder_days,
+               g.name AS group_name
+        FROM date_proposals dp
+        JOIN groups g ON g.id = dp.group_id
+        WHERE dp.deadline IS NOT NULL
+          AND dp.reminder_sent = 0
+          AND date('now') >= date(dp.deadline, '-' || dp.reminder_days || ' days')
+          AND date('now') <= dp.deadline
+      `).all() as Array<{ id: number; title: string; group_id: number; deadline: string; reminder_days: number; group_name: string }>;
+
+      for (const proposal of proposals) {
+        // Members who have not submitted any availability for this proposal
+        const unresponsive = db.prepare(`
+          SELECT u.id, u.email, u.username
+          FROM group_members gm
+          JOIN users u ON u.id = gm.user_id
+          WHERE gm.group_id = ?
+            AND u.email IS NOT NULL AND u.email != ''
+            AND NOT EXISTS (
+              SELECT 1 FROM date_availability da
+              WHERE da.proposal_id = ? AND da.user_id = u.id
+            )
+        `).all(proposal.group_id, proposal.id) as Array<{ id: number; email: string; username: string }>;
+
+        for (const member of unresponsive) {
+          const subject = `Availability deadline: ${proposal.title}`;
+          await sendEmail(
+            member.email,
+            subject,
+            `The availability poll "${proposal.title}" in group "${proposal.group_name}" closes on ${proposal.deadline}. Please fill in your availability before then.`,
+            member.id,
+            '/groups',
+          );
+        }
+
+        // Mark as sent regardless of how many were unresponsive
+        db.prepare('UPDATE date_proposals SET reminder_sent = 1 WHERE id = ?').run(proposal.id);
+
+        if (unresponsive.length > 0) {
+          logInfo(`Date proposal reminder sent for "${proposal.title}" (id=${proposal.id}) to ${unresponsive.length} member(s)`);
+        }
+      }
+    } catch (err: unknown) {
+      const { logError: le } = require('./services/auditLog');
+      le(`Date proposal reminder check failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+}
+
+export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, startTrekPhotoCacheCleanup, startDateProposalReminders, loadSettings, saveSettings, VALID_INTERVALS };

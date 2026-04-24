@@ -138,7 +138,6 @@ export default function CollabPanel({ tripId, tripMembers = [], collabFeatures }
             {p === 'notes' && <CollabNotes tripId={tripId} currentUser={user} />}
             {p === 'polls' && <CollabPolls tripId={tripId} currentUser={user} />}
             {p === 'whatsnext' && <WhatsNextWidget tripMembers={tripMembers} />}
-            {p === 'availability' && <DateAvailability tripId={tripId} />}
           </div>
         ))}
       </div>

@@ -2532,6 +2532,9 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'dateAvail.yourVacationDays': 'Your vacation days',
   'dateAvail.noVacationDays': 'No vacation days set',
   'dateAvail.vacationLabel': 'Label (optional)',
+  'dateAvail.deadline': 'Deadline',
+  'dateAvail.reminderDays': 'Reminder days before deadline',
+  'dateAvail.reminderHint': 'A reminder email will be sent {days} day(s) before the deadline to members who haven\'t responded yet.',
   // Place votes
   'placeVote.upvote': 'Upvote',
   'placeVote.downvote': 'Downvote',

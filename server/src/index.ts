@@ -51,6 +51,7 @@ const server = app.listen(PORT, () => {
   scheduler.startDemoReset();
   scheduler.startIdempotencyCleanup();
   scheduler.startTrekPhotoCacheCleanup();
+  scheduler.startDateProposalReminders();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
   import('./websocket').then(({ setupWebSocket }) => {

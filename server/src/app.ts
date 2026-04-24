@@ -45,6 +45,7 @@ import journeyPublicRoutes from './routes/journeyPublic';
 import publicConfigRoutes from './routes/publicConfig';
 import systemNoticesRoutes from './routes/systemNotices';
 import dateProposalsRoutes from './routes/dateProposals';
+import availabilityRoutes from './routes/availability';
 import { mcpHandler } from './mcp';
 import { Addon } from './types';
 import { getPhotoProviderConfig } from './services/memories/helpersService';
@@ -254,6 +255,7 @@ export function createApp(): express.Application {
   app.use('/api/trips/:tripId/budget', budgetRoutes);
   app.use('/api/trips/:tripId/collab', collabRoutes);
   app.use('/api/groups/:groupId/date-proposals', dateProposalsRoutes);
+  app.use('/api/availability', availabilityRoutes);
   app.use('/api/trips/:tripId/reservations', reservationsRoutes);
   app.use('/api/trips/:tripId/days/:dayId/notes', dayNotesRoutes);
   app.get('/api/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));

@@ -107,6 +107,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Packing: ${p.category}`, body: `${p.actor} assigned you to the "${p.category}" packing category in "${p.trip}".` }),
     version_available: p => ({ title: 'New TREK version available', body: `TREK ${p.version} is now available. Visit the admin panel to update.` }),
     synology_session_cleared: () => ({ title: 'Synology session cleared', body: 'Your Synology account or URL changed. You have been logged out of Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal + '', body: 'The availability poll "' + p.proposal + '" in group "' + p.group + '" closes on ' + p.deadline + '. Please fill in your availability before then.' }),
   },
   de: {
     trip_invite: p => ({ title: `Einladung zu "${p.trip}"`, body: `${p.actor} hat ${p.invitee || 'ein Mitglied'} zur Reise "${p.trip}" eingeladen.` }),
@@ -119,6 +120,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Packliste: ${p.category}`, body: `${p.actor} hat dich der Kategorie "${p.category}" in der Packliste von "${p.trip}" zugewiesen.` }),
     version_available: p => ({ title: 'Neue TREK-Version verfügbar', body: `TREK ${p.version} ist jetzt verfügbar. Besuche das Admin-Panel zum Aktualisieren.` }),
     synology_session_cleared: () => ({ title: 'Synology-Sitzung beendet', body: 'Dein Synology-Konto oder die URL hat sich geändert. Du wurdest von Synology Photos abgemeldet.' }),
+    date_proposal_deadline: p => ({ title: 'Verfuegbarkeit: Frist laeuft ab - ' + p.proposal + '', body: 'Die Umfrage "' + p.proposal + '" in der Gruppe "' + p.group + '" endet am ' + p.deadline + '. Bitte trage deine Verfuegbarkeit noch ein.' }),
   },
   fr: {
     trip_invite: p => ({ title: `Invitation à "${p.trip}"`, body: `${p.actor} a invité ${p.invitee || 'un membre'} au voyage "${p.trip}".` }),
@@ -131,6 +133,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Bagages : ${p.category}`, body: `${p.actor} vous a assigné à la catégorie "${p.category}" dans "${p.trip}".` }),
     version_available: p => ({ title: 'Nouvelle version TREK disponible', body: `TREK ${p.version} est maintenant disponible. Rendez-vous dans le panneau d'administration pour mettre à jour.` }),
     synology_session_cleared: () => ({ title: 'Session Synology effacée', body: 'Votre compte ou URL Synology a changé. Vous avez été déconnecté de Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Sondage de disponibilite : ' + p.proposal, body: 'Le sondage "' + p.proposal + '" dans le groupe "' + p.group + '" se termine le ' + p.deadline + '. Veuillez indiquer vos disponibilites.' }),
   },
   es: {
     trip_invite: p => ({ title: `Invitación a "${p.trip}"`, body: `${p.actor} invitó a ${p.invitee || 'un miembro'} al viaje "${p.trip}".` }),
@@ -143,6 +146,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Equipaje: ${p.category}`, body: `${p.actor} te asignó a la categoría "${p.category}" en "${p.trip}".` }),
     version_available: p => ({ title: 'Nueva versión de TREK disponible', body: `TREK ${p.version} ya está disponible. Visita el panel de administración para actualizar.` }),
     synology_session_cleared: () => ({ title: 'Sesión de Synology cerrada', body: 'Tu cuenta o URL de Synology ha cambiado. Has cerrado sesión en Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Disponibilidad: ' + p.proposal, body: 'La encuesta "' + p.proposal + '" en el grupo "' + p.group + '" cierra el ' + p.deadline + '. Indica tu disponibilidad antes.' }),
   },
   nl: {
     trip_invite: p => ({ title: `Uitnodiging voor "${p.trip}"`, body: `${p.actor} heeft ${p.invitee || 'een lid'} uitgenodigd voor de reis "${p.trip}".` }),
@@ -155,6 +159,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Paklijst: ${p.category}`, body: `${p.actor} heeft je toegewezen aan de categorie "${p.category}" in "${p.trip}".` }),
     version_available: p => ({ title: 'Nieuwe TREK-versie beschikbaar', body: `TREK ${p.version} is nu beschikbaar. Bezoek het beheerderspaneel om bij te werken.` }),
     synology_session_cleared: () => ({ title: 'Synology-sessie gewist', body: 'Je Synology-account of URL is gewijzigd. Je bent uitgelogd bij Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Beschikbaarheid invullen: ' + p.proposal + '', body: 'De peilingsvraag "' + p.proposal + '" in groep "' + p.group + '" sluit op ' + p.deadline + '. Vul je beschikbaarheid nog in voor die datum.' }),
   },
   ru: {
     trip_invite: p => ({ title: `Приглашение в "${p.trip}"`, body: `${p.actor} пригласил ${p.invitee || 'участника'} в поездку "${p.trip}".` }),
@@ -167,6 +172,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Список вещей: ${p.category}`, body: `${p.actor} назначил вас в категорию "${p.category}" в "${p.trip}".` }),
     version_available: p => ({ title: 'Доступна новая версия TREK', body: `TREK ${p.version} теперь доступен. Перейдите в панель администратора для обновления.` }),
     synology_session_cleared: () => ({ title: 'Сессия Synology сброшена', body: 'Ваш аккаунт или URL Synology изменился. Вы вышли из Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Srok dostupnosti: ' + p.proposal, body: 'Opros "' + p.proposal + '" v gruppe "' + p.group + '" zakryvaetsya ' + p.deadline + '.' }),
   },
   zh: {
     trip_invite: p => ({ title: `邀请加入"${p.trip}"`, body: `${p.actor} 邀请了 ${p.invitee || '成员'} 加入旅行"${p.trip}"。` }),
@@ -179,6 +185,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `行李清单：${p.category}`, body: `${p.actor} 将你分配到"${p.trip}"中的"${p.category}"类别。` }),
     version_available: p => ({ title: '新版 TREK 可用', body: `TREK ${p.version} 现已可用。请前往管理面板进行更新。` }),
     synology_session_cleared: () => ({ title: 'Synology 会话已清除', body: '您的 Synology 账户或 URL 已更改，您已退出 Synology Photos。' }),
+    date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),
   },
   'zh-TW': {
     trip_invite: p => ({ title: `邀請加入「${p.trip}」`, body: `${p.actor} 邀請了 ${p.invitee || '成員'} 加入行程「${p.trip}」。` }),
@@ -191,6 +198,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `打包清單：${p.category}`, body: `${p.actor} 已將您指派到「${p.trip}」中的「${p.category}」分類。` }),
     version_available: p => ({ title: '新版 TREK 可用', body: `TREK ${p.version} 現已可用。請前往管理面板進行更新。` }),
     synology_session_cleared: () => ({ title: 'Synology 工作階段已清除', body: '您的 Synology 帳戶或 URL 已變更，您已登出 Synology Photos。' }),
+    date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),
   },
   ar: {
     trip_invite: p => ({ title: `دعوة إلى "${p.trip}"`, body: `${p.actor} دعا ${p.invitee || 'عضو'} إلى الرحلة "${p.trip}".` }),
@@ -203,6 +211,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `قائمة التعبئة: ${p.category}`, body: `${p.actor} عيّنك في فئة "${p.category}" في "${p.trip}".` }),
     version_available: p => ({ title: 'إصدار TREK جديد متاح', body: `TREK ${p.version} متاح الآن. تفضل بزيارة لوحة الإدارة للتحديث.` }),
     synology_session_cleared: () => ({ title: 'تمت إعادة تعيين جلسة Synology', body: 'تغيّر حسابك أو رابط Synology. تم تسجيل خروجك من Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),
   },
   br: {
     trip_invite: p => ({ title: `Convite para "${p.trip}"`, body: `${p.actor} convidou ${p.invitee || 'um membro'} para a viagem "${p.trip}".` }),
@@ -215,6 +224,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Bagagem: ${p.category}`, body: `${p.actor} atribuiu você à categoria "${p.category}" em "${p.trip}".` }),
     version_available: p => ({ title: 'Nova versão do TREK disponível', body: `O TREK ${p.version} está disponível. Acesse o painel de administração para atualizar.` }),
     synology_session_cleared: () => ({ title: 'Sessão Synology encerrada', body: 'Sua conta ou URL do Synology foi alterada. Você foi desconectado do Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Disponibilidade: ' + p.proposal, body: 'A enquete "' + p.proposal + '" no grupo "' + p.group + '" encerra em ' + p.deadline + '. Preencha sua disponibilidade antes.' }),
   },
   cs: {
     trip_invite: p => ({ title: `Pozvánka do "${p.trip}"`, body: `${p.actor} pozval ${p.invitee || 'člena'} na výlet "${p.trip}".` }),
@@ -227,6 +237,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Balení: ${p.category}`, body: `${p.actor} vás přiřadil do kategorie "${p.category}" v "${p.trip}".` }),
     version_available: p => ({ title: 'Nová verze TREK dostupná', body: `TREK ${p.version} je nyní dostupný. Navštivte administrátorský panel pro aktualizaci.` }),
     synology_session_cleared: () => ({ title: 'Relace Synology byla zrušena', body: 'Váš účet nebo URL Synology se změnil. Byli jste odhlášeni ze Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Dostupnost: ' + p.proposal, body: 'Hlasovani "' + p.proposal + '" ve skupin\u011b "' + p.group + '" konci ' + p.deadline + '. Prosim, vyplnte svou dostupnost.' }),
   },
   hu: {
     trip_invite: p => ({ title: `Meghívó a(z) "${p.trip}" utazásra`, body: `${p.actor} meghívta ${p.invitee || 'egy tagot'} a(z) "${p.trip}" utazásra.` }),
@@ -239,6 +250,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Csomagolás: ${p.category}`, body: `${p.actor} hozzárendelte Önt a "${p.category}" csomagolási kategóriához a(z) "${p.trip}" utazásban.` }),
     version_available: p => ({ title: 'Új TREK verzió érhető el', body: `A TREK ${p.version} elérhető. Látogasson el az adminisztrációs panelre a frissítéshez.` }),
     synology_session_cleared: () => ({ title: 'Synology munkamenet törölve', body: 'A Synology fiókja vagy URL-je megváltozott. Kijelentkeztek a Synology Photos-ból.' }),
+    date_proposal_deadline: p => ({ title: 'Elérhetőség határideje: ' + p.proposal, body: 'A(z) "' + p.proposal + '" szavazas a(z) "' + p.group + '" csoportban ' + p.deadline + '-en zarul.' }),
   },
   it: {
     trip_invite: p => ({ title: `Invito a "${p.trip}"`, body: `${p.actor} ha invitato ${p.invitee || 'un membro'} al viaggio "${p.trip}".` }),
@@ -251,6 +263,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Bagagli: ${p.category}`, body: `${p.actor} ti ha assegnato alla categoria "${p.category}" in "${p.trip}".` }),
     version_available: p => ({ title: 'Nuova versione TREK disponibile', body: `TREK ${p.version} è ora disponibile. Visita il pannello di amministrazione per aggiornare.` }),
     synology_session_cleared: () => ({ title: 'Sessione Synology rimossa', body: 'Il tuo account o URL Synology è cambiato. Sei stato disconnesso da Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Disponibilità in scadenza: ' + p.proposal, body: 'Il sondaggio "' + p.proposal + '" nel gruppo "' + p.group + '" chiude il ' + p.deadline + '. Inserisci la tua disponibilità.' }),
   },
   pl: {
     trip_invite: p => ({ title: `Zaproszenie do "${p.trip}"`, body: `${p.actor} zaprosił ${p.invitee || 'członka'} do podróży "${p.trip}".` }),
@@ -263,6 +276,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Pakowanie: ${p.category}`, body: `${p.actor} przypisał Cię do kategorii "${p.category}" w "${p.trip}".` }),
     version_available: p => ({ title: 'Nowa wersja TREK dostępna', body: `TREK ${p.version} jest teraz dostępny. Odwiedź panel administracyjny, aby zaktualizować.` }),
     synology_session_cleared: () => ({ title: 'Sesja Synology wyczyszczona', body: 'Twoje konto lub URL Synology uległo zmianie. Zostałeś wylogowany z Synology Photos.' }),
+    date_proposal_deadline: p => ({ title: 'Termin dostępności: ' + p.proposal, body: 'Ankieta "' + p.proposal + '" w grupie "' + p.group + '" zamyka się ' + p.deadline + '.' }),
   },
   id: {
     trip_invite: p => ({ title: `Undangan perjalanan: "${p.trip}"`, body: `${p.actor} mengundang ${p.invitee || 'seorang anggota'} ke perjalanan "${p.trip}".` }),
@@ -572,7 +586,9 @@ const NTFY_EVENT_META: Partial<Record<NotifEventType, { priority: 1 | 2 | 3 | 4 
   collab_message:           { priority: 3, tags: ['speech_balloon'] },
   packing_tagged:           { priority: 3, tags: ['luggage'] },
   version_available:        { priority: 4, tags: ['package'] },
-  synology_session_cleared: { priority: 3, tags: ['warning'] },
+  synology_session_cleared:   { priority: 3, tags: ['warning'] },
+  date_proposal_deadline:     { priority: 4, tags: ['calendar', 'alarm_clock'] },
+  explore_update:             { priority: 3, tags: [] },
 };
 const NTFY_DEFAULT_META = { priority: 3 as const, tags: [] as string[] };
 

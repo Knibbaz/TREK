@@ -565,6 +565,9 @@ function createTables(db: Database.Database): void {
       title TEXT NOT NULL,
       period_start TEXT NOT NULL,
       period_end TEXT NOT NULL,
+      deadline TEXT,
+      reminder_days INTEGER NOT NULL DEFAULT 2,
+      reminder_sent INTEGER NOT NULL DEFAULT 0,
       created_at TEXT DEFAULT (datetime('now'))
     );
     CREATE INDEX IF NOT EXISTS idx_date_proposals_group ON date_proposals(group_id);

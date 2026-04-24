@@ -45,13 +45,57 @@ router.get('/', authenticate, (req: Request, res: Response) => {
 
   const members = getGroupMembers(groupId);
 
+  // Fetch member holiday regions from settings
+  const memberRegions: Record<number, string> = {};
+  for (const m of members) {
+    const regionRow = db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'holiday_region'").get(m.id) as { value: string } | undefined;
+    if (regionRow?.value) memberRegions[m.id] = regionRow.value;
+  }
+
+  // Fetch all group members' vacation days that overlap any proposal period
+  const memberIds = members.map(m => m.id).join(',');
+  const vacationDays = memberIds
+    ? db.prepare(`
+        SELECT id, user_id, start_date, end_date, label, color
+        FROM user_vacation_days
+        WHERE user_id IN (${memberIds})
+      `).all() as Array<{ id: number; user_id: number; start_date: string; end_date: string; label: string | null; color: string }>
+    : [];
+
+  // Fetch company holidays for the current + next year
+  const currentYear = new Date().getFullYear();
+  const companyHolidays = db.prepare(
+    'SELECT id, date, name, color FROM company_holidays WHERE date >= ? AND date <= ? ORDER BY date'
+  ).all(`${currentYear}-01-01`, `${currentYear + 1}-12-31`) as Array<{ id: number; date: string; name: string; color: string }>;
+
   const result = proposals.map(p => {
+    const proposalStart = p.period_start as string;
+    const proposalEnd = p.period_end as string;
+
     const availability = db.prepare(`
       SELECT da.user_id, da.date, da.status, u.username
       FROM date_availability da JOIN users u ON u.id = da.user_id
       WHERE da.proposal_id = ?
     `).all(p.id) as Array<{ user_id: number; date: string; status: string; username: string }>;
-    return { ...p, availability, members };
+
+    // Filter vacation days overlapping this proposal
+    const overlappingVacation = vacationDays.filter(v =>
+      v.start_date <= proposalEnd && v.end_date >= proposalStart
+    );
+
+    // Filter company holidays within proposal range
+    const overlappingCompany = companyHolidays.filter(h =>
+      h.date >= proposalStart && h.date <= proposalEnd
+    );
+
+    return {
+      ...p,
+      availability,
+      members,
+      memberRegions,
+      vacationDays: overlappingVacation,
+      companyHolidays: overlappingCompany,
+    };
   });
 
   res.json({ proposals: result });
@@ -66,7 +110,7 @@ router.post('/', authenticate, (req: Request, res: Response) => {
   if (!access) return res.status(404).json({ error: 'Group not found' });
   if (!canEdit(access.role)) return res.status(403).json({ error: 'No permission' });
 
-  let { title, period_start, period_end } = req.body;
+  let { title, period_start, period_end, deadline, reminder_days } = req.body;
   if (!period_start || !period_end) return res.status(400).json({ error: 'period_start and period_end are required' });
 
   // Generate a default title from the date range if not provided
@@ -83,10 +127,13 @@ router.post('/', authenticate, (req: Request, res: Response) => {
   const days = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
   if (days > 366) return res.status(400).json({ error: 'Period cannot exceed 366 days' });
 
+  const deadlineVal = deadline && !isNaN(new Date(deadline).getTime()) ? deadline : null;
+  const reminderDaysVal = Number.isInteger(Number(reminder_days)) && Number(reminder_days) >= 0 ? Number(reminder_days) : 2;
+
   const info = db.prepare(`
-    INSERT INTO date_proposals (group_id, created_by, title, period_start, period_end)
-    VALUES (?, ?, ?, ?, ?)
-  `).run(groupId, authReq.user.id, title.trim() || title, period_start, period_end);
+    INSERT INTO date_proposals (group_id, created_by, title, period_start, period_end, deadline, reminder_days)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(groupId, authReq.user.id, title.trim() || title, period_start, period_end, deadlineVal, reminderDaysVal);
 
   const proposal = db.prepare(`
     SELECT dp.*, u.username AS creator_name

@@ -493,7 +493,7 @@ export const collabApi = {
 
 export const dateProposalsApi = {
   list: (groupId: number | string) => apiClient.get(`/groups/${groupId}/date-proposals`).then(r => r.data),
-  create: (groupId: number | string, data: { title?: string; period_start: string; period_end: string }) =>
+  create: (groupId: number | string, data: { title?: string; period_start: string; period_end: string; deadline?: string | null; reminder_days?: number }) =>
     apiClient.post(`/groups/${groupId}/date-proposals`, data).then(r => r.data),
   delete: (groupId: number | string, proposalId: number) =>
     apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),

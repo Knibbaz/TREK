@@ -2378,6 +2378,20 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_place_votes_place ON place_votes(place_id);
       `);
     },
+    // Migration: Add deadline and reminder fields to date_proposals
+    () => {
+      const cols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const names = new Set(cols.map(c => c.name));
+      if (!names.has('deadline')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN deadline TEXT");
+      }
+      if (!names.has('reminder_days')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN reminder_days INTEGER NOT NULL DEFAULT 2");
+      }
+      if (!names.has('reminder_sent')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN reminder_sent INTEGER NOT NULL DEFAULT 0");
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

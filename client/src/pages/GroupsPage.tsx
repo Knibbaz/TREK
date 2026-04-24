@@ -12,7 +12,7 @@ import {
   User, MapPin, CalendarDays, ExternalLink, MoreHorizontal,
   Link2, Copy, Check
 } from 'lucide-react'
-import DateAvailability from '../components/Collab/DateAvailability'
+import DateAvailabilityV2 from '../components/Collab/DateAvailabilityV2'
 import toast from 'react-hot-toast'
 
 interface TripOption {
@@ -702,7 +702,7 @@ export default function GroupsPage(): React.ReactElement {
 
           {/* Date availability proposals */}
           <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
-            <DateAvailability
+            <DateAvailabilityV2
               groupId={currentGroup.id}
               canCreate={canManageMembers || currentGroup.role === 'member'}
             />

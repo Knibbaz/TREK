@@ -264,6 +264,9 @@ export interface DateProposal {
   title: string
   period_start: string
   period_end: string
+  deadline: string | null
+  reminder_days: number
+  reminder_sent: number
   created_at: string
   availability: DateAvailabilityEntry[]
   members: DateProposalMember[]

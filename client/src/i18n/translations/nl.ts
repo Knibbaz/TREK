@@ -2469,6 +2469,9 @@ const nl: Record<string, string> = {
   'dateAvail.yourVacationDays': 'Jouw vakantiedagen',
   'dateAvail.noVacationDays': 'Geen vakantiedagen ingesteld',
   'dateAvail.vacationLabel': 'Label (optioneel)',
+  'dateAvail.deadline': 'Deadline',
+  'dateAvail.reminderDays': 'Herinneringsdagen voor deadline',
+  'dateAvail.reminderHint': 'Er wordt {days} dag(en) voor de deadline een herinnering gestuurd aan leden die nog niet hebben gereageerd.',
   // Locatie stemmen
   'placeVote.upvote': 'Positief stemmen',
   'placeVote.downvote': 'Negatief stemmen',
