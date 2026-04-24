@@ -486,7 +486,7 @@ interface ReservationsPanelProps {
   addManualKey?: string
 }
 
-export default function ReservationsPanel({ tripId, reservations, days, assignments, files = [], onAdd, onEdit, onDelete, onNavigateToFiles, titleKey = 'reservations.title', addManualKey = 'reservations.addManual' }: ReservationsPanelProps) {
+export default function ReservationsPanel({ tripId, reservations, days, assignments, files = [],  onAdd, onEdit, onDelete, onNavigateToFiles, titleKey = 'reservations.title', addManualKey = 'reservations.addManual' }: ReservationsPanelProps) {
   const { t, locale } = useTranslation()
   const can = useCanDo()
   const trip = useTripStore((s) => s.trip)
@@ -612,6 +612,14 @@ export default function ReservationsPanel({ tripId, reservations, days, assignme
             >
               <Plus size={14} strokeWidth={2.5} />
               <span className="hidden sm:inline">{t(addManualKey)}</span>
+            </button>
+          )}
+
+          {canEdit && (
+            <button onClick={onAdd} style={{display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 99,
+                border: 'none', background: 'var(--accent)', color: 'var(--accent-text)',
+                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',}}>
+              <Plus size={13}/> <span className="hidden sm:inline">{t('reservations.addAutomatically')}</span>
             </button>
           )}
         </div>

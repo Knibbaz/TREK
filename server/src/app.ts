@@ -34,6 +34,7 @@ import oidcRoutes from './routes/oidc';
 import { oauthPublicRouter, oauthApiRouter } from './routes/oauth';
 import vacayRoutes from './routes/vacay';
 import atlasRoutes from './routes/atlas';
+import exploreRoutes from './routes/explore';
 import memoriesRoutes from './routes/memories/unified';
 import photoRoutes from './routes/photos';
 import notificationRoutes from './routes/notifications';
@@ -324,6 +325,7 @@ export function createApp(): express.Application {
   // Addon routes
   app.use('/api/addons/vacay', vacayRoutes);
   app.use('/api/addons/atlas', atlasRoutes);
+  app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/journeys', (req, res, next) => {
     if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return res.status(404).json({ error: 'Journey addon is not enabled' });
     next();

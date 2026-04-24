@@ -3,7 +3,16 @@ import { Palette, Sun, Moon, Monitor, ChevronDown, Check } from 'lucide-react'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
+import CustomSelect from '../shared/CustomSelect'
 import Section from './Section'
+
+const CURRENCIES = [
+  'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CZK', 'PLN', 'SEK', 'NOK', 'DKK',
+  'TRY', 'THB', 'AUD', 'CAD', 'NZD', 'BRL', 'MXN', 'INR', 'IDR', 'MYR',
+  'PHP', 'SGD', 'KRW', 'CNY', 'HKD', 'TWD', 'ZAR', 'AED', 'SAR', 'ILS',
+  'EGP', 'MAD', 'HUF', 'RON', 'BGN', 'HRK', 'ISK', 'RUB', 'UAH', 'BDT',
+  'LKR', 'VND', 'CLP', 'COP', 'PEN', 'ARS',
+]
 
 export default function DisplaySettingsTab(): React.ReactElement {
   const { settings, updateSetting } = useSettingsStore()
@@ -212,6 +221,22 @@ export default function DisplaySettingsTab(): React.ReactElement {
             </button>
           ))}
         </div>
+      </div>
+
+      {/* Default Currency */}
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{t('settings.defaultCurrency')}</label>
+        <CustomSelect
+          value={settings.default_currency || 'EUR'}
+          onChange={async (val) => {
+            try { await updateSetting('default_currency', val) }
+            catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+          }}
+          options={CURRENCIES.map(c => ({ value: c, label: c }))}
+          size="sm"
+          style={{ maxWidth: 160 }}
+        />
+        <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('settings.defaultCurrencyHint')}</p>
       </div>
 
       {/* Route Calculation */}

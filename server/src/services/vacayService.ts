@@ -12,6 +12,7 @@ export interface VacayPlan {
   holidays_region: string | null;
   company_holidays_enabled: number;
   carry_over_enabled: number;
+  standard_hours_per_day: number;
 }
 
 export interface VacayUserYear {
@@ -20,6 +21,7 @@ export interface VacayUserYear {
   year: number;
   vacation_days: number;
   carried_over: number;
+  carried_over_hours: number;
 }
 
 export interface VacayUser {
@@ -155,7 +157,7 @@ export async function applyHolidayCalendars(planId: number): Promise<void> {
         if (hasRegions && !region) continue;
         for (const h of holidays) {
           if (h.global || !h.counties || (region && h.counties.includes(region))) {
-            db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, h.date);
+            db.prepare("DELETE FROM vacay_entries WHERE plan_id = ? AND date = ? AND type = 'vacation'").run(planId, h.date);
             db.prepare('DELETE FROM vacay_company_holidays WHERE plan_id = ? AND date = ?').run(planId, h.date);
           }
         }
@@ -186,10 +188,11 @@ export interface UpdatePlanBody {
   carry_over_enabled?: boolean;
   weekend_days?: string;
   week_start?: number;
+  standard_hours_per_day?: number;
 }
 
 export async function updatePlan(planId: number, body: UpdatePlanBody, socketId: string | undefined) {
-  const { block_weekends, holidays_enabled, holidays_region, company_holidays_enabled, carry_over_enabled, weekend_days, week_start } = body;
+  const { block_weekends, holidays_enabled, holidays_region, company_holidays_enabled, carry_over_enabled, weekend_days, week_start, standard_hours_per_day } = body;
 
   const updates: string[] = [];
   const params: (string | number)[] = [];
@@ -200,6 +203,7 @@ export async function updatePlan(planId: number, body: UpdatePlanBody, socketId:
   if (carry_over_enabled !== undefined) { updates.push('carry_over_enabled = ?'); params.push(carry_over_enabled ? 1 : 0); }
   if (weekend_days !== undefined) { updates.push('weekend_days = ?'); params.push(String(weekend_days)); }
   if (week_start !== undefined) { updates.push('week_start = ?'); params.push(week_start === 0 ? 0 : 1); }
+  if (standard_hours_per_day !== undefined && standard_hours_per_day > 0) { updates.push('standard_hours_per_day = ?'); params.push(standard_hours_per_day); }
 
   if (updates.length > 0) {
     params.push(planId);
@@ -209,7 +213,7 @@ export async function updatePlan(planId: number, body: UpdatePlanBody, socketId:
   if (company_holidays_enabled === true) {
     const companyDates = db.prepare('SELECT date FROM vacay_company_holidays WHERE plan_id = ?').all(planId) as { date: string }[];
     for (const { date } of companyDates) {
-      db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, date);
+      db.prepare("DELETE FROM vacay_entries WHERE plan_id = ? AND date = ? AND type = 'vacation'").run(planId, date);
     }
   }
 
@@ -224,18 +228,21 @@ export async function updatePlan(planId: number, body: UpdatePlanBody, socketId:
   if (carry_over_enabled === true) {
     const years = db.prepare('SELECT year FROM vacay_years WHERE plan_id = ? ORDER BY year').all(planId) as { year: number }[];
     const users = getPlanUsers(planId);
+    const updatedPlanForCarry = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan;
+    const stdHoursForCarry = updatedPlanForCarry?.standard_hours_per_day ?? 8;
     for (let i = 0; i < years.length - 1; i++) {
       const yr = years[i].year;
       const nextYr = years[i + 1].year;
       for (const u of users) {
-        const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${yr}-%`) as { count: number }).count;
         const config = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, yr) as VacayUserYear | undefined;
-        const total = (config ? config.vacation_days : 30) + (config ? config.carried_over : 0);
-        const carry = Math.max(0, total - used);
+        const { used_hours, comp_hours } = getUsedAndCompHours(u.id, planId, yr, stdHoursForCarry);
+        const totalHours = ((config ? config.vacation_days : 30) * stdHoursForCarry) + (config ? (config.carried_over_hours ?? 0) : 0) + comp_hours;
+        const carryHours = Math.max(0, totalHours - used_hours);
+        const carry = Math.floor(carryHours / stdHoursForCarry);
         db.prepare(`
-          INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)
-          ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?
-        `).run(u.id, planId, nextYr, carry, carry);
+          INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over, carried_over_hours) VALUES (?, ?, ?, 30, ?, ?)
+          ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?, carried_over_hours = ?
+        `).run(u.id, planId, nextYr, carry, carryHours, carry, carryHours);
       }
     }
   }
@@ -476,18 +483,20 @@ export function addYear(planId: number, year: number, socketId: string | undefin
     db.prepare('INSERT INTO vacay_years (plan_id, year) VALUES (?, ?)').run(planId, year);
     const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
     const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
+    const stdHours = plan?.standard_hours_per_day ?? 8;
     const users = getPlanUsers(planId);
     for (const u of users) {
-      let carriedOver = 0;
+      let carriedOverHours = 0;
       if (carryOverEnabled) {
         const prevConfig = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, year - 1) as VacayUserYear | undefined;
         if (prevConfig) {
-          const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${year - 1}-%`) as { count: number }).count;
-          const total = prevConfig.vacation_days + prevConfig.carried_over;
-          carriedOver = Math.max(0, total - used);
+          const { used_hours, comp_hours } = getUsedAndCompHours(u.id, planId, year - 1, stdHours);
+          const totalHours = (prevConfig.vacation_days * stdHours) + (prevConfig.carried_over_hours ?? 0) + comp_hours;
+          carriedOverHours = Math.max(0, totalHours - used_hours);
         }
       }
-      db.prepare('INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)').run(u.id, planId, year, carriedOver);
+      const carriedOver = Math.floor(carriedOverHours / stdHours);
+      db.prepare('INSERT OR IGNORE INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over, carried_over_hours) VALUES (?, ?, ?, 30, ?, ?)').run(u.id, planId, year, carriedOver, carriedOverHours);
     }
   } catch { /* year already exists */ }
   notifyPlanUsers(planId, socketId, 'vacay:settings');
@@ -505,20 +514,22 @@ export function deleteYear(planId: number, year: number, socketId: string | unde
   if (nextYearExists) {
     const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
     const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
+    const stdHours = plan?.standard_hours_per_day ?? 8;
     const users = getPlanUsers(planId);
     const prevYear = db.prepare('SELECT year FROM vacay_years WHERE plan_id = ? AND year < ? ORDER BY year DESC LIMIT 1').get(planId, year + 1) as { year: number } | undefined;
 
     for (const u of users) {
-      let carry = 0;
+      let carryHours = 0;
       if (carryOverEnabled && prevYear) {
         const prevConfig = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, prevYear.year) as VacayUserYear | undefined;
         if (prevConfig) {
-          const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${prevYear.year}-%`) as { count: number }).count;
-          const total = prevConfig.vacation_days + prevConfig.carried_over;
-          carry = Math.max(0, total - used);
+          const { used_hours, comp_hours } = getUsedAndCompHours(u.id, planId, prevYear.year, stdHours);
+          const totalHours = (prevConfig.vacation_days * stdHours) + (prevConfig.carried_over_hours ?? 0) + comp_hours;
+          carryHours = Math.max(0, totalHours - used_hours);
         }
       }
-      db.prepare('UPDATE vacay_user_years SET carried_over = ? WHERE user_id = ? AND plan_id = ? AND year = ?').run(carry, u.id, planId, year + 1);
+      const carry = Math.floor(carryHours / stdHours);
+      db.prepare('UPDATE vacay_user_years SET carried_over = ?, carried_over_hours = ? WHERE user_id = ? AND plan_id = ? AND year = ?').run(carry, carryHours, u.id, planId, year + 1);
     }
   }
 
@@ -529,6 +540,19 @@ export function deleteYear(planId: number, year: number, socketId: string | unde
 // ---------------------------------------------------------------------------
 // Entries
 // ---------------------------------------------------------------------------
+
+/** Helper: returns vacation hours used and comp-time hours earned for a user/year */
+function getUsedAndCompHours(userId: number, planId: number, year: number, stdHours: number): { used_hours: number; comp_hours: number } {
+  const vacRow = db.prepare(`
+    SELECT COALESCE(SUM(COALESCE(hours, ?)), 0) as used_hours
+    FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ? AND type = 'vacation'
+  `).get(stdHours, userId, planId, `${year}-%`) as { used_hours: number };
+  const compRow = db.prepare(`
+    SELECT COALESCE(SUM(COALESCE(hours, 0)), 0) as comp_hours
+    FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ? AND type = 'comp'
+  `).get(userId, planId, `${year}-%`) as { comp_hours: number };
+  return { used_hours: vacRow.used_hours, comp_hours: compRow.comp_hours };
+}
 
 export function getEntries(planId: number, year: string) {
   const entries = db.prepare(`
@@ -543,16 +567,38 @@ export function getEntries(planId: number, year: string) {
 }
 
 export function toggleEntry(userId: number, planId: number, date: string, socketId: string | undefined): { action: string } {
-  const existing = db.prepare('SELECT id FROM vacay_entries WHERE user_id = ? AND date = ? AND plan_id = ?').get(userId, date, planId) as { id: number } | undefined;
+  const existing = db.prepare("SELECT id FROM vacay_entries WHERE user_id = ? AND date = ? AND plan_id = ? AND type = 'vacation'").get(userId, date, planId) as { id: number } | undefined;
   if (existing) {
     db.prepare('DELETE FROM vacay_entries WHERE id = ?').run(existing.id);
     notifyPlanUsers(planId, socketId);
     return { action: 'removed' };
   } else {
-    db.prepare('INSERT INTO vacay_entries (plan_id, user_id, date, note) VALUES (?, ?, ?, ?)').run(planId, userId, date, '');
+    db.prepare("INSERT INTO vacay_entries (plan_id, user_id, date, note, type) VALUES (?, ?, ?, '', 'vacation')").run(planId, userId, date);
     notifyPlanUsers(planId, socketId);
     return { action: 'added' };
   }
+}
+
+export function upsertEntry(
+  userId: number,
+  planId: number,
+  date: string,
+  hours: number | null,
+  type: 'vacation' | 'comp',
+  socketId: string | undefined,
+): { action: string } {
+  if (hours === null || hours <= 0) {
+    // Treat as removal
+    db.prepare('DELETE FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date = ? AND type = ?').run(userId, planId, date, type);
+    notifyPlanUsers(planId, socketId);
+    return { action: 'removed' };
+  }
+  db.prepare(`
+    INSERT INTO vacay_entries (plan_id, user_id, date, hours, type, note) VALUES (?, ?, ?, ?, ?, '')
+    ON CONFLICT(user_id, plan_id, date, type) DO UPDATE SET hours = excluded.hours
+  `).run(planId, userId, date, hours, type);
+  notifyPlanUsers(planId, socketId);
+  return { action: 'set' };
 }
 
 export function toggleCompanyHoliday(planId: number, date: string, note: string | undefined, socketId: string | undefined): { action: string } {
@@ -563,7 +609,7 @@ export function toggleCompanyHoliday(planId: number, date: string, note: string 
     return { action: 'removed' };
   } else {
     db.prepare('INSERT INTO vacay_company_holidays (plan_id, date, note) VALUES (?, ?, ?)').run(planId, date, note || '');
-    db.prepare('DELETE FROM vacay_entries WHERE plan_id = ? AND date = ?').run(planId, date);
+    db.prepare("DELETE FROM vacay_entries WHERE plan_id = ? AND date = ? AND type = 'vacation'").run(planId, date);
     notifyPlanUsers(planId, socketId);
     return { action: 'added' };
   }
@@ -576,30 +622,41 @@ export function toggleCompanyHoliday(planId: number, date: string, note: string 
 export function getStats(planId: number, year: number) {
   const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
   const carryOverEnabled = plan ? !!plan.carry_over_enabled : true;
+  const stdHours = plan?.standard_hours_per_day ?? 8;
   const users = getPlanUsers(planId);
 
   return users.map(u => {
-    const used = (db.prepare("SELECT COUNT(*) as count FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ?").get(u.id, planId, `${year}-%`) as { count: number }).count;
     const config = db.prepare('SELECT * FROM vacay_user_years WHERE user_id = ? AND plan_id = ? AND year = ?').get(u.id, planId, year) as VacayUserYear | undefined;
     const vacationDays = config ? config.vacation_days : 30;
+    const carriedOverHours = carryOverEnabled ? (config ? (config.carried_over_hours ?? 0) : 0) : 0;
     const carriedOver = carryOverEnabled ? (config ? config.carried_over : 0) : 0;
-    const total = vacationDays + carriedOver;
-    const remaining = total - used;
+
+    const { used_hours, comp_hours } = getUsedAndCompHours(u.id, planId, year, stdHours);
+    const totalHours = (vacationDays * stdHours) + carriedOverHours + comp_hours;
+    const remainingHours = totalHours - used_hours;
+
+    // Legacy day-based values (may be fractional when partial days are used)
+    const usedDays = Math.round((used_hours / stdHours) * 10) / 10;
+    const totalDays = Math.round((totalHours / stdHours) * 10) / 10;
+    const remainingDays = Math.round((remainingHours / stdHours) * 10) / 10;
+
     const colorRow = db.prepare('SELECT color FROM vacay_user_colors WHERE user_id = ? AND plan_id = ?').get(u.id, planId) as { color: string } | undefined;
 
     const nextYearExists = db.prepare('SELECT id FROM vacay_years WHERE plan_id = ? AND year = ?').get(planId, year + 1);
     if (nextYearExists && carryOverEnabled) {
-      const carry = Math.max(0, remaining);
+      const carryHours = Math.max(0, remainingHours);
+      const carry = Math.floor(carryHours / stdHours);
       db.prepare(`
-        INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over) VALUES (?, ?, ?, 30, ?)
-        ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?
-      `).run(u.id, planId, year + 1, carry, carry);
+        INSERT INTO vacay_user_years (user_id, plan_id, year, vacation_days, carried_over, carried_over_hours) VALUES (?, ?, ?, 30, ?, ?)
+        ON CONFLICT(user_id, plan_id, year) DO UPDATE SET carried_over = ?, carried_over_hours = ?
+      `).run(u.id, planId, year + 1, carry, carryHours, carry, carryHours);
     }
 
     return {
       user_id: u.id, person_name: u.username, person_color: colorRow?.color || '#6366f1',
-      year, vacation_days: vacationDays, carried_over: carriedOver,
-      total_available: total, used, remaining,
+      year, vacation_days: vacationDays, carried_over: carriedOver, carried_over_hours: carriedOverHours,
+      total_available: totalDays, used: usedDays, remaining: remainingDays,
+      used_hours, remaining_hours: remainingHours, comp_hours, standard_hours_per_day: stdHours,
     };
   });
 }

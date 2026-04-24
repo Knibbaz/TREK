@@ -817,6 +817,15 @@ const pl: Record<string, string | { name: string; category: string }[]> = {
   'vacay.fuseInfo3': 'Obie strony mogą usuwać wpisy i zmieniać pulę dni urlopowych.',
   'vacay.fuseInfo4': 'Ustawienia, takie jak święta państwowe i urlopy firmowe, są współdzielone.',
   'vacay.fuseInfo5': 'Połączenie może zostać rozwiązane w dowolnym momencie przez każdą ze stron. Twoje wpisy zostaną zachowane.',
+  'vacay.hours': 'godzin',
+  'vacay.modeComp': 'Czas wolny',
+  'vacay.compTime': 'Czas wolny',
+  'vacay.hoursPerDay': 'Godzin na dzień roboczy',
+  'vacay.hoursPerDayHint': 'Określa, ile godzin odpowiada jednemu pełnemu dniu urlopu',
+  'vacay.stdDay': 'Cały dzień',
+  'vacay.rightClickHint': 'Prawy klik dla godzin',
+  'vacay.save': 'Zapisz',
+  'vacay.cancel': 'Anuluj',
   'nav.myTrips': 'Moje podróże',
 
   // Atlas addon

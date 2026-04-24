@@ -20,16 +20,18 @@ interface VacayMonthCardProps {
   companyHolidaysEnabled?: boolean
   entryMap: Record<string, VacayEntry[]>
   onCellClick: (date: string) => void
+  onCellRightClick: (date: string, x: number, y: number) => void
   companyMode: boolean
   blockWeekends: boolean
   weekendDays?: number[]
+  standardHours?: number
   tripDates?: Set<string>
   weekStart?: number
 }
 
 export default function VacayMonthCard({
   year, month, holidays, companyHolidaySet, companyHolidaysEnabled = true, entryMap,
-  onCellClick, companyMode, blockWeekends, weekendDays = [0, 6], tripDates, weekStart = 1
+  onCellClick, onCellRightClick, companyMode, blockWeekends, weekendDays = [0, 6], tripDates, weekStart = 1, standardHours = 8,
 }: VacayMonthCardProps) {
   const { t, locale } = useTranslation()
 
@@ -43,16 +45,16 @@ export default function VacayMonthCard({
     const daysInMonth = new Date(year, month + 1, 0).getDate()
     let startDow = firstDay.getDay() - weekStart
     if (startDow < 0) startDow += 7
-    const cells = []
+    const cells: (number | null)[] = []
     for (let i = 0; i < startDow; i++) cells.push(null)
     for (let d = 1; d <= daysInMonth; d++) cells.push(d)
     while (cells.length % 7 !== 0) cells.push(null)
-    const w = []
+    const w: (number | null)[][] = []
     for (let i = 0; i < cells.length; i += 7) w.push(cells.slice(i, i + 7))
     return w
   }, [year, month])
 
-  const pad = (n) => String(n).padStart(2, '0')
+  const pad = (n: number) => String(n).padStart(2, '0')
 
   const todayStr = useMemo(() => {
     const d = new Date()
@@ -89,9 +91,17 @@ export default function VacayMonthCard({
               const weekend = weekendDays.includes(dayOfWeek)
               const holiday = holidays[dateStr]
               const isCompany = companyHolidaysEnabled && companyHolidaySet.has(dateStr)
-              const dayEntries = entryMap[dateStr] || []
-              const isBlocked = (weekend && blockWeekends) || (isCompany && !companyMode)
               const isToday = dateStr === todayStr
+
+              // Detect partial day entries
+              const allDayEntries = entryMap[dateStr] || []
+              const vacEntries = allDayEntries.filter(e => !e.type || e.type === 'vacation')
+              const compEntries = allDayEntries.filter(e => e.type === 'comp')
+              const isBlocked = !!holiday || (weekend && blockWeekends) || (isCompany && !companyMode) && (weekend && blockWeekends) || (isCompany && !companyMode)
+
+              // Detect partial day entries
+              const hasPartialVac = vacEntries.some(e => e.hours != null && e.hours < standardHours)
+              const hasComp = compEntries.length > 0
 
               return (
                 <div
@@ -106,34 +116,71 @@ export default function VacayMonthCard({
                     cursor: isBlocked ? 'default' : 'pointer',
                   }}
                   onClick={() => onCellClick(dateStr)}
-                  onMouseEnter={e => { if (!isBlocked) e.currentTarget.style.background = 'var(--bg-hover)' }}
+                  onContextMenu={e => {
+                    if (!isBlocked) {
+                      e.preventDefault()
+                      onCellRightClick(dateStr, e.clientX, e.clientY)
+                    }
+                  }}
+                  onMouseEnter={e => {
+                    if (companyMode && isCompany) {
+                      e.currentTarget.style.background = 'rgba(239,68,68,0.18)'
+                    } else if (!isBlocked) {
+                      e.currentTarget.style.background = 'var(--bg-hover)'
+                    }
+                  }}
                   onMouseLeave={e => { e.currentTarget.style.background = weekend ? 'var(--bg-secondary)' : 'transparent' }}
                 >
                   {holiday && <div className="absolute inset-0.5 rounded" style={{ background: hexToRgba(holiday.color, 0.12) }} />}
                   {isCompany && <div className="absolute inset-0.5 rounded" style={{ background: 'rgba(245,158,11,0.15)' }} />}
 
-                  {dayEntries.length === 1 && (
-                    <div className="absolute inset-0.5 rounded" style={{ backgroundColor: dayEntries[0].person_color, opacity: 0.4 }} />
+                  {/* Vacation entry backgrounds */}
+                  {vacEntries.length === 1 && (
+                    <div
+                      className="absolute inset-0.5 rounded"
+                      style={{
+                        backgroundColor: vacEntries[0].person_color,
+                        opacity: hasPartialVac ? 0.22 : 0.4,
+                      }}
+                    />
                   )}
-                  {dayEntries.length === 2 && (
+                  {vacEntries.length === 2 && (
                     <div className="absolute inset-0.5 rounded" style={{
-                      background: `linear-gradient(135deg, ${dayEntries[0].person_color} 50%, ${dayEntries[1].person_color} 50%)`,
+                      background: `linear-gradient(135deg, ${vacEntries[0].person_color} 50%, ${vacEntries[1].person_color} 50%)`,
                       opacity: 0.4,
                     }} />
                   )}
-                  {dayEntries.length === 3 && (
+                  {vacEntries.length === 3 && (
                     <div className="absolute inset-0.5 rounded overflow-hidden" style={{ opacity: 0.4 }}>
-                      <div className="absolute top-0 left-0 w-1/2 h-full" style={{ backgroundColor: dayEntries[0].person_color }} />
-                      <div className="absolute top-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: dayEntries[1].person_color }} />
-                      <div className="absolute bottom-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: dayEntries[2].person_color }} />
+                      <div className="absolute top-0 left-0 w-1/2 h-full" style={{ backgroundColor: vacEntries[0].person_color }} />
+                      <div className="absolute top-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: vacEntries[1].person_color }} />
+                      <div className="absolute bottom-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: vacEntries[2].person_color }} />
                     </div>
                   )}
-                  {dayEntries.length >= 4 && (
+                  {vacEntries.length >= 4 && (
                     <div className="absolute inset-0.5 rounded overflow-hidden" style={{ opacity: 0.4 }}>
-                      <div className="absolute top-0 left-0 w-1/2 h-1/2" style={{ backgroundColor: dayEntries[0].person_color }} />
-                      <div className="absolute top-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: dayEntries[1].person_color }} />
-                      <div className="absolute bottom-0 left-0 w-1/2 h-1/2" style={{ backgroundColor: dayEntries[2].person_color }} />
-                      <div className="absolute bottom-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: dayEntries[3].person_color }} />
+                      <div className="absolute top-0 left-0 w-1/2 h-1/2" style={{ backgroundColor: vacEntries[0].person_color }} />
+                      <div className="absolute top-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: vacEntries[1].person_color }} />
+                      <div className="absolute bottom-0 left-0 w-1/2 h-1/2" style={{ backgroundColor: vacEntries[2].person_color }} />
+                      <div className="absolute bottom-0 right-0 w-1/2 h-1/2" style={{ backgroundColor: vacEntries[3].person_color }} />
+                    </div>
+                  )}
+
+                  {/* Comp-time indicator: green dot in top-right */}
+                  {hasComp && (
+                    <div
+                      className="absolute top-0.5 right-0.5 rounded-full"
+                      style={{ width: 5, height: 5, background: '#22c55e', zIndex: 2 }}
+                    />
+                  )}
+
+                  {/* Partial hours badge in bottom-right */}
+                  {hasPartialVac && vacEntries[0].hours != null && (
+                    <div
+                      className="absolute bottom-0 right-0 text-[7px] font-bold leading-none px-0.5 rounded-tl"
+                      style={{ background: vacEntries[0].person_color, color: '#fff', opacity: 0.9, zIndex: 2 }}
+                    >
+                      {vacEntries[0].hours}u
                     </div>
                   )}
 
@@ -142,10 +189,10 @@ export default function VacayMonthCard({
                   )}
 
                   <span className="relative z-[1] text-[11px]" style={{
-                    fontWeight: dayEntries.length > 0 ? 700 : 500,
+                    fontWeight: allDayEntries.length > 0 ? 700 : 500,
                     color: isToday
                       ? '#fff'
-                      : dayEntries.length > 0
+                      : allDayEntries.length > 0
                         ? 'var(--text-primary)'
                         : holiday ? holiday.color
                         : weekend ? 'var(--text-faint)'

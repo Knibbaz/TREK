@@ -5,11 +5,20 @@ import { mapsApi } from '../../api/client'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useTripStore } from '../../store/tripStore'
+import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
 import { Search, Paperclip, X, AlertTriangle, Loader2 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import CustomTimePicker from '../shared/CustomTimePicker'
 import type { Place, Category, Assignment } from '../../types'
+
+const CURRENCIES = [
+  'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CZK', 'PLN', 'SEK', 'NOK', 'DKK',
+  'TRY', 'THB', 'AUD', 'CAD', 'NZD', 'BRL', 'MXN', 'INR', 'IDR', 'MYR',
+  'PHP', 'SGD', 'KRW', 'CNY', 'HKD', 'TWD', 'ZAR', 'AED', 'SAR', 'ILS',
+  'EGP', 'MAD', 'HUF', 'RON', 'BGN', 'HRK', 'ISK', 'RUB', 'UAH', 'BDT',
+  'LKR', 'VND', 'CLP', 'COP', 'PEN', 'ARS',
+]
 
 interface PlaceFormData {
   name: string
@@ -23,6 +32,9 @@ interface PlaceFormData {
   notes: string
   transport_mode: string
   website: string
+  price: string
+  price_type: string
+  currency: string
 }
 
 function isGoogleMapsUrl(input: string): boolean {
@@ -56,6 +68,9 @@ const DEFAULT_FORM: PlaceFormData = {
   notes: '',
   transport_mode: 'walking',
   website: '',
+  price: '',
+  price_type: 'total',
+  currency: '',
 }
 
 interface PlaceFormModalProps {
@@ -94,6 +109,7 @@ export default function PlaceFormModal({
   const can = useCanDo()
   const tripObj = useTripStore((s) => s.trip)
   const canUploadFiles = can('file_upload', tripObj)
+  const defaultCurrency = useSettingsStore((s) => s.settings.default_currency) || 'EUR'
 
   useEffect(() => {
     if (place) {
@@ -109,6 +125,9 @@ export default function PlaceFormModal({
         notes: place.notes || '',
         transport_mode: place.transport_mode || 'walking',
         website: place.website || '',
+        price: place.price != null ? String(place.price) : '',
+        price_type: place.price_type || 'total',
+        currency: place.currency || defaultCurrency,
       })
     } else if (prefillCoords) {
       setForm({
@@ -117,12 +136,13 @@ export default function PlaceFormModal({
         lng: String(prefillCoords.lng),
         name: prefillCoords.name || '',
         address: prefillCoords.address || '',
+        currency: defaultCurrency,
       })
     } else {
-      setForm(DEFAULT_FORM)
+      setForm({ ...DEFAULT_FORM, currency: defaultCurrency, price_type: 'total' })
     }
     setPendingFiles([])
-  }, [place, prefillCoords, isOpen])
+  }, [place, prefillCoords, isOpen, defaultCurrency])
 
   // Derive location bias bounding box from the trip's existing places
   const places = useTripStore((s) => s.places)
@@ -344,6 +364,9 @@ export default function PlaceFormModal({
         lat: form.lat ? parseFloat(form.lat) : null,
         lng: form.lng ? parseFloat(form.lng) : null,
         category_id: form.category_id || null,
+        price: form.price ? parseFloat(form.price) : null,
+        price_type: form.price ? (form.price_type || 'total') : null,
+        currency: form.currency || null,
         _pendingFiles: pendingFiles.length > 0 ? pendingFiles : undefined,
       })
       onClose()
@@ -589,6 +612,53 @@ export default function PlaceFormModal({
             t={t}
           />
         )}
+
+        {/* Price + Currency */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('places.formPrice')}</label>
+            <input
+              type="number"
+              min="0"
+              step="any"
+              value={form.price}
+              onChange={e => handleChange('price', e.target.value)}
+              placeholder="0.00"
+              className="form-input"
+            />
+            {form.price && (
+              <div className="flex mt-1.5 rounded-lg overflow-hidden border border-slate-200 text-xs">
+                {([
+                  ['total', t('places.formPriceTypeTotal')],
+                  ['per_person', t('places.formPriceTypePerPerson')],
+                  ['per_day', t('places.formPriceTypePerDay')],
+                ] as [string, string][]).map(([type, label]) => (
+                  <button
+                    key={type}
+                    type="button"
+                    onClick={() => handleChange('price_type', type)}
+                    className={`flex-1 py-1 px-1 text-center transition-colors ${
+                      form.price_type === type
+                        ? 'bg-slate-900 text-white font-medium'
+                        : 'bg-white text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{t('places.formCurrency')}</label>
+            <CustomSelect
+              value={form.currency}
+              onChange={value => handleChange('currency', value)}
+              options={CURRENCIES.map(c => ({ value: c, label: c }))}
+              size="sm"
+            />
+          </div>
+        </div>
 
         {/* Website */}
         <div>

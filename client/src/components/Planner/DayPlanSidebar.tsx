@@ -21,7 +21,7 @@ import { useTripStore } from '../../store/tripStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useTranslation } from '../../i18n'
-import { formatDate, formatTime, dayTotalCost, currencyDecimals } from '../../utils/formatters'
+import { formatDate, formatTime } from '../../utils/formatters'
 import { useDayNotes } from '../../hooks/useDayNotes'
 import Tooltip from '../shared/Tooltip'
 import type { Trip, Day, Place, Category, Assignment, Reservation, AssignmentsMap, RouteResult } from '../../types'
@@ -282,7 +282,7 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
     }
   }, [selectedAssignmentId, selectedPlaceId])
 
-  const currency = trip?.currency || 'EUR'
+
 
   // Drag-Daten aus dataTransfer, Ref oder window lesen (dataTransfer geht bei Re-Render verloren)
   const getDragData = (e) => {
@@ -939,11 +939,6 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
     setDraggingId(null)
   }
 
-  const totalCost = useMemo(() => days.reduce((s, d) => {
-    const da = assignments[String(d.id)] || []
-    return s + da.reduce((s2, a) => s2 + (parseFloat(a.place?.price) || 0), 0)
-  }, 0), [days, assignments])
-
   // Bester verfügbarer Standort für Wetter: zugewiesene Orte zuerst, dann beliebiger Reiseort
   const anyGeoAssignment = Object.values(assignments).flatMap(da => da).find(a => a.place?.lat && a.place?.lng)
   const anyGeoPlace = anyGeoAssignment || (places || []).find(p => p.lat && p.lng)
@@ -1121,7 +1116,6 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
           const isSelected = selectedDayId === day.id
           const isExpanded = expandedDays.has(day.id)
           const da = getDayAssignments(day.id)
-          const cost = dayTotalCost(day.id, assignments, currency)
           const formattedDate = formatDate(day.date, locale)
           const loc = da.find(a => a.place?.lat && a.place?.lng)
           const isDragTarget = dragOverDayId === day.id
@@ -1257,7 +1251,6 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
                     {formattedDate && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{formattedDate}</span>}
-                    {cost && <span style={{ fontSize: 11, color: '#059669' }}>{cost}</span>}
                     {day.date && anyGeoPlace && <span style={{ width: 1, height: 10, background: 'var(--text-faint)', opacity: 0.3, flexShrink: 0 }} />}
                     {day.date && anyGeoPlace && (() => {
                       const wLat = loc?.place.lat ?? anyGeoPlace?.place?.lat ?? anyGeoPlace?.lat
@@ -2280,13 +2273,6 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
         document.body
       )}
 
-      {/* Budget-Fußzeile */}
-      {totalCost > 0 && (
-        <div style={{ flexShrink: 0, padding: '10px 16px', borderTop: '1px solid var(--border-faint)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('dayplan.totalCost')}</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{totalCost.toFixed(currencyDecimals(currency))} {currency}</span>
-        </div>
-      )}
       <ContextMenu menu={ctxMenu.menu} onClose={ctxMenu.close} />
     </div>
   )

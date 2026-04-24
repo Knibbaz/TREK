@@ -1,5 +1,6 @@
 import { db, canAccessTrip } from '../db/database';
 import { Reservation } from '../types';
+import fetch from 'node-fetch';
 
 export interface ReservationEndpoint {
   id?: number;
@@ -126,6 +127,27 @@ export function getReservationWithJoins(id: string | number) {
   return row;
 }
 
+export function getFlightNumberType(flightNumber: string): 'IATA' | 'ICAO' | 'UNKNOWN' {
+  if (!flightNumber) return 'UNKNOWN';
+
+  // Verwijder spaties en zet alles naar hoofdletters (bijv " klm 1234 " -> "KLM1234")
+  const cleanCode = flightNumber.trim().toUpperCase().replace(/\s+/g, '');
+
+  // ICAO Regex: 3 letters, gevolgd door 1 tot 4 cijfers (en heel soms een optionele letter aan het eind)
+  const icaoRegex = /^[A-Z]{3}\d{1,4}[A-Z]?$/;
+  if (icaoRegex.test(cleanCode)) {
+    return 'ICAO';
+  }
+
+  // IATA Regex: 2 alfanumerieke karakters, gevolgd door 1 tot 4 cijfers
+  const iataRegex = /^[A-Z0-9]{2}\d{1,4}[A-Z]?$/;
+  if (iataRegex.test(cleanCode)) {
+    return 'IATA';
+  }
+
+  return 'UNKNOWN';
+}
+
 interface CreateAccommodation {
   place_id?: number;
   start_day_id?: number;
@@ -155,12 +177,13 @@ interface CreateReservationData {
   needs_review?: boolean;
 }
 
-export function createReservation(tripId: string | number, data: CreateReservationData): { reservation: any; accommodationCreated: boolean } {
+export async function createReservation(tripId: string | number, data: CreateReservationData): { reservation: any; accommodationCreated: boolean; flightCreated: boolean } {
+  let { reservation_time, reservation_end_time, location } = data;
+  
   const {
-    title, reservation_time, reservation_end_time, location,
-    confirmation_number, notes, day_id, end_day_id, place_id, assignment_id,
+    title, confirmation_number, notes, day_id, end_day_id, place_id, assignment_id,
     status, type, accommodation_id, metadata, create_accommodation,
-    endpoints, needs_review
+    endpoints, needs_review,
   } = data;
 
   let accommodationCreated = false;
@@ -189,6 +212,54 @@ export function createReservation(tripId: string | number, data: CreateReservati
   let resolvedEndDayId: number | null = end_day_id ?? null;
   if (resolvedEndDayId == null && resolvedType !== 'hotel' && reservation_end_time) {
     resolvedEndDayId = resolveDayIdFromTime(tripId, reservation_end_time);
+  }
+  
+  let flightCreated = false;
+  if (type === 'flight' && status === 'confirmed') {
+    try {
+      console.log('Fetching flight info for reservation with metadata:', metadata);
+
+      const keys = Object.keys(metadata || {});
+
+      // ERROR: If flight_number is missing
+      // ERROR: If there are any keys present that are NOT in allowedKeys
+      const allowedKeys = ['flight_number', 'price'];
+      const hasExtraKeys = keys.some(key => !allowedKeys.includes(key));
+      if (!keys.includes('flight_number') || hasExtraKeys) {
+        console.log('Skipping flight info fetch due to missing flight_number or presence of extra keys in metadata');
+      } else {
+
+
+        const flight_number = metadata?.flight_number || '';
+        const flightNumberType = getFlightNumberType(flight_number);
+
+        if (flight_number && flightNumberType !== 'UNKNOWN') {
+          const apiUrl = `https://api.aviationstack.com/v1/flights?access_key=${process.env.AVIATIONSTACK_KEY}&flight_iata=${flight_number}&limit=1`;
+        
+          const response = await fetch(apiUrl);
+          const data = await response.json();
+
+          if (data.data && data.data.length > 0) {
+            const flightInfo = data.data[0];
+
+            // TODO:
+            // -> Handle location better - currently we just take the departure airport, like schiphol, but not the full address like how we look for it in the places.
+            // -> Handle timezone properly - currently we just take the scheduled times as-is without converting to the trip's timezone
+            location = flightInfo.departure.airport;
+            reservation_time = flightInfo.departure.scheduled;
+            reservation_end_time = flightInfo.arrival.scheduled;
+            metadata.departure_airport = flightInfo.departure.iata;
+            metadata.arrival_airport = flightInfo.arrival.iata;
+
+            flightCreated = true;
+          } else {
+            console.warn(`No flight data found for flight number: ${flight_number}`);
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[reservations] Failed to fetch flight info:', err);
+    }
   }
 
   const result = db.prepare(`
@@ -231,7 +302,7 @@ export function createReservation(tripId: string | number, data: CreateReservati
   }
 
   const reservation = getReservationWithJoins(Number(result.lastInsertRowid));
-  return { reservation, accommodationCreated };
+  return { reservation, accommodationCreated, flightCreated };
 }
 
 export function updatePositions(tripId: string | number, positions: { id: number; day_plan_position: number }[], dayId?: number | string) {

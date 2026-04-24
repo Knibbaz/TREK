@@ -50,6 +50,7 @@ export interface Place {
   category_id: number | null
   icon: string | null
   price: string | null
+  price_type: 'total' | 'per_person' | 'per_day' | null
   currency: string | null
   image_url: string | null
   google_place_id: string | null
@@ -174,6 +175,7 @@ export interface Reservation {
   accommodation_start_day_id?: number | null
   accommodation_end_day_id?: number | null
   day_plan_position?: number | null
+  day_positions?: Record<string | number, number>
   metadata?: Record<string, string> | string | null
   needs_review?: number
   endpoints?: ReservationEndpoint[]
@@ -221,6 +223,7 @@ export interface Settings {
   mapbox_style?: string
   mapbox_3d_enabled?: boolean
   mapbox_quality_mode?: boolean
+  booking_affiliate_id?: string
 }
 
 export interface AssignmentsMap {
@@ -263,6 +266,7 @@ export interface UserWithOidc extends User {
 export interface Accommodation {
   id: number
   trip_id: number
+  place_id: number
   name: string
   address: string | null
   check_in: string | null
@@ -370,6 +374,7 @@ export interface VacayPlan {
   carry_over_enabled: boolean
   company_holidays_enabled: boolean
   week_start?: number
+  standard_hours_per_day: number
   name?: string
   year?: number
   owner_id?: number
@@ -389,12 +394,24 @@ export interface VacayEntry {
   plan_id?: number
   person_color?: string
   person_name?: string
+  hours?: number | null
+  type?: 'vacation' | 'comp'
 }
 
 export interface VacayStat {
   user_id: number
   vacation_days: number
   used: number
+  carried_over: number
+  carried_over_hours: number
+  total_available: number
+  remaining: number
+  used_hours: number
+  remaining_hours: number
+  comp_hours: number
+  standard_hours_per_day: number
+  person_name: string
+  person_color: string
 }
 
 export interface HolidayInfo {
