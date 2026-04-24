@@ -149,6 +149,9 @@ export function addMemberToGroup(groupId: number, userId: number, addedBy: numbe
   db.prepare(`INSERT INTO group_members (group_id, user_id, role, invited_by) VALUES (?, ?, ?, ?)`)
     .run(groupId, userId, role, addedBy);
 
+  // Grant access to all group trips
+  syncUserToGroupTrips(groupId, userId);
+
   return { success: true };
 }
 
@@ -178,6 +181,10 @@ export function removeMemberFromGroup(groupId: number, memberUserId: number, act
   }
 
   db.prepare(`DELETE FROM group_members WHERE group_id = ? AND user_id = ?`).run(groupId, memberUserId);
+
+  // Revoke access to all group trips
+  removeUserFromGroupTrips(groupId, memberUserId);
+
   return { success: true };
 }
 
@@ -198,6 +205,40 @@ export function updateMemberRole(groupId: number, memberUserId: number, actingUs
   return { success: true };
 }
 
+// ── Trip sharing helpers ────────────────────────────────────────────────────
+
+/** Grant all existing group members access to a trip (except the trip owner who already has access). */
+function syncGroupMembersToTrip(groupId: number, tripId: number): void {
+  const tripOwner = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(tripId) as { user_id: number } | undefined;
+  const members = db.prepare('SELECT user_id FROM group_members WHERE group_id = ?').all(groupId) as Array<{ user_id: number }>;
+  const insert = db.prepare('INSERT OR IGNORE INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)');
+  for (const m of members) {
+    if (m.user_id !== tripOwner?.user_id) {
+      insert.run(tripId, m.user_id, tripOwner?.user_id || null);
+    }
+  }
+}
+
+/** Grant a specific user access to all trips in a group. */
+function syncUserToGroupTrips(groupId: number, userId: number): void {
+  const trips = db.prepare('SELECT trip_id FROM group_trips WHERE group_id = ?').all(groupId) as Array<{ trip_id: number }>;
+  const insert = db.prepare('INSERT OR IGNORE INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)');
+  for (const t of trips) {
+    const owner = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(t.trip_id) as { user_id: number } | undefined;
+    if (userId !== owner?.user_id) {
+      insert.run(t.trip_id, userId, owner?.user_id || null);
+    }
+  }
+}
+
+/** Revoke a specific user's access to all trips in a group. */
+function removeUserFromGroupTrips(groupId: number, userId: number): void {
+  const trips = db.prepare('SELECT trip_id FROM group_trips WHERE group_id = ?').all(groupId) as Array<{ trip_id: number }>;
+  for (const t of trips) {
+    db.prepare('DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?').run(t.trip_id, userId);
+  }
+}
+
 // ── Add trip to group ───────────────────────────────────────────────────────
 export function addTripToGroup(groupId: number, tripId: number, userId: number): { success: boolean; error?: string } {
   const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
@@ -212,6 +253,9 @@ export function addTripToGroup(groupId: number, tripId: number, userId: number):
     if (e.message?.includes('UNIQUE constraint failed')) return { success: false, error: 'Trip already in group' };
     throw e;
   }
+
+  // Share trip with all existing group members
+  syncGroupMembersToTrip(groupId, tripId);
 
   return { success: true };
 }
@@ -337,6 +381,9 @@ export function joinGroupWithToken(userId: number, token: string): { success: bo
   // Add member
   db.prepare(`INSERT INTO group_members (group_id, user_id, role, invited_by) VALUES (?, ?, ?, ?)`)
     .run(invite.group_id, userId, invite.role, invite.created_by);
+
+  // Grant access to all group trips
+  syncUserToGroupTrips(invite.group_id, userId);
 
   // Increment used_count
   db.prepare(`UPDATE group_invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)`).run(invite.id);
