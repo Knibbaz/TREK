@@ -2255,6 +2255,24 @@ function runMigrations(db: Database.Database): void {
         console.warn('[migrations] Non-fatal migration step failed:', err);
       }
     },
+    // Migration: Group invite tokens
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_invite_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+          max_uses INTEGER NOT NULL DEFAULT 1,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_invite_token ON group_invite_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_group_invite_group ON group_invite_tokens(group_id);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

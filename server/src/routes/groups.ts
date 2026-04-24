@@ -4,6 +4,14 @@ import { AuthRequest } from '../types';
 import * as svc from '../services/groupsService';
 
 const router = express.Router();
+
+// Public route: validate a group invite token (no auth required)
+router.get('/join/:token', (req: Request, res: Response) => {
+  const data = svc.validateGroupInviteToken(req.params.token);
+  if (!data) return res.status(404).json({ error: 'Invalid or expired invite link' });
+  res.json({ group: data });
+});
+
 router.use(authenticate);
 
 // ── List user's groups ──────────────────────────────────────────────────────
@@ -108,6 +116,46 @@ router.get('/users/search', (req: Request, res: Response) => {
   const q = req.query.q as string;
   if (!q || q.trim().length < 2) return res.status(400).json({ error: 'Query too short' });
   res.json({ users: svc.searchUsersForInvite(userId, q) });
+});
+
+// ── Invite link management ──────────────────────────────────────────────────
+router.post('/:id/invite-link', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const { role, max_uses, expires_in_days } = req.body;
+  const result = svc.createGroupInviteLink(
+    groupId,
+    userId,
+    role || 'member',
+    max_uses != null ? parseInt(max_uses) : 0,
+    expires_in_days != null ? parseInt(expires_in_days) : undefined
+  );
+  if (!result) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ token: result.token, expires_at: result.expires_at });
+});
+
+router.get('/:id/invite-link', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const link = svc.getGroupInviteLink(groupId, userId);
+  if (link === null) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ link });
+});
+
+router.delete('/:id/invite-link', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const ok = svc.deleteGroupInviteLink(groupId, userId);
+  if (!ok) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ success: true });
+});
+
+// ── Join group with invite token (authenticated) ────────────────────────────
+router.post('/join/:token', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const result = svc.joinGroupWithToken(userId, req.params.token);
+  if (!result.success) return res.status(result.status || 400).json({ error: result.error });
+  res.json({ success: true, groupId: result.groupId });
 });
 
 export default router;

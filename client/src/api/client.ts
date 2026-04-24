@@ -570,6 +570,13 @@ export const groupsApi = {
     apiClient.delete(`/addons/groups/${id}/trips/${tripId}`).then(r => r.data),
 
   searchUsers: (q: string) => apiClient.get('/addons/groups/users/search', { params: { q } }).then(r => r.data),
+
+  createInviteLink: (id: number, data?: { role?: string; max_uses?: number; expires_in_days?: number }) =>
+    apiClient.post(`/addons/groups/${id}/invite-link`, data || {}).then(r => r.data),
+  getInviteLink: (id: number) => apiClient.get(`/addons/groups/${id}/invite-link`).then(r => r.data),
+  deleteInviteLink: (id: number) => apiClient.delete(`/addons/groups/${id}/invite-link`).then(r => r.data),
+  validateInvite: (token: string) => apiClient.get(`/addons/groups/join/${token}`).then(r => r.data),
+  joinWithToken: (token: string) => apiClient.post(`/addons/groups/join/${token}`).then(r => r.data),
 }
 
 export const exploreApi = {

@@ -200,6 +200,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'settings.mapTip': 'right-click and drag to rotate/pitch the map. Middle-click to add a place (right-click is reserved for rotation).',
   'settings.latitude': 'Latitude',
   'settings.longitude': 'Longitude',
+  'settings.navZoom': 'Navigation zoom',
   'settings.saveMap': 'Save Map',
   'settings.apiKeys': 'API Keys',
   'settings.mapsKey': 'Google Maps API Key',
@@ -2485,6 +2486,20 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'groups.role.owner': 'Owner',
   'groups.role.admin': 'Admin',
   'groups.role.member': 'Member',
+  'groups.invite.title': 'Invite others with a shareable link',
+  'groups.invite.create': 'Create Link',
+  'groups.invite.copied': 'Link copied!',
+  'groups.invite.copyFailed': 'Copy failed',
+  'groups.invite.revoke': 'Revoke',
+  'groups.invite.revoked': 'Invite link revoked',
+  'groups.join.success': 'You joined the group!',
+  'groups.join.invalidTitle': 'Invite link expired',
+  'groups.join.invalidBody': 'This invite link is invalid or has expired. Ask the group owner for a new one.',
+  'groups.join.invitedAs': 'Invited as',
+  'groups.join.joined': 'Joined!',
+  'groups.join.redirecting': 'Redirecting...',
+  'groups.join.join': 'Join Group',
+  'groups.join.loginRequired': 'Sign in or create an account to join this group.',
 }
 
 export default en

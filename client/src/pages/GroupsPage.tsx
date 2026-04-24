@@ -8,7 +8,8 @@ import Navbar from '../components/Layout/Navbar'
 import Modal from '../components/shared/Modal'
 import {
   Users, Plus, X, Search, Trash2, ChevronLeft, Crown, Shield,
-  User, MapPin, CalendarDays, ExternalLink, MoreHorizontal
+  User, MapPin, CalendarDays, ExternalLink, MoreHorizontal,
+  Link2, Copy, Check
 } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -49,6 +50,10 @@ export default function GroupsPage(): React.ReactElement {
   const [memberMenuOpen, setMemberMenuOpen] = useState<number | null>(null)
   const memberMenuRef = useRef<HTMLDivElement>(null)
   const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
+
+  const [inviteLink, setInviteLink] = useState<string | null>(null)
+  const [inviteLoading, setInviteLoading] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => { loadGroups() }, [])
   useEffect(() => { clearError() }, [view])
@@ -219,6 +224,43 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
+  const handleCreateInvite = async () => {
+    if (!currentGroup) return
+    setInviteLoading(true)
+    try {
+      const result = await groupsApi.createInviteLink(currentGroup.id, { role: 'member', max_uses: 0 })
+      const url = `${window.location.origin}/join-group/${result.token}`
+      setInviteLink(url)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setInviteLoading(false)
+    }
+  }
+
+  const handleCopyInvite = async () => {
+    if (!inviteLink) return
+    try {
+      await navigator.clipboard.writeText(inviteLink)
+      setCopied(true)
+      toast.success(t('groups.invite.copied') || 'Link copied!')
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      toast.error(t('groups.invite.copyFailed') || 'Copy failed')
+    }
+  }
+
+  const handleRevokeInvite = async () => {
+    if (!currentGroup) return
+    try {
+      await groupsApi.deleteInviteLink(currentGroup.id)
+      setInviteLink(null)
+      toast.success(t('groups.invite.revoked') || 'Invite link revoked')
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
   const canManageMembers = currentGroup?.role === 'owner' || currentGroup?.role === 'admin'
   const isOwner = currentGroup?.role === 'owner'
 
@@ -310,6 +352,59 @@ export default function GroupsPage(): React.ReactElement {
             </div>
           ) : null}
         </div>
+
+        {/* Invite link banner (detail view, owner/admin only) */}
+        {view === 'detail' && currentGroup && canManageMembers && (
+          <div className="mb-4 p-3 rounded-xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            {!inviteLink ? (
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Link2 size={14} style={{ color: 'var(--text-muted)' }} />
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                    {t('groups.invite.title') || 'Invite others with a shareable link'}
+                  </span>
+                </div>
+                <button
+                  onClick={handleCreateInvite}
+                  disabled={inviteLoading}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+                  style={{ background: 'var(--accent)' }}
+                >
+                  {inviteLoading ? (
+                    <div className="w-3 h-3 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
+                  ) : (
+                    <Link2 size={12} />
+                  )}
+                  {t('groups.invite.create') || 'Create Link'}
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2">
+                <input
+                  value={inviteLink}
+                  readOnly
+                  className="flex-1 px-3 py-1.5 rounded-lg border text-xs"
+                  style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+                />
+                <button
+                  onClick={handleCopyInvite}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+                  title={t('common.copy') || 'Copy'}
+                >
+                  {copied ? <Check size={14} style={{ color: 'var(--accent)' }} /> : <Copy size={14} />}
+                </button>
+                <button
+                  onClick={handleRevokeInvite}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{ background: 'var(--bg-danger)', color: 'white' }}
+                >
+                  {t('groups.invite.revoke') || 'Revoke'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Error */}
         {error && (

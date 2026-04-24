@@ -1,4 +1,5 @@
 import { db } from '../db/database';
+import crypto from 'crypto';
 
 export interface Group {
   id: number;
@@ -234,4 +235,111 @@ export function searchUsersForInvite(userId: number, query: string): Array<{ id:
     ORDER BY username
     LIMIT 20
   `).all(userId, search, search) as Array<{ id: number; username: string; email: string; avatar: string | null }>;
+}
+
+// ── Invite tokens ───────────────────────────────────────────────────────────
+
+export interface GroupInviteToken {
+  id: number;
+  group_id: number;
+  token: string;
+  created_by: number;
+  role: 'admin' | 'member';
+  max_uses: number;
+  used_count: number;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export function createGroupInviteLink(
+  groupId: number,
+  createdBy: number,
+  role: 'admin' | 'member' = 'member',
+  maxUses: number = 0,
+  expiresInDays?: number
+): { token: string; expires_at: string | null } | null {
+  // Only owner/admin can create invite links
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, createdBy) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return null;
+
+  // Revoke any existing link for this group
+  db.prepare(`DELETE FROM group_invite_tokens WHERE group_id = ?`).run(groupId);
+
+  const token = crypto.randomBytes(24).toString('base64url');
+  const expiresAt = expiresInDays ? new Date(Date.now() + expiresInDays * 24 * 60 * 60 * 1000).toISOString() : null;
+
+  db.prepare(`
+    INSERT INTO group_invite_tokens (group_id, token, created_by, role, max_uses, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?)
+  `).run(groupId, token, createdBy, role, maxUses, expiresAt);
+
+  return { token, expires_at: expiresAt };
+}
+
+export function getGroupInviteLink(groupId: number, userId: number): { token: string; role: string; max_uses: number; used_count: number; expires_at: string | null } | null {
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return null;
+
+  const row = db.prepare(`
+    SELECT token, role, max_uses, used_count, expires_at
+    FROM group_invite_tokens
+    WHERE group_id = ? AND (expires_at IS NULL OR expires_at > datetime('now'))
+  `).get(groupId) as GroupInviteToken | undefined;
+
+  if (!row) return null;
+  if (row.max_uses > 0 && row.used_count >= row.max_uses) return null;
+  return row;
+}
+
+export function deleteGroupInviteLink(groupId: number, userId: number): boolean {
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return false;
+
+  db.prepare(`DELETE FROM group_invite_tokens WHERE group_id = ?`).run(groupId);
+  return true;
+}
+
+export function validateGroupInviteToken(token: string): { groupId: number; name: string; description: string | null; cover_image: string | null; role: string } | null {
+  const row = db.prepare(`
+    SELECT git.*, g.name, g.description, g.cover_image
+    FROM group_invite_tokens git
+    JOIN groups g ON g.id = git.group_id
+    WHERE git.token = ? AND (git.expires_at IS NULL OR git.expires_at > datetime('now'))
+  `).get(token) as (GroupInviteToken & { name: string; description: string | null; cover_image: string | null }) | undefined;
+
+  if (!row) return null;
+  if (row.max_uses > 0 && row.used_count >= row.max_uses) return null;
+
+  return {
+    groupId: row.group_id,
+    name: row.name,
+    description: row.description,
+    cover_image: row.cover_image,
+    role: row.role,
+  };
+}
+
+export function joinGroupWithToken(userId: number, token: string): { success: boolean; groupId?: number; error?: string; status?: number } {
+  const invite = db.prepare(`
+    SELECT git.*, g.name
+    FROM group_invite_tokens git
+    JOIN groups g ON g.id = git.group_id
+    WHERE git.token = ? AND (git.expires_at IS NULL OR git.expires_at > datetime('now'))
+  `).get(token) as (GroupInviteToken & { name: string }) | undefined;
+
+  if (!invite) return { success: false, error: 'Invalid or expired invite link', status: 400 };
+  if (invite.max_uses > 0 && invite.used_count >= invite.max_uses) return { success: false, error: 'Invite link fully used', status: 410 };
+
+  // Check if already member
+  const existing = db.prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?`).get(invite.group_id, userId);
+  if (existing) return { success: false, error: 'You are already a member of this group', status: 409 };
+
+  // Add member
+  db.prepare(`INSERT INTO group_members (group_id, user_id, role, invited_by) VALUES (?, ?, ?, ?)`)
+    .run(invite.group_id, userId, invite.role, invite.created_by);
+
+  // Increment used_count
+  db.prepare(`UPDATE group_invite_tokens SET used_count = used_count + 1 WHERE id = ? AND (max_uses = 0 OR used_count < max_uses)`).run(invite.id);
+
+  return { success: true, groupId: invite.group_id };
 }
