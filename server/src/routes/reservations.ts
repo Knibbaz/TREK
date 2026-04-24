@@ -179,11 +179,14 @@ router.delete('/:id', authenticate, (req: Request, res: Response) => {
   if (!checkPermission('reservation_edit', authReq.user.role, trip.user_id, authReq.user.id, trip.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
-  const { deleted: reservation, accommodationDeleted } = deleteReservation(id, tripId);
+  const { deleted: reservation, accommodationDeleted, deletedBudgetItemIds } = deleteReservation(id, tripId);
   if (!reservation) return res.status(404).json({ error: 'Reservation not found' });
 
   if (accommodationDeleted) {
     broadcast(tripId, 'accommodation:deleted', { accommodationId: reservation.accommodation_id }, req.headers['x-socket-id'] as string);
+  }
+  for (const itemId of deletedBudgetItemIds) {
+    broadcast(tripId, 'budget:deleted', { itemId }, req.headers['x-socket-id'] as string);
   }
 
   res.json({ success: true });

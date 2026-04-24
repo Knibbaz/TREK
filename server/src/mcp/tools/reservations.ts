@@ -128,10 +128,13 @@ export function registerReservationTools(server: McpServer, userId: number, scop
     async ({ tripId, reservationId }) => {
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
-      const { deleted, accommodationDeleted } = deleteReservation(reservationId, tripId);
+      const { deleted, accommodationDeleted, deletedBudgetItemIds } = deleteReservation(reservationId, tripId);
       if (!deleted) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
       if (accommodationDeleted) {
         safeBroadcast(tripId, 'accommodation:deleted', { accommodationId: deleted.accommodation_id });
+      }
+      for (const itemId of deletedBudgetItemIds) {
+        safeBroadcast(tripId, 'budget:deleted', { itemId });
       }
       safeBroadcast(tripId, 'reservation:deleted', { reservationId });
       return ok({ success: true });

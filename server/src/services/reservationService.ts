@@ -481,9 +481,9 @@ export function updateReservation(id: string | number, tripId: string | number, 
   return { reservation, accommodationChanged };
 }
 
-export function deleteReservation(id: string | number, tripId: string | number): { deleted: { id: number; title: string; type: string; accommodation_id: number | null } | undefined; accommodationDeleted: boolean } {
+export function deleteReservation(id: string | number, tripId: string | number): { deleted: { id: number; title: string; type: string; accommodation_id: number | null } | undefined; accommodationDeleted: boolean; deletedBudgetItemIds: number[] } {
   const reservation = db.prepare('SELECT id, title, type, accommodation_id FROM reservations WHERE id = ? AND trip_id = ?').get(id, tripId) as { id: number; title: string; type: string; accommodation_id: number | null } | undefined;
-  if (!reservation) return { deleted: undefined, accommodationDeleted: false };
+  if (!reservation) return { deleted: undefined, accommodationDeleted: false, deletedBudgetItemIds: [] };
 
   let accommodationDeleted = false;
   if (reservation.accommodation_id) {
@@ -491,6 +491,12 @@ export function deleteReservation(id: string | number, tripId: string | number):
     accommodationDeleted = true;
   }
 
+  const linkedBudgetItems = db.prepare('SELECT id FROM budget_items WHERE reservation_id = ? AND trip_id = ?').all(id, tripId) as { id: number }[];
+  const deletedBudgetItemIds = linkedBudgetItems.map(r => r.id);
+  if (deletedBudgetItemIds.length > 0) {
+    db.prepare(`DELETE FROM budget_items WHERE reservation_id = ? AND trip_id = ?`).run(id, tripId);
+  }
+
   db.prepare('DELETE FROM reservations WHERE id = ?').run(id);
-  return { deleted: reservation, accommodationDeleted };
+  return { deleted: reservation, accommodationDeleted, deletedBudgetItemIds };
 }
