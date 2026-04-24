@@ -1,15 +1,18 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo, useLayoutEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { openFile } from '../../utils/fileDownload'
 import Markdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, BedDouble, CalendarDays, GripVertical } from 'lucide-react'
+import { X, Clock, MapPin, ExternalLink, Phone, Euro, Edit2, Trash2, Plus, Minus, ChevronDown, ChevronUp, FileText, Upload, File, FileImage, Star, Navigation, Users, Mountain, TrendingUp, BedDouble, CalendarDays, GripVertical, ThumbsUp, ThumbsDown } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
-import { mapsApi, budgetApi } from '../../api/client'
+import { mapsApi, budgetApi, placesApi } from '../../api/client'
+import { addListener, removeListener } from '../../api/websocket'
+import { useAuthStore } from '../../store/authStore'
 import { useToast } from '../shared/Toast'
 import { useSettingsStore } from '../../store/settingsStore'
 import { getCategoryIcon } from '../shared/categoryIcons'
 import { useTranslation } from '../../i18n'
-import type { Place, Category, Day, Assignment, Reservation, TripFile, AssignmentsMap } from '../../types'
+import type { Place, Category, Day, Assignment, Reservation, TripFile, AssignmentsMap, PlaceVote } from '../../types'
 
 const detailsCache = new Map()
 
@@ -106,6 +109,118 @@ interface TripMember {
   avatar_url?: string | null
 }
 
+// ── PlaceVoteBar ──────────────────────────────────────────────────────────────
+
+interface PlaceVoteBarProps {
+  votes: PlaceVote[]
+  currentUserId: number | null
+  onVote: (v: 1 | -1) => void
+  saving: boolean
+}
+
+function PlaceVoteBar({ votes, currentUserId, onVote, saving }: PlaceVoteBarProps) {
+  const [tooltip, setTooltip] = useState<{ x: number; y: number; items: PlaceVote[] } | null>(null)
+  const upvotes = votes.filter(v => v.vote === 1)
+  const downvotes = votes.filter(v => v.vote === -1)
+  const myVote = votes.find(v => v.user_id === currentUserId)?.vote ?? null
+
+  const handleMouseEnter = (e: React.MouseEvent, items: PlaceVote[]) => {
+    if (items.length === 0) return
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    setTooltip({ x: r.left + r.width / 2, y: r.top, items })
+  }
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 16px', borderBottom: '1px solid var(--border-faint)', background: 'var(--bg-secondary)' }}>
+      {/* Upvote */}
+      <button
+        onClick={() => !saving && onVote(1)}
+        onMouseEnter={e => handleMouseEnter(e, upvotes)}
+        onMouseLeave={() => setTooltip(null)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '5px 10px', borderRadius: 20, border: 'none', cursor: saving ? 'default' : 'pointer',
+          background: myVote === 1 ? '#16a34a20' : 'var(--bg-hover)',
+          color: myVote === 1 ? '#16a34a' : 'var(--text-secondary)',
+          fontWeight: myVote === 1 ? 700 : 400,
+          transition: 'all 0.15s',
+          fontSize: 13,
+        }}
+      >
+        <ThumbsUp size={14} fill={myVote === 1 ? '#16a34a' : 'none'} />
+        <span>{upvotes.length}</span>
+      </button>
+
+      {/* Downvote */}
+      <button
+        onClick={() => !saving && onVote(-1)}
+        onMouseEnter={e => handleMouseEnter(e, downvotes)}
+        onMouseLeave={() => setTooltip(null)}
+        style={{
+          display: 'flex', alignItems: 'center', gap: 5,
+          padding: '5px 10px', borderRadius: 20, border: 'none', cursor: saving ? 'default' : 'pointer',
+          background: myVote === -1 ? '#dc262620' : 'var(--bg-hover)',
+          color: myVote === -1 ? '#dc2626' : 'var(--text-secondary)',
+          fontWeight: myVote === -1 ? 700 : 400,
+          transition: 'all 0.15s',
+          fontSize: 13,
+        }}
+      >
+        <ThumbsDown size={14} fill={myVote === -1 ? '#dc2626' : 'none'} />
+        <span>{downvotes.length}</span>
+      </button>
+
+      {/* Voter avatars */}
+      {votes.length > 0 && (
+        <div style={{ display: 'flex', alignItems: 'center', marginLeft: 4, gap: -4 }}>
+          {votes.slice(0, 5).map(v => (
+            <div key={v.user_id} title={`${v.username}: ${v.vote === 1 ? '👍' : '👎'}`}
+              style={{
+                width: 20, height: 20, borderRadius: '50%', border: '2px solid var(--bg-secondary)',
+                background: v.avatar_url ? undefined : (v.vote === 1 ? '#16a34a' : '#dc2626'),
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: 8, fontWeight: 700, color: 'white',
+                overflow: 'hidden', marginLeft: -4,
+                flexShrink: 0,
+              }}>
+              {v.avatar_url
+                ? <img src={v.avatar_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                : v.username.slice(0, 1).toUpperCase()
+              }
+            </div>
+          ))}
+          {votes.length > 5 && (
+            <span style={{ fontSize: 10, color: 'var(--text-faint)', marginLeft: 6 }}>+{votes.length - 5}</span>
+          )}
+        </div>
+      )}
+
+      {saving && (
+        <div style={{ width: 12, height: 12, border: '2px solid var(--border-primary)', borderTopColor: 'var(--accent)', borderRadius: '50%', animation: 'spin 0.7s linear infinite', marginLeft: 4, flexShrink: 0 }} />
+      )}
+
+      {/* Tooltip */}
+      {tooltip && createPortal(
+        <div style={{
+          position: 'fixed', left: Math.min(tooltip.x, window.innerWidth - 180), top: tooltip.y,
+          transform: 'translateX(-50%) translateY(-100%) translateY(-6px)',
+          zIndex: 99999, background: 'var(--bg-elevated)', border: '1px solid var(--border-primary)',
+          borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', padding: '8px 12px',
+          minWidth: 130, pointerEvents: 'none',
+        }}>
+          {tooltip.items.map(v => (
+            <div key={v.user_id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+              <span style={{ fontSize: 13 }}>{v.vote === 1 ? '👍' : '👎'}</span>
+              <span style={{ fontSize: 12, color: 'var(--text-primary)' }}>{v.username}</span>
+            </div>
+          ))}
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
 interface PlaceInspectorProps {
   place: Place | null
   categories: Category[]
@@ -141,6 +256,9 @@ export default function PlaceInspector({
   const bookingAffiliateId = useSettingsStore(s => s.settings.booking_affiliate_id)
   const defaultCurrency = useSettingsStore(s => s.settings.default_currency)
   const toast = useToast()
+  const { user } = useAuthStore()
+  const [votes, setVotes] = useState<PlaceVote[]>([])
+  const [voteSaving, setVoteSaving] = useState(false)
   const [addingToBudget, setAddingToBudget] = useState(false)
   const [showBudgetPopover, setShowBudgetPopover] = useState(false)
   const [budgetPersons, setBudgetPersons] = useState('1')
@@ -169,6 +287,35 @@ export default function PlaceInspector({
       return () => document.removeEventListener('mousedown', handleClickOutside)
     }
   }, [showDayPicker])
+
+  // Load votes when place changes
+  useEffect(() => {
+    if (!tripId || !place) { setVotes([]); return }
+    placesApi.getVotes(tripId, place.id).then(d => setVotes(d.votes || [])).catch(() => {})
+  }, [tripId, place?.id])
+
+  // WS: live vote updates
+  useEffect(() => {
+    const handler = (event: { type: string; placeId?: number; votes?: PlaceVote[] }) => {
+      if (event.type === 'place:voted' && event.placeId === place?.id && event.votes) {
+        setVotes(event.votes)
+      }
+    }
+    addListener(handler as Parameters<typeof addListener>[0])
+    return () => removeListener(handler as Parameters<typeof removeListener>[0])
+  }, [place?.id])
+
+  const handleVote = async (v: 1 | -1) => {
+    if (!tripId || !place || voteSaving) return
+    const currentVote = votes.find(x => x.user_id === user?.id)?.vote ?? null
+    const next: 1 | -1 | null = currentVote === v ? null : v
+    setVoteSaving(true)
+    try {
+      const data = await placesApi.vote(tripId, place.id, next)
+      setVotes(data.votes || [])
+    } catch { /* noop */ }
+    setVoteSaving(false)
+  }
 
   const startNameEdit = () => {
     if (!onUpdatePlace) return
@@ -420,6 +567,11 @@ export default function PlaceInspector({
             <X size={14} strokeWidth={2} color="var(--text-secondary)" />
           </button>
         </div>
+
+        {/* Vote bar */}
+        {tripId && (
+          <PlaceVoteBar votes={votes} currentUserId={user?.id ?? null} onVote={handleVote} saving={voteSaving} />
+        )}
 
         {/* Content — scrollable */}
         {hasContent && (

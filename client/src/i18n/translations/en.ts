@@ -2520,6 +2520,21 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'dateAvail.maybe': 'maybe',
   'dateAvail.no': 'no',
   'dateAvail.notYetFilled': 'not yet filled in',
+  'dateAvail.groupResponses': 'Group responses',
+  'dateAvail.allYes': 'All yes',
+  'dateAvail.someYes': 'Some yes',
+  'dateAvail.vacation': 'Vacation',
+  'dateAvail.companyHoliday': 'Company holiday',
+  'dateAvail.publicHoliday': 'Public holiday',
+  'dateAvail.settings': 'Availability Settings',
+  'dateAvail.holidayRegion': 'Holiday region',
+  'dateAvail.selectCountry': 'Select country',
+  'dateAvail.yourVacationDays': 'Your vacation days',
+  'dateAvail.noVacationDays': 'No vacation days set',
+  'dateAvail.vacationLabel': 'Label (optional)',
+  // Place votes
+  'placeVote.upvote': 'Upvote',
+  'placeVote.downvote': 'Downvote',
 }
 
 export default en

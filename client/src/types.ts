@@ -240,6 +240,22 @@ export interface DateAvailabilityEntry {
   username: string
 }
 
+export interface VacationDay {
+  id: number
+  user_id: number
+  start_date: string
+  end_date: string
+  label: string | null
+  color: string
+}
+
+export interface CompanyHoliday {
+  id: number
+  date: string
+  name: string
+  color: string
+}
+
 export interface DateProposal {
   id: number
   group_id: number
@@ -251,6 +267,16 @@ export interface DateProposal {
   created_at: string
   availability: DateAvailabilityEntry[]
   members: DateProposalMember[]
+  memberRegions?: Record<number, string>
+  vacationDays?: VacationDay[]
+  companyHolidays?: CompanyHoliday[]
+}
+
+export interface PlaceVote {
+  user_id: number
+  vote: 1 | -1
+  username: string
+  avatar_url: string | null
 }
 
 export interface AssignmentsMap {

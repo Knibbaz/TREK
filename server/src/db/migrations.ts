@@ -2338,6 +2338,46 @@ function runMigrations(db: Database.Database): void {
         `);
       }
     },
+    // Migration: User vacation days and company holidays for group date availability
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_vacation_days (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          start_date TEXT NOT NULL,
+          end_date TEXT NOT NULL,
+          label TEXT,
+          color TEXT DEFAULT '#3b82f6',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, start_date, end_date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_vacation_days_user ON user_vacation_days(user_id);
+
+        CREATE TABLE IF NOT EXISTS company_holidays (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          color TEXT DEFAULT '#ef4444',
+          created_by INTEGER REFERENCES users(id),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_company_holidays_date ON company_holidays(date);
+      `);
+    },
+    // Migration: Place votes (👍/👎 per user per place)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS place_votes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          vote INTEGER NOT NULL CHECK(vote IN (1, -1)),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(place_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_place_votes_place ON place_votes(place_id);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

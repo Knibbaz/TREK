@@ -220,8 +220,12 @@ export const placesApi = {
     apiClient.post(`/trips/${tripId}/places/import/naver-list`, { url }).then(r => r.data),
   bulkDelete: (tripId: number | string, ids: number[]) =>
     apiClient.post(`/trips/${tripId}/places/bulk-delete`, { ids }).then(r => r.data),
-  importKml: (tripId: string | number, formData: FormData) => 
+  importKml: (tripId: string | number, formData: FormData) =>
     apiClient.post(`/trips/${tripId}/places/import/kml`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  getVotes: (tripId: number | string, placeId: number | string) =>
+    apiClient.get(`/trips/${tripId}/places/${placeId}/votes`).then(r => r.data),
+  vote: (tripId: number | string, placeId: number | string, vote: 1 | -1 | null) =>
+    apiClient.put(`/trips/${tripId}/places/${placeId}/vote`, { vote }).then(r => r.data),
 }
 
 export const assignmentsApi = {
@@ -495,6 +499,22 @@ export const dateProposalsApi = {
     apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),
   setAvailability: (groupId: number | string, proposalId: number, responses: Record<string, 'yes' | 'no' | 'maybe' | null>) =>
     apiClient.put(`/groups/${groupId}/date-proposals/${proposalId}/availability`, { responses }).then(r => r.data),
+}
+
+export const availabilityApi = {
+  listVacationDays: () => apiClient.get('/availability/vacation-days').then(r => r.data),
+  createVacationDay: (data: { start_date: string; end_date: string; label?: string; color?: string }) =>
+    apiClient.post('/availability/vacation-days', data).then(r => r.data),
+  deleteVacationDay: (id: number) => apiClient.delete(`/availability/vacation-days/${id}`).then(r => r.data),
+
+  listCompanyHolidays: () => apiClient.get('/availability/company-holidays').then(r => r.data),
+  createCompanyHoliday: (data: { date: string; name: string; color?: string }) =>
+    apiClient.post('/availability/company-holidays', data).then(r => r.data),
+  deleteCompanyHoliday: (id: number) => apiClient.delete(`/availability/company-holidays/${id}`).then(r => r.data),
+
+  listHolidayCountries: () => apiClient.get('/availability/holidays/countries').then(r => r.data),
+  getHolidays: (year: number | string, country: string) =>
+    apiClient.get(`/availability/holidays/${year}/${country}`).then(r => r.data),
 }
 
 export const backupApi = {

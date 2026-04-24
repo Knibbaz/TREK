@@ -20,6 +20,7 @@ const nl: Record<string, string> = {
   'common.all': 'Alles',
   'common.close': 'Sluiten',
   'common.open': 'Openen',
+  'common.settings': 'Instellingen',
   'common.upload': 'Uploaden',
   'common.search': 'Zoeken',
   'common.confirm': 'Bevestigen',
@@ -2456,6 +2457,21 @@ const nl: Record<string, string> = {
   'dateAvail.maybe': 'misschien',
   'dateAvail.no': 'nee',
   'dateAvail.notYetFilled': 'nog niet ingevuld',
+  'dateAvail.groupResponses': 'Groepsreacties',
+  'dateAvail.allYes': 'Iedereen ja',
+  'dateAvail.someYes': 'Sommigen ja',
+  'dateAvail.vacation': 'Vakantie',
+  'dateAvail.companyHoliday': 'Bedrijfsfeestdag',
+  'dateAvail.publicHoliday': 'Feestdag',
+  'dateAvail.settings': 'Beschikbaarheid instellingen',
+  'dateAvail.holidayRegion': 'Feestdagenregio',
+  'dateAvail.selectCountry': 'Selecteer land',
+  'dateAvail.yourVacationDays': 'Jouw vakantiedagen',
+  'dateAvail.noVacationDays': 'Geen vakantiedagen ingesteld',
+  'dateAvail.vacationLabel': 'Label (optioneel)',
+  // Locatie stemmen
+  'placeVote.upvote': 'Positief stemmen',
+  'placeVote.downvote': 'Negatief stemmen',
 }
 
 export default nl

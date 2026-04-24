@@ -6,6 +6,7 @@ import { broadcast } from '../websocket';
 import { validateStringLengths } from '../middleware/validate';
 import { checkPermission } from '../services/permissions';
 import { AuthRequest } from '../types';
+import { db } from '../db/database';
 import {
   listPlaces,
   createPlace,
@@ -261,6 +262,45 @@ router.delete('/:id', authenticate, requireTripAccess, (req: Request, res: Respo
 
   res.json({ success: true });
   broadcast(tripId, 'place:deleted', { placeId: Number(id) }, req.headers['x-socket-id'] as string);
+});
+
+// ── Place votes ───────────────────────────────────────────────────────────────
+
+function getPlaceVotes(placeId: string | number) {
+  return db.prepare(`
+    SELECT pv.user_id, pv.vote, u.username, u.avatar_url
+    FROM place_votes pv JOIN users u ON u.id = pv.user_id
+    WHERE pv.place_id = ?
+    ORDER BY pv.created_at ASC
+  `).all(placeId) as Array<{ user_id: number; vote: 1 | -1; username: string; avatar_url: string | null }>;
+}
+
+// GET /trips/:tripId/places/:id/votes
+router.get('/:id/votes', authenticate, requireTripAccess, (req: Request, res: Response) => {
+  const { id } = req.params;
+  res.json({ votes: getPlaceVotes(id) });
+});
+
+// PUT /trips/:tripId/places/:id/vote  body: { vote: 1 | -1 | null }
+router.put('/:id/vote', authenticate, requireTripAccess, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const { tripId, id } = req.params;
+  const { vote } = req.body as { vote: unknown };
+
+  if (vote === null || vote === undefined) {
+    db.prepare('DELETE FROM place_votes WHERE place_id = ? AND user_id = ?').run(id, authReq.user.id);
+  } else if (vote === 1 || vote === -1) {
+    db.prepare(`
+      INSERT INTO place_votes (place_id, user_id, vote) VALUES (?, ?, ?)
+      ON CONFLICT(place_id, user_id) DO UPDATE SET vote = excluded.vote
+    `).run(id, authReq.user.id, vote);
+  } else {
+    return res.status(400).json({ error: 'vote must be 1, -1, or null' });
+  }
+
+  const votes = getPlaceVotes(id);
+  res.json({ votes });
+  broadcast(tripId, 'place:voted', { placeId: Number(id), votes }, req.headers['x-socket-id'] as string);
 });
 
 export default router;
