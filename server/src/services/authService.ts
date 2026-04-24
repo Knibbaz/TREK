@@ -35,6 +35,7 @@ const ADMIN_SETTINGS_KEYS = [
   'notification_channels', 'admin_webhook_url', 'admin_ntfy_server', 'admin_ntfy_topic', 'admin_ntfy_token',
   'notify_trip_reminder',
   'password_login', 'password_registration', 'oidc_login', 'oidc_registration',
+  'booking_affiliate_id',
 ];
 
 const avatarDir = path.join(__dirname, '../../uploads/avatars');

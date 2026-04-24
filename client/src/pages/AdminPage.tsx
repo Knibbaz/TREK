@@ -182,6 +182,7 @@ export default function AdminPage(): React.ReactElement {
   const { demoMode, serverTimezone } = useAuthStore()
   const { t, locale } = useTranslation()
   const hour12 = useSettingsStore(s => s.settings.time_format) === '12h'
+  const loadSettings = useSettingsStore(s => s.loadSettings)
   const mcpEnabled = useAddonStore(s => s.isEnabled('mcp'))
   const devMode = useAuthStore(s => s.devMode)
   const TABS: PageSidebarTab[] = [
@@ -249,6 +250,10 @@ export default function AdminPage(): React.ReactElement {
   const [allowedFileTypes, setAllowedFileTypes] = useState<string>('jpg,jpeg,png,gif,webp,heic,pdf,doc,docx,xls,xlsx,txt,csv')
   const [savingFileTypes, setSavingFileTypes] = useState<boolean>(false)
 
+  // Booking.com affiliate
+  const [bookingAffiliateId, setBookingAffiliateId] = useState<string>('')
+  const [savingBookingAffiliate, setSavingBookingAffiliate] = useState<boolean>(false)
+
   // SMTP settings
   const [smtpValues, setSmtpValues] = useState<Record<string, string>>({})
   const [smtpLoaded, setSmtpLoaded] = useState(false)
@@ -256,6 +261,7 @@ export default function AdminPage(): React.ReactElement {
     apiClient.get('/auth/app-settings').then(r => {
       setSmtpValues(r.data || {})
       setSmtpLoaded(true)
+      if (r.data?.booking_affiliate_id) setBookingAffiliateId(r.data.booking_affiliate_id)
     }).catch(() => setSmtpLoaded(true))
   }, [])
 
@@ -970,6 +976,43 @@ export default function AdminPage(): React.ReactElement {
                     className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:bg-slate-400 mt-3"
                   >
                     {savingFileTypes ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                    {t('common.save')}
+                  </button>
+                </div>
+              </div>
+
+              {/* Affiliate Links */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="font-semibold text-slate-900">{t('admin.affiliateLinks')}</h2>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.affiliateLinksHint')}</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('admin.bookingAffiliateId')}</label>
+                    <input
+                      type="text"
+                      value={bookingAffiliateId}
+                      onChange={e => setBookingAffiliateId(e.target.value)}
+                      placeholder="e.g. 1234567"
+                      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                    />
+                    <p className="text-xs text-slate-400 mt-1">{t('admin.bookingAffiliateIdHint')}</p>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      setSavingBookingAffiliate(true)
+                      try {
+                        await authApi.updateAppSettings({ booking_affiliate_id: bookingAffiliateId })
+                        await loadSettings()
+                        toast.success(t('common.saved'))
+                      } catch { toast.error(t('common.error')) }
+                      finally { setSavingBookingAffiliate(false) }
+                    }}
+                    disabled={savingBookingAffiliate}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:bg-slate-400"
+                  >
+                    {savingBookingAffiliate ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
                     {t('common.save')}
                   </button>
                 </div>
