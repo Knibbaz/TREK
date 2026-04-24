@@ -53,6 +53,7 @@ export default function GroupsPage(): React.ReactElement {
 
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(false)
+  const [inviteError, setInviteError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => { loadGroups() }, [])
@@ -89,6 +90,17 @@ export default function GroupsPage(): React.ReactElement {
       setView('detail')
       setEditName(group.name)
       setEditDesc(group.description || '')
+      setInviteLink(null)
+      setInviteError(null)
+      // Try to load existing invite link
+      try {
+        const linkData = await groupsApi.getInviteLink(groupId)
+        if (linkData?.link?.token) {
+          setInviteLink(`${window.location.origin}/join-group/${linkData.link.token}`)
+        }
+      } catch {
+        // No existing link or not allowed — ignore
+      }
     }
   }
 
@@ -96,6 +108,8 @@ export default function GroupsPage(): React.ReactElement {
     setView('list')
     setCurrentGroup(null)
     setEditingGroup(false)
+    setInviteLink(null)
+    setInviteError(null)
   }
 
   const handleUpdateGroup = async () => {
@@ -227,12 +241,16 @@ export default function GroupsPage(): React.ReactElement {
   const handleCreateInvite = async () => {
     if (!currentGroup) return
     setInviteLoading(true)
+    setInviteError(null)
     try {
       const result = await groupsApi.createInviteLink(currentGroup.id, { role: 'member', max_uses: 0 })
       const url = `${window.location.origin}/join-group/${result.token}`
       setInviteLink(url)
     } catch (err: any) {
-      toast.error(err.message)
+      const msg = err?.response?.data?.error || err.message || 'Failed to create invite link'
+      console.error('[Groups] createInviteLink error:', err)
+      setInviteError(msg)
+      toast.error(msg)
     } finally {
       setInviteLoading(false)
     }
@@ -357,26 +375,33 @@ export default function GroupsPage(): React.ReactElement {
         {view === 'detail' && currentGroup && canManageMembers && (
           <div className="mb-4 p-3 rounded-xl border" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
             {!inviteLink ? (
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Link2 size={14} style={{ color: 'var(--text-muted)' }} />
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-                    {t('groups.invite.title') || 'Invite others with a shareable link'}
-                  </span>
+              <div>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Link2 size={14} style={{ color: 'var(--text-muted)' }} />
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+                      {t('groups.invite.title') || 'Invite others with a shareable link'}
+                    </span>
+                  </div>
+                  <button
+                    onClick={handleCreateInvite}
+                    disabled={inviteLoading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 transition-opacity hover:opacity-90"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {inviteLoading ? (
+                      <div className="w-3 h-3 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
+                    ) : (
+                      <Link2 size={12} />
+                    )}
+                    {t('groups.invite.create') || 'Create Link'}
+                  </button>
                 </div>
-                <button
-                  onClick={handleCreateInvite}
-                  disabled={inviteLoading}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white disabled:opacity-50 transition-opacity hover:opacity-90"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {inviteLoading ? (
-                    <div className="w-3 h-3 border-2 rounded-full animate-spin" style={{ borderColor: 'rgba(255,255,255,0.3)', borderTopColor: 'white' }} />
-                  ) : (
-                    <Link2 size={12} />
-                  )}
-                  {t('groups.invite.create') || 'Create Link'}
-                </button>
+                {inviteError && (
+                  <p className="mt-2 text-[11px]" style={{ color: 'var(--text-danger)' }}>
+                    {inviteError}
+                  </p>
+                )}
               </div>
             ) : (
               <div className="flex items-center gap-2">
