@@ -277,6 +277,25 @@ router.put('/collab-features', (req: Request, res: Response) => {
   res.json(result);
 });
 
+// ── Group welcome notice ───────────────────────────────────────────────────
+
+router.get('/group-welcome-notice', (_req: Request, res: Response) => {
+  res.json(svc.getGroupWelcomeNotice());
+});
+
+router.put('/group-welcome-notice', (req: Request, res: Response) => {
+  const { title, body, icon } = req.body as { title?: string; body?: string; icon?: string };
+  const result = svc.setGroupWelcomeNotice({ title, body, icon });
+  const authReq = req as AuthRequest;
+  writeAudit({
+    userId: authReq.user.id,
+    action: 'admin.group_welcome_notice',
+    ip: getClientIp(req),
+    details: { title, body, icon },
+  });
+  res.json(result);
+});
+
 // ── Packing Templates ──────────────────────────────────────────────────────
 
 router.get('/packing-templates', (_req: Request, res: Response) => {

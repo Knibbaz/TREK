@@ -162,13 +162,13 @@ function MonthSelector({ fromMonth, toMonth, onChange }: MonthSelectorProps) {
 // ── MonthGrid ─────────────────────────────────────────────────────────────────
 
 const DAY_LABELS = ['M', 'D', 'W', 'D', 'V', 'Z', 'Z']
-const STATUS_CYCLE: Array<'yes' | 'no' | 'maybe' | null> = ['yes', 'no', 'maybe', null]
+const STATUS_CYCLE: Array<'yes' | 'no' | 'maybe'> = ['yes', 'no', 'maybe']
 
-// Status colors — subtle, matching the app palette
+// Status colors
 const STATUS_COLOR = {
-  yes:   'var(--accent)',
-  maybe: '#a78bfa',
-  no:    '#f87171',
+  yes:   '#22c55e',
+  maybe: '#f97316',
+  no:    '#ef4444',
 } as const
 
 interface MonthGridProps {
@@ -373,7 +373,7 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, onDelete, onA
   const { t } = useTranslation()
   const [viewMonth, setViewMonth] = useState<Date>(() => new Date(proposal.period_start + 'T00:00:00'))
   const [viewMode, setViewMode] = useState<'mine' | 'group'>('mine')
-  const [pending, setPending] = useState<Record<string, 'yes' | 'no' | 'maybe' | null>>({})
+  const [pending, setPending] = useState<Record<string, 'yes' | 'no' | 'maybe'>>({})
   const [saving, setSaving] = useState(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -405,13 +405,12 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, onDelete, onA
     if (e.user_id === currentUserId) myStatus[e.date] = e.status
   }
   for (const [d, s] of Object.entries(pending)) {
-    if (s === null) delete myStatus[d]
-    else myStatus[d] = s
+    myStatus[d] = s
   }
 
   const toggleDate = (date: string) => {
-    const current = myStatus[date] ?? null
-    const idx = STATUS_CYCLE.indexOf(current)
+    const current = myStatus[date]
+    const idx = current ? STATUS_CYCLE.indexOf(current) : -1
     const next = STATUS_CYCLE[(idx + 1) % STATUS_CYCLE.length]
     setPending(prev => ({ ...prev, [date]: next }))
 

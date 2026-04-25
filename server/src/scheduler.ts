@@ -384,35 +384,47 @@ function startDateProposalReminders(): void {
       `).all() as Array<{ id: number; title: string; group_id: number; deadline: string; reminder_days: number; group_name: string }>;
 
       for (const proposal of proposals) {
-        // Members who have not submitted any availability for this proposal
-        const unresponsive = db.prepare(`
-          SELECT u.id, u.email, u.username
+        // Members who have not submitted any availability, OR still have at least one 'maybe'
+        const needsReminder = db.prepare(`
+          SELECT u.id, u.email, u.username,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM date_availability da
+              WHERE da.proposal_id = ? AND da.user_id = u.id
+            ) THEN 1 ELSE 0 END AS has_responded,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM date_availability da
+              WHERE da.proposal_id = ? AND da.user_id = u.id AND da.status = 'maybe'
+            ) THEN 1 ELSE 0 END AS has_maybe
           FROM group_members gm
           JOIN users u ON u.id = gm.user_id
           WHERE gm.group_id = ?
             AND u.email IS NOT NULL AND u.email != ''
-            AND NOT EXISTS (
-              SELECT 1 FROM date_availability da
-              WHERE da.proposal_id = ? AND da.user_id = u.id
+            AND (
+              NOT EXISTS (
+                SELECT 1 FROM date_availability da
+                WHERE da.proposal_id = ? AND da.user_id = u.id
+              )
+              OR EXISTS (
+                SELECT 1 FROM date_availability da
+                WHERE da.proposal_id = ? AND da.user_id = u.id AND da.status = 'maybe'
+              )
             )
-        `).all(proposal.group_id, proposal.id) as Array<{ id: number; email: string; username: string }>;
+        `).all(proposal.id, proposal.id, proposal.group_id, proposal.id, proposal.id) as Array<{ id: number; email: string; username: string; has_responded: number; has_maybe: number }>;
 
-        for (const member of unresponsive) {
+        for (const member of needsReminder) {
+          const hasMaybe = member.has_maybe === 1;
           const subject = `Availability deadline: ${proposal.title}`;
-          await sendEmail(
-            member.email,
-            subject,
-            `The availability poll "${proposal.title}" in group "${proposal.group_name}" closes on ${proposal.deadline}. Please fill in your availability before then.`,
-            member.id,
-            '/groups',
-          );
+          const body = hasMaybe
+            ? `You still have days marked as "maybe" in the availability poll "${proposal.title}" in group "${proposal.group_name}". The deadline is ${proposal.deadline}. Please update your availability before then.`
+            : `The availability poll "${proposal.title}" in group "${proposal.group_name}" closes on ${proposal.deadline}. Please fill in your availability before then.`;
+          await sendEmail(member.email, subject, body, member.id, '/groups');
         }
 
-        // Mark as sent regardless of how many were unresponsive
+        // Mark as sent regardless of how many needed a reminder
         db.prepare('UPDATE date_proposals SET reminder_sent = 1 WHERE id = ?').run(proposal.id);
 
-        if (unresponsive.length > 0) {
-          logInfo(`Date proposal reminder sent for "${proposal.title}" (id=${proposal.id}) to ${unresponsive.length} member(s)`);
+        if (needsReminder.length > 0) {
+          logInfo(`Date proposal reminder sent for "${proposal.title}" (id=${proposal.id}) to ${needsReminder.length} member(s)`);
         }
       }
     } catch (err: unknown) {

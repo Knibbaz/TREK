@@ -124,6 +124,26 @@ export const SYSTEM_NOTICES: SystemNotice[] = [
     maxVersion: '4.0.0',
   },
 
+  // ── Group join welcome ─────────────────────────────────────────────────────
+
+  {
+    id: 'group-welcome-v1',
+    display: 'modal',
+    severity: 'info',
+    icon: 'Users',
+    // titleKey and bodyKey are overridden at runtime with admin-editable content from app_settings.
+    // These values serve as fallbacks when no custom content has been saved.
+    titleKey: 'system_notice.group_welcome.title',
+    bodyKey:  'system_notice.group_welcome.body',
+    dismissible: true,
+    conditions: [
+      { kind: 'addonEnabled', addonId: 'collab' },
+      { kind: 'justJoinedGroup' },
+    ],
+    publishedAt: '2026-04-25T00:00:00Z',
+    priority: 50,
+  },
+
   // ── Onboarding ─────────────────────────────────────────────────────────────
 
   {

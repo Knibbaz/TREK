@@ -228,6 +228,11 @@ export default function AdminPage(): React.ReactElement {
   const [collabFeatures, setCollabFeatures] = useState<{ chat: boolean; notes: boolean; polls: boolean; whatsnext: boolean }>({ chat: true, notes: true, polls: true, whatsnext: true })
   useEffect(() => { adminApi.getCollabFeatures().then(d => setCollabFeatures(d)).catch(() => {}) }, [])
 
+  // Group welcome notice
+  const [groupWelcome, setGroupWelcome] = useState<{ title: string; body: string; icon: string }>({ title: '', body: '', icon: 'Users' })
+  const [savingGroupWelcome, setSavingGroupWelcome] = useState(false)
+  useEffect(() => { adminApi.getGroupWelcomeNotice().then(d => setGroupWelcome(d)).catch(() => {}) }, [])
+
   // OIDC config
   const [oidcConfig, setOidcConfig] = useState<OidcConfig>({ issuer: '', client_id: '', client_secret: '', client_secret_set: false, display_name: '', discovery_url: '' })
   const [savingOidc, setSavingOidc] = useState<boolean>(false)
@@ -826,6 +831,66 @@ export default function AdminPage(): React.ReactElement {
                 setCollabFeatures(next)
                 try { await adminApi.updateCollabFeatures({ [key]: next[key] }) } catch { setCollabFeatures(collabFeatures) }
               }} />
+
+              {/* Group welcome notice */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="font-semibold text-slate-900">Group welcome message</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">Shown as a modal when someone joins a group via invite link (within 30 minutes of joining).</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+                    <input
+                      type="text"
+                      value={groupWelcome.title}
+                      onChange={e => setGroupWelcome(g => ({ ...g, title: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Welcome to the group!"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Body (markdown supported)</label>
+                    <textarea
+                      rows={4}
+                      value={groupWelcome.body}
+                      onChange={e => setGroupWelcome(g => ({ ...g, body: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                      placeholder="You're now a member. Start exploring shared trips and availability together."
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 mb-1">Icon (Lucide icon name)</label>
+                    <input
+                      type="text"
+                      value={groupWelcome.icon}
+                      onChange={e => setGroupWelcome(g => ({ ...g, icon: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      placeholder="Users"
+                    />
+                  </div>
+                  <button
+                    disabled={savingGroupWelcome || !groupWelcome.title.trim() || !groupWelcome.body.trim()}
+                    onClick={async () => {
+                      setSavingGroupWelcome(true)
+                      try {
+                        const updated = await adminApi.updateGroupWelcomeNotice(groupWelcome)
+                        setGroupWelcome(updated)
+                        toast.success('Saved')
+                      } catch {
+                        toast.error('Failed to save')
+                      } finally {
+                        setSavingGroupWelcome(false)
+                      }
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50 transition-opacity"
+                    style={{ background: 'var(--accent)' }}
+                  >
+                    {savingGroupWelcome ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Save
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

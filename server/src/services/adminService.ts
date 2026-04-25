@@ -772,3 +772,37 @@ export function rotateJwtSecret(): { error?: string; status?: number } {
   updateJwtSecret(newSecret);
   return {};
 }
+
+// ── Group welcome notice ───────────────────────────────────────────────────
+
+const DEFAULT_GROUP_WELCOME = {
+  title: 'Welcome to the group!',
+  body: "You're now a member. Start exploring shared trips and availability together.",
+  icon: 'Users',
+};
+
+export function getGroupWelcomeNotice(): { title: string; body: string; icon: string } {
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'group_welcome_notice'").get() as { value: string } | undefined;
+  if (!row?.value) return { ...DEFAULT_GROUP_WELCOME };
+  try {
+    const stored = JSON.parse(row.value) as Partial<typeof DEFAULT_GROUP_WELCOME>;
+    return {
+      title: stored.title ?? DEFAULT_GROUP_WELCOME.title,
+      body:  stored.body  ?? DEFAULT_GROUP_WELCOME.body,
+      icon:  stored.icon  ?? DEFAULT_GROUP_WELCOME.icon,
+    };
+  } catch {
+    return { ...DEFAULT_GROUP_WELCOME };
+  }
+}
+
+export function setGroupWelcomeNotice(data: { title?: string; body?: string; icon?: string }): { title: string; body: string; icon: string } {
+  const current = getGroupWelcomeNotice();
+  const updated = {
+    title: (data.title ?? current.title).trim() || current.title,
+    body:  (data.body  ?? current.body ).trim() || current.body,
+    icon:  (data.icon  ?? current.icon ).trim() || current.icon,
+  };
+  db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('group_welcome_notice', ?)").run(JSON.stringify(updated));
+  return updated;
+}

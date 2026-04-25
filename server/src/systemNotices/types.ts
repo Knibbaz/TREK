@@ -9,6 +9,7 @@ export type NoticeCondition =
   | { kind: 'dateWindow'; startsAt: string; endsAt?: string }
   | { kind: 'role'; roles: Array<'admin' | 'user'> }
   | { kind: 'addonEnabled'; addonId: string }
+  | { kind: 'justJoinedGroup' }
   | { kind: 'custom'; id: string };
 
 export interface NoticeMedia {

@@ -333,6 +333,8 @@ export const adminApi = {
   updateNotificationPreferences: (prefs: Record<string, Record<string, boolean>>) => apiClient.put('/admin/notification-preferences', prefs).then(r => r.data),
   getDefaultUserSettings: () => apiClient.get('/admin/default-user-settings').then(r => r.data),
   updateDefaultUserSettings: (settings: Record<string, unknown>) => apiClient.put('/admin/default-user-settings', settings).then(r => r.data),
+  getGroupWelcomeNotice: () => apiClient.get('/admin/group-welcome-notice').then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
+  updateGroupWelcomeNotice: (data: { title: string; body: string; icon: string }) => apiClient.put('/admin/group-welcome-notice', data).then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
 }
 
 export const addonsApi = {

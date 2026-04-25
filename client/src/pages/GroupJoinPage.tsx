@@ -3,6 +3,7 @@ import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import { groupsApi } from '../api/client'
+import { useSystemNoticeStore } from '../store/systemNoticeStore'
 import { Users, LogIn, UserPlus, ArrowRight, Copy, Check } from 'lucide-react'
 import toast from 'react-hot-toast'
 
@@ -21,6 +22,7 @@ export default function GroupJoinPage(): React.ReactElement {
   const [searchParams] = useSearchParams()
   const { isAuthenticated, user } = useAuthStore()
 
+  const { reset: resetNotices, fetch: fetchNotices } = useSystemNoticeStore()
   const [group, setGroup] = useState<GroupPreview | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -44,6 +46,9 @@ export default function GroupJoinPage(): React.ReactElement {
       await groupsApi.joinWithToken(token)
       toast.success(t('groups.join.success') || 'You joined the group!')
       setJoined(true)
+      // Reset notice store so the group-welcome notice appears on /groups
+      resetNotices()
+      fetchNotices()
       setTimeout(() => navigate('/groups'), 1500)
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Failed to join group'

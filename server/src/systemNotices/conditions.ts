@@ -1,9 +1,10 @@
 import semver from 'semver';
+import { db } from '../db/database.js';
 import { isAddonEnabled } from '../services/adminService.js';
 import type { NoticeCondition, SystemNotice } from './types.js';
 
 interface ConditionContext {
-  user: { login_count: number; first_seen_version: string; role: string; noTrips: number };
+  user: { id: number; login_count: number; first_seen_version: string; role: string; noTrips: number };
   currentAppVersion: string;
   now: Date;
 }
@@ -49,6 +50,21 @@ function evaluateOne(condition: NoticeCondition, ctx: ConditionContext): boolean
 
     case 'addonEnabled':
       return isAddonEnabled(condition.addonId);
+
+    case 'justJoinedGroup': {
+      const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
+      // Find the most recent group join for this user
+      const joinRow = db.prepare(`
+        SELECT CAST(strftime('%s', joined_at) AS INTEGER) * 1000 AS joined_ms
+        FROM group_members WHERE user_id = ? ORDER BY joined_at DESC LIMIT 1
+      `).get(ctx.user.id) as { joined_ms: number } | undefined;
+      if (!joinRow || joinRow.joined_ms < thirtyMinsAgo) return false;
+      // Show again if the user joined after they last dismissed this notice
+      const dismissal = db.prepare(`
+        SELECT dismissed_at FROM user_notice_dismissals WHERE user_id = ? AND notice_id = 'group-welcome-v1'
+      `).get(ctx.user.id) as { dismissed_at: number } | undefined;
+      return !dismissal || joinRow.joined_ms > dismissal.dismissed_at;
+    }
 
     case 'custom': {
       const fn = customPredicates.get(condition.id);
