@@ -487,7 +487,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         )}
 
         {/* Reminder — only visible to owner (or when creating) */}
-        {(!isEditing || trip?.user_id === currentUser?.id || currentUser?.role === 'admin') && (
+        {(!isEditing || trip?.user_id === currentUser?.id || currentUser?.role === 'admin') && !(formData.end_date && formData.end_date < new Date().toISOString().slice(0, 10)) && (
         <div className={!tripRemindersEnabled ? 'opacity-50' : ''}>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             <Bell className="inline w-4 h-4 mr-1" />{t('trips.reminder')}

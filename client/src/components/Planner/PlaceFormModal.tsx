@@ -105,7 +105,7 @@ export default function PlaceFormModal({
   const acAbortRef = useRef<AbortController | null>(null)
   const toast = useToast()
   const { t, language } = useTranslation()
-  const { hasMapsKey } = useAuthStore()
+  const { hasMapsKey, user: currentUser } = useAuthStore()
   const can = useCanDo()
   const tripObj = useTripStore((s) => s.trip)
   const canUploadFiles = can('file_upload', tripObj)
@@ -409,10 +409,10 @@ export default function PlaceFormModal({
       <form onSubmit={handleSubmit} className="space-y-4" onPaste={handlePaste}>
         {/* Place Search */}
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-          {!hasMapsKey && (
-            <p className="mb-2 text-xs" style={{ color: 'var(--text-faint)' }}>
-              {t('places.osmActive')}
-            </p>
+          {!hasMapsKey && currentUser?.role === 'admin' && (
+            <div className="mb-2 flex items-start gap-1.5 rounded-md px-2 py-1.5" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}>
+              <span className="text-[10px] font-medium" style={{ color: '#d97706' }}>{t('places.osmActive')}</span>
+            </div>
           )}
           <div className="relative">
             <div className="flex gap-2">
