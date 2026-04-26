@@ -22,6 +22,7 @@ import {
   LayoutGrid, List, Copy, Bell, CheckCircle2, Compass,
 } from 'lucide-react'
 import { useCanDo } from '../store/permissionsStore'
+import { useAddonStore } from '../store/addonStore'
 
 interface DashboardTrip {
   id: number
@@ -635,6 +636,8 @@ export default function DashboardPage(): React.ReactElement {
   const { demoMode, user } = useAuthStore()
   const { settings, updateSetting } = useSettingsStore()
   const can = useCanDo()
+  const { isEnabled: isAddonEnabled } = useAddonStore()
+  const exploreEnabled = isAddonEnabled('explore')
   const dm = settings.dark_mode
   const dark = dm === true || dm === 'dark' || (dm === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const showCurrency = settings.dashboard_currency !== 'off'
@@ -1050,7 +1053,7 @@ export default function DashboardPage(): React.ReactElement {
               onCopy={can('trip_create') ? handleCopy : undefined}
               onDelete={can('trip_delete', spotlight) ? handleDelete : undefined}
               onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
-              onPublish={spotlight.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
+              onPublish={exploreEnabled && spotlight.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
               onClick={tr => navigate(`/trips/${tr.id}`)}
             />
             </div>
@@ -1069,7 +1072,7 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={can('trip_create') ? handleCopy : undefined}
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                    onPublish={trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
+                    onPublish={exploreEnabled && trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1085,7 +1088,7 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={can('trip_create') ? handleCopy : undefined}
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                    onPublish={trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
+                    onPublish={exploreEnabled && trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
