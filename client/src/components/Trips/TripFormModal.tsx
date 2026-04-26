@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { Calendar, Camera, X, Clipboard, UserPlus, Bell, Sparkles } from 'lucide-react'
+import { AlertTriangle, Calendar, Camera, X, Clipboard, UserPlus, Bell, Sparkles } from 'lucide-react'
 import { tripsApi, authApi } from '../../api/client'
 import CustomSelect from '../shared/CustomSelect'
 import { useAuthStore } from '../../store/authStore'
@@ -59,6 +59,8 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const [selectedMembers, setSelectedMembers] = useState<number[]>([])
   const [existingMembers, setExistingMembers] = useState<{ id: number; username: string }[]>([])
   const [memberSelectValue, setMemberSelectValue] = useState('')
+  const [overflowInfo, setOverflowInfo] = useState<{ daysToRemove: number; assignments: number; notes: number; accommodations: number } | null>(null)
+  const [shrinkConfirmed, setShrinkConfirmed] = useState(false)
 
   // Unsplash cover suggestions (new trip only)
   const [unsplashPhotos, setUnsplashPhotos] = useState<UnsplashPhoto[]>([])
@@ -116,6 +118,24 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
     }
   }, [tripRemindersEnabled])
 
+  // Overflow check: when editing and dates shrink, warn about lost content
+  useEffect(() => {
+    if (!isEditing || !trip?.id || !formData.start_date || !formData.end_date) {
+      setOverflowInfo(null)
+      setShrinkConfirmed(false)
+      return
+    }
+    const timer = setTimeout(() => {
+      tripsApi.checkOverflow(trip.id, formData.start_date, formData.end_date)
+        .then(info => {
+          setOverflowInfo(info.daysToRemove > 0 ? info : null)
+          setShrinkConfirmed(false)
+        })
+        .catch(() => setOverflowInfo(null))
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [formData.start_date, formData.end_date, isEditing, trip?.id])
+
   // Auto-search Unsplash when title changes (new trip only, no cover selected yet)
   useEffect(() => {
     if (isEditing || !isOpen || !unsplashConfigured) return
@@ -148,6 +168,13 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
     if (!formData.title.trim()) { setError(t('dashboard.titleRequired')); return }
     if (formData.start_date && formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) {
       setError(t('dashboard.endDateError')); return
+    }
+    if (overflowInfo && overflowInfo.daysToRemove > 0 && !shrinkConfirmed) {
+      const el = document.getElementById('shrink-confirm-checkbox')
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el?.classList.add('outline', 'outline-2', 'outline-red-400')
+      setTimeout(() => el?.classList.remove('outline', 'outline-2', 'outline-red-400'), 1500)
+      return
     }
     setIsLoading(true)
     try {
@@ -412,6 +439,40 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
             <CustomDatePicker value={formData.end_date} onChange={v => update('end_date', v)} placeholder={t('dashboard.endDate')} />
           </div>
         </div>
+
+        {/* Shrink warning — shown when editing causes days to be removed */}
+        {overflowInfo && overflowInfo.daysToRemove > 0 && (
+          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={15} className="shrink-0 mt-0.5" style={{ color: '#d97706' }} />
+              <div className="space-y-1">
+                <p className="text-sm font-medium" style={{ color: '#92400e' }}>
+                  {t('trips.shrinkWarning', { days: overflowInfo.daysToRemove })}
+                </p>
+                {(overflowInfo.assignments > 0 || overflowInfo.accommodations > 0 || overflowInfo.notes > 0) && (
+                  <p className="text-xs" style={{ color: '#b45309' }}>
+                    {[
+                      overflowInfo.assignments > 0 && `${overflowInfo.assignments} activit.`,
+                      overflowInfo.accommodations > 0 && `${overflowInfo.accommodations} hotel${overflowInfo.accommodations !== 1 ? 's' : ''}`,
+                      overflowInfo.notes > 0 && `${overflowInfo.notes} note${overflowInfo.notes !== 1 ? 's' : ''}`,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                id="shrink-confirm-checkbox"
+                type="checkbox"
+                checked={shrinkConfirmed}
+                onChange={e => setShrinkConfirmed(e.target.checked)}
+                className="rounded"
+                style={{ accentColor: '#d97706' }}
+              />
+              <span className="text-xs font-medium" style={{ color: '#92400e' }}>{t('trips.shrinkConfirm')}</span>
+            </label>
+          </div>
+        )}
 
         {!formData.start_date && !formData.end_date && (
           <div>

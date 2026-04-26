@@ -152,6 +152,8 @@ const nl: Record<string, string> = {
   'dashboard.coverRemoveError': 'Verwijderen mislukt',
   'dashboard.titleRequired': 'Titel is verplicht',
   'dashboard.endDateError': 'Einddatum moet na de startdatum liggen',
+  'trips.shrinkWarning': 'De trip verkorten verwijdert permanent {days} dag(en). Plaatsen blijven zichtbaar in het planpanel.',
+  'trips.shrinkConfirm': 'Ik begrijp het — de inhoud van verwijderde dagen wordt permanent verwijderd',
 
   // Settings
   'settings.title': 'Instellingen',

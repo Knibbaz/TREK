@@ -119,10 +119,23 @@ export function generateDays(tripId: number | bigint | string, startDate: string
     }
   }
 
-  // Overflow dated days (trip shrunk): convert to dateless instead of deleting
-  const nullify = db.prepare('UPDATE days SET date = NULL, day_number = ? WHERE id = ?');
-  for (let i = targetDates.length; i < dated.length; i++) {
-    nullify.run(targetDates.length + (i - targetDates.length) + 1, dated[i].id);
+  // Overflow dated days (trip shrunk): clip spanning accommodations, then delete
+  const overflowDays = dated.slice(targetDates.length);
+  if (overflowDays.length > 0) {
+    const overflowIds = overflowDays.map(d => d.id);
+    if (targetDates.length > 0) {
+      // Accommodations whose end_day is in overflow but start_day is still valid:
+      // shorten them to the last kept day instead of losing them entirely.
+      const lastValidDayId = dated[targetDates.length - 1].id;
+      const validIds = dated.slice(0, targetDates.length).map(d => d.id);
+      db.prepare(
+        `UPDATE day_accommodations SET end_day_id = ?
+         WHERE end_day_id IN (${overflowIds.join(',')})
+           AND start_day_id IN (${validIds.join(',')})`
+      ).run(lastValidDayId);
+    }
+    const del = db.prepare('DELETE FROM days WHERE id = ?');
+    for (const d of overflowDays) del.run(d.id);
   }
 
   // Any remaining unused dateless days: keep as dateless, just renumber.
@@ -136,6 +149,32 @@ export function generateDays(tripId: number | bigint | string, startDate: string
   // Final renumber to compact and eliminate any gaps/negatives
   const remaining = db.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY day_number').all(tripId) as { id: number }[];
   renumber(remaining);
+}
+
+// ── Overflow check ────────────────────────────────────────────────────────
+
+export function getOverflowInfo(tripId: number, newStart: string | null, newEnd: string | null) {
+  if (!newStart || !newEnd) return { daysToRemove: 0, assignments: 0, notes: 0, accommodations: 0 };
+
+  const dated = db.prepare(
+    'SELECT id FROM days WHERE trip_id = ? AND date IS NOT NULL ORDER BY day_number'
+  ).all(tripId) as { id: number }[];
+
+  const [sy, sm, sd] = newStart.split('-').map(Number);
+  const [ey, em, ed] = newEnd.split('-').map(Number);
+  const startMs = Date.UTC(sy, sm - 1, sd);
+  const endMs = Date.UTC(ey, em - 1, ed);
+  const numDays = Math.min(Math.floor((endMs - startMs) / MS_PER_DAY) + 1, MAX_TRIP_DAYS);
+
+  const overflow = dated.slice(numDays);
+  if (overflow.length === 0) return { daysToRemove: 0, assignments: 0, notes: 0, accommodations: 0 };
+
+  const ids = overflow.map(d => d.id).join(',');
+  const assignments = (db.prepare(`SELECT COUNT(*) as cnt FROM day_assignments WHERE day_id IN (${ids})`).get() as { cnt: number }).cnt;
+  const notes = (db.prepare(`SELECT COUNT(*) as cnt FROM day_notes WHERE day_id IN (${ids})`).get() as { cnt: number }).cnt;
+  const accommodations = (db.prepare(`SELECT COUNT(*) as cnt FROM day_accommodations WHERE start_day_id IN (${ids})`).get() as { cnt: number }).cnt;
+
+  return { daysToRemove: overflow.length, assignments, notes, accommodations };
 }
 
 // ── Trip CRUD ─────────────────────────────────────────────────────────────

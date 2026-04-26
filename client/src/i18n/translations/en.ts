@@ -170,6 +170,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'dashboard.coverRemoveError': 'Failed to remove',
   'dashboard.titleRequired': 'Title is required',
   'dashboard.endDateError': 'End date must be after start date',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 
   // Settings
   'settings.title': 'Settings',

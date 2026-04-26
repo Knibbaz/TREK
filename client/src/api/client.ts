@@ -185,6 +185,8 @@ export const tripsApi = {
   removeMember: (id: number | string, userId: number) => apiClient.delete(`/trips/${id}/members/${userId}`).then(r => r.data),
   copy: (id: number | string, data?: { title?: string }) => apiClient.post(`/trips/${id}/copy`, data || {}).then(r => r.data),
   bundle: (id: number | string) => apiClient.get(`/trips/${id}/bundle`).then(r => r.data),
+  checkOverflow: (id: number | string, startDate: string, endDate: string) =>
+    apiClient.get(`/trips/${id}/overflow-check`, { params: { start_date: startDate, end_date: endDate } }).then(r => r.data) as Promise<{ daysToRemove: number; assignments: number; notes: number; accommodations: number }>,
 }
 
 export const daysApi = {

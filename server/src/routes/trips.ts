@@ -27,6 +27,7 @@ import {
   exportICS,
   copyTripById,
   verifyTripAccess,
+  getOverflowInfo,
   NotFoundError,
   ValidationError,
   TRIP_SELECT,
@@ -152,6 +153,17 @@ router.post('/unsplash-download', authenticate, async (req: Request, res: Respon
     fetch(`https://api.unsplash.com/photos/${photoId}/download?client_id=${apiKey}`).catch(() => {});
   }
   res.json({ ok: true });
+});
+
+// ── Overflow check (must be before /:id) ─────────────────────────────────
+
+router.get('/:id/overflow-check', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const tripId = Number(req.params.id);
+  if (!canAccessTrip(tripId, authReq.user.id)) return res.status(403).json({ error: 'Access denied' });
+  const { start_date, end_date } = req.query as { start_date?: string; end_date?: string };
+  const info = getOverflowInfo(tripId, start_date || null, end_date || null);
+  res.json(info);
 });
 
 // ── Get trip ──────────────────────────────────────────────────────────────
