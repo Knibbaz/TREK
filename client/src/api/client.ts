@@ -176,6 +176,8 @@ export const tripsApi = {
   update: (id: number | string, data: Record<string, unknown>) => apiClient.put(`/trips/${id}`, data).then(r => r.data),
   delete: (id: number | string) => apiClient.delete(`/trips/${id}`).then(r => r.data),
   uploadCover: (id: number | string, formData: FormData) => apiClient.post(`/trips/${id}/cover`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  searchCoverImages: (q: string) => apiClient.get(`/trips/cover-search?q=${encodeURIComponent(q)}`).then(r => r.data) as Promise<{ photos: { id: string; url: string; thumb: string; description: string | null; photographer: string | null; photographerUrl: string | null; link: string }[] }>,
+  triggerUnsplashDownload: (photoId: string) => apiClient.post('/trips/unsplash-download', { photoId }).then(r => r.data),
   archive: (id: number | string) => apiClient.put(`/trips/${id}`, { is_archived: true }).then(r => r.data),
   unarchive: (id: number | string) => apiClient.put(`/trips/${id}`, { is_archived: false }).then(r => r.data),
   getMembers: (id: number | string) => apiClient.get(`/trips/${id}/members`).then(r => r.data),
@@ -335,6 +337,8 @@ export const adminApi = {
   updateDefaultUserSettings: (settings: Record<string, unknown>) => apiClient.put('/admin/default-user-settings', settings).then(r => r.data),
   getGroupWelcomeNotice: () => apiClient.get('/admin/group-welcome-notice').then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
   updateGroupWelcomeNotice: (data: { title: string; body: string; icon: string }) => apiClient.put('/admin/group-welcome-notice', data).then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
+  getUnsplash: () => apiClient.get('/admin/unsplash').then(r => r.data) as Promise<{ configured: boolean }>,
+  updateUnsplash: (key: string) => apiClient.put('/admin/unsplash', { key }).then(r => r.data) as Promise<{ configured: boolean }>,
 }
 
 export const addonsApi = {

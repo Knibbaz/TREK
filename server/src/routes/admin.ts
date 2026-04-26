@@ -277,6 +277,20 @@ router.put('/collab-features', (req: Request, res: Response) => {
   res.json(result);
 });
 
+// ── Unsplash API key ──────────────────────────────────────────────────────
+
+router.get('/unsplash', (_req: Request, res: Response) => {
+  res.json(svc.getUnsplashApiKey());
+});
+
+router.put('/unsplash', (req: Request, res: Response) => {
+  const { key } = req.body as { key?: string };
+  const result = svc.setUnsplashApiKey(key ?? '');
+  const authReq = req as AuthRequest;
+  writeAudit({ userId: authReq.user.id, action: 'admin.unsplash_api_key', ip: getClientIp(req), details: { configured: result.configured } });
+  res.json(result);
+});
+
 // ── Group welcome notice ───────────────────────────────────────────────────
 
 router.get('/group-welcome-notice', (_req: Request, res: Response) => {

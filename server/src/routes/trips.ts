@@ -10,6 +10,7 @@ import { AuthRequest, Trip } from '../types';
 import { writeAudit, getClientIp, logInfo } from '../services/auditLog';
 import { checkPermission } from '../services/permissions';
 import { copyTripTransaction } from '../services/tripCopyService';
+import { getUnsplashApiKeyRaw } from '../services/adminService';
 import {
   listTrips,
   createTrip,
@@ -112,6 +113,45 @@ router.post('/', authenticate, (req: Request, res: Response) => {
   }
 
   res.status(201).json({ trip });
+});
+
+// ── Unsplash cover search ─────────────────────────────────────────────────
+// Must be before /:id to avoid 'cover-search' being parsed as a trip ID.
+
+router.get('/cover-search', authenticate, async (req: Request, res: Response) => {
+  const q = (req.query.q as string || '').trim();
+  if (!q) return res.status(400).json({ error: 'q is required' });
+
+  const apiKey = getUnsplashApiKeyRaw();
+  if (!apiKey) return res.status(400).json({ error: 'Unsplash not configured' });
+
+  const response = await fetch(
+    `https://api.unsplash.com/search/photos?query=${encodeURIComponent(q)}&per_page=6&orientation=landscape&client_id=${apiKey}`,
+  );
+  const data = await response.json() as { results?: { id: string; urls?: { regular?: string; thumb?: string }; description?: string; alt_description?: string; user?: { name?: string; links?: { html?: string } }; links?: { html?: string } }[]; errors?: string[] };
+  if (!response.ok) return res.status(response.status).json({ error: data.errors?.[0] || 'Unsplash API error' });
+
+  const photos = (data.results || []).map(p => ({
+    id: p.id,
+    url: p.urls?.regular,
+    thumb: p.urls?.thumb,
+    description: p.description || p.alt_description,
+    photographer: p.user?.name,
+    photographerUrl: p.user?.links?.html,
+    link: p.links?.html,
+  }));
+  res.json({ photos });
+});
+
+router.post('/unsplash-download', authenticate, async (req: Request, res: Response) => {
+  const { photoId } = req.body as { photoId?: string };
+  if (!photoId) return res.status(400).json({ error: 'photoId is required' });
+  const apiKey = getUnsplashApiKeyRaw();
+  if (apiKey) {
+    // Best-effort — required by Unsplash API guidelines when a photo is used
+    fetch(`https://api.unsplash.com/photos/${photoId}/download?client_id=${apiKey}`).catch(() => {});
+  }
+  res.json({ ok: true });
 });
 
 // ── Get trip ──────────────────────────────────────────────────────────────

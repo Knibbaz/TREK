@@ -773,6 +773,28 @@ export function rotateJwtSecret(): { error?: string; status?: number } {
   return {};
 }
 
+// ── Unsplash API key (admin-managed) ──────────────────────────────────────
+
+export function getUnsplashApiKeyRaw(): string | null {
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined;
+  if (!row?.value) return null;
+  return decrypt_api_key(row.value) || null;
+}
+
+export function getUnsplashApiKey(): { configured: boolean } {
+  return { configured: !!getUnsplashApiKeyRaw() };
+}
+
+export function setUnsplashApiKey(key: string): { configured: boolean } {
+  const trimmed = key.trim();
+  if (trimmed) {
+    db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('unsplash_api_key', ?)").run(maybe_encrypt_api_key(trimmed));
+  } else {
+    db.prepare("DELETE FROM app_settings WHERE key = 'unsplash_api_key'").run();
+  }
+  return { configured: !!trimmed };
+}
+
 // ── Group welcome notice ───────────────────────────────────────────────────
 
 const DEFAULT_GROUP_WELCOME = {

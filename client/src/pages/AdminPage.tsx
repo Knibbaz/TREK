@@ -273,6 +273,8 @@ export default function AdminPage(): React.ReactElement {
   // API Keys
   const [mapsKey, setMapsKey] = useState<string>('')
   const [weatherKey, setWeatherKey] = useState<string>('')
+  const [unsplashKey, setUnsplashKey] = useState<string>('')
+  const [savingUnsplashKey, setSavingUnsplashKey] = useState<boolean>(false)
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({})
   const [savingKeys, setSavingKeys] = useState<boolean>(false)
   const [validating, setValidating] = useState<Record<string, boolean>>({})
@@ -282,7 +284,7 @@ export default function AdminPage(): React.ReactElement {
   const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null)
   const [showUpdateModal, setShowUpdateModal] = useState<boolean>(false)
 
-  const { user: currentUser, updateApiKeys, setAppRequireMfa, setTripRemindersEnabled, setPlacesPhotosEnabled, setPlacesAutocompleteEnabled, setPlacesDetailsEnabled, logout } = useAuthStore()
+  const { user: currentUser, updateApiKeys, setAppRequireMfa, setTripRemindersEnabled, setPlacesPhotosEnabled, setPlacesAutocompleteEnabled, setPlacesDetailsEnabled, setUnsplashConfigured, logout } = useAuthStore()
   const navigate = useNavigate()
   const toast = useToast()
 
@@ -341,6 +343,12 @@ export default function AdminPage(): React.ReactElement {
     } catch (err: unknown) {
       // ignore
     }
+    try {
+      const unsplash = await adminApi.getUnsplash()
+      setUnsplashKey(unsplash.configured ? '••••••••' : '')
+    } catch (err: unknown) {
+      // ignore
+    }
   }
 
   const handleToggleAuthSetting = async (key: string, value: boolean, setter: (v: boolean) => void) => {
@@ -395,6 +403,19 @@ export default function AdminPage(): React.ReactElement {
       toast.error(t('common.error'))
     } finally {
       setValidating({})
+    }
+  }
+
+  const handleSaveUnsplashKey = async () => {
+    setSavingUnsplashKey(true)
+    try {
+      const result = await adminApi.updateUnsplash(unsplashKey)
+      setUnsplashConfigured(result.configured)
+      toast.success(t('admin.keySaved'))
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('common.error')))
+    } finally {
+      setSavingUnsplashKey(false)
     }
   }
 
@@ -1141,6 +1162,40 @@ export default function AdminPage(): React.ReactElement {
                         {t('admin.keyInvalid')}
                       </p>
                     )}
+                  </div>
+
+                  {/* Unsplash API Key */}
+                  <div className="pt-2 border-t border-slate-100">
+                    <label className="flex items-center gap-2 text-sm font-medium text-slate-700 mb-1.5">
+                      Unsplash API Key
+                    </label>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showKeys.unsplash ? 'text' : 'password'}
+                          value={unsplashKey}
+                          onChange={e => setUnsplashKey(e.target.value)}
+                          placeholder={t('settings.keyPlaceholder')}
+                          className="w-full pr-10 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => toggleKey('unsplash')}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showKeys.unsplash ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <button
+                        onClick={handleSaveUnsplashKey}
+                        disabled={savingUnsplashKey}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white rounded-lg text-sm hover:bg-slate-700 disabled:bg-slate-400"
+                      >
+                        {savingUnsplashKey ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Save className="w-4 h-4" />}
+                        {t('common.save')}
+                      </button>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-1">Used for automatic cover photo suggestions when creating a trip. Get a free key at unsplash.com/developers.</p>
                   </div>
 
                   {/* Place Photos Toggle */}

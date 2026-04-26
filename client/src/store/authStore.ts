@@ -36,6 +36,7 @@ interface AuthState {
   placesPhotosEnabled: boolean
   placesAutocompleteEnabled: boolean
   placesDetailsEnabled: boolean
+  unsplashConfigured: boolean
 
   login: (email: string, password: string) => Promise<LoginResult>
   completeMfaLogin: (mfaToken: string, code: string) => Promise<AuthResponse>
@@ -59,6 +60,7 @@ interface AuthState {
   setPlacesPhotosEnabled: (val: boolean) => void
   setPlacesAutocompleteEnabled: (val: boolean) => void
   setPlacesDetailsEnabled: (val: boolean) => void
+  setUnsplashConfigured: (val: boolean) => void
   demoLogin: () => Promise<AuthResponse>
 }
 
@@ -83,6 +85,7 @@ export const useAuthStore = create<AuthState>()(
   placesPhotosEnabled: true,
   placesAutocompleteEnabled: true,
   placesDetailsEnabled: true,
+  unsplashConfigured: false,
 
   login: async (email: string, password: string) => {
     authSequence++
@@ -269,6 +272,7 @@ export const useAuthStore = create<AuthState>()(
   setPlacesPhotosEnabled: (val: boolean) => set({ placesPhotosEnabled: val }),
   setPlacesAutocompleteEnabled: (val: boolean) => set({ placesAutocompleteEnabled: val }),
   setPlacesDetailsEnabled: (val: boolean) => set({ placesDetailsEnabled: val }),
+  setUnsplashConfigured: (val: boolean) => set({ unsplashConfigured: val }),
 
   demoLogin: async () => {
     authSequence++

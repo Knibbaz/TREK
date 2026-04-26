@@ -4,6 +4,7 @@ import { db, getPlaceWithTags } from '../db/database';
 import { loadTagsByPlaceIds } from './queryHelpers';
 import { checkSsrf } from '../utils/ssrfGuard';
 import { Place } from '../types';
+import { getUnsplashApiKeyRaw } from './adminService';
 import {
   buildCategoryNameLookup,
   createKmlImportSummary,
@@ -21,7 +22,7 @@ interface PlaceWithCategory extends Place {
 }
 
 interface UnsplashSearchResponse {
-  results?: { id: string; urls?: { regular?: string; thumb?: string }; description?: string; alt_description?: string; user?: { name?: string }; links?: { html?: string } }[];
+  results?: { id: string; urls?: { regular?: string; thumb?: string }; description?: string; alt_description?: string; user?: { name?: string; links?: { html?: string } }; links?: { html?: string } }[];
   errors?: string[];
 }
 
@@ -804,18 +805,16 @@ export async function importNaverList(
 // Search place image (Unsplash)
 // ---------------------------------------------------------------------------
 
-export async function searchPlaceImage(tripId: string, placeId: string, userId: number) {
+export async function searchPlaceImage(tripId: string, placeId: string, _userId: number) {
   const place = db.prepare('SELECT * FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId) as Place | undefined;
   if (!place) return { error: 'Place not found', status: 404 };
 
-  const user = db.prepare('SELECT unsplash_api_key FROM users WHERE id = ?').get(userId) as { unsplash_api_key: string | null } | undefined;
-  if (!user || !user.unsplash_api_key) {
-    return { error: 'No Unsplash API key configured', status: 400 };
-  }
+  const apiKey = getUnsplashApiKeyRaw();
+  if (!apiKey) return { error: 'Unsplash not configured', status: 400 };
 
   const query = encodeURIComponent(place.name + (place.address ? ' ' + place.address : ''));
   const response = await fetch(
-    `https://api.unsplash.com/search/photos?query=${query}&per_page=5&client_id=${user.unsplash_api_key}`,
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=5&client_id=${apiKey}`,
   );
   const data = await response.json() as UnsplashSearchResponse;
 
@@ -829,6 +828,7 @@ export async function searchPlaceImage(tripId: string, placeId: string, userId: 
     thumb: p.urls?.thumb,
     description: p.description || p.alt_description,
     photographer: p.user?.name,
+    photographerUrl: p.user?.links?.html,
     link: p.links?.html,
   }));
 
