@@ -15,6 +15,7 @@ interface PopoverState {
   y: number
   existingVacationHours: number | null
   existingCompHours: number | null
+  existingTvtHours: number | null
 }
 
 export default function VacayCalendar() {
@@ -93,6 +94,7 @@ export default function VacayCalendar() {
     const dayEntries = entryMap[dateStr] || []
     const vacEntry = dayEntries.find(e => !e.type || e.type === 'vacation')
     const compEntry = dayEntries.find(e => e.type === 'comp')
+    const tvtEntry = dayEntries.find(e => e.type === 'tvt')
 
     setPopover({
       date: dateStr,
@@ -100,10 +102,11 @@ export default function VacayCalendar() {
       y,
       existingVacationHours: vacEntry?.hours ?? null,
       existingCompHours: compEntry?.hours ?? null,
+      existingTvtHours: tvtEntry?.hours ?? null,
     })
   }, [mode, holidays, blockWeekends, weekendDays, companyHolidaysEnabled, companyHolidaySet, entryMap])
 
-  const handlePopoverSave = useCallback(async (hours: number | null, type: 'vacation' | 'comp') => {
+  const handlePopoverSave = useCallback(async (hours: number | null, type: 'vacation' | 'comp' | 'tvt') => {
     if (!popover) return
     await setEntry(popover.date, hours, type, selectedUserId || undefined)
   }, [popover, setEntry, selectedUserId])
@@ -188,6 +191,7 @@ export default function VacayCalendar() {
           standardHours={standardHours}
           existingVacationHours={popover.existingVacationHours}
           existingCompHours={popover.existingCompHours}
+          existingTvtHours={popover.existingTvtHours}
           position={{ x: popover.x, y: popover.y }}
           onSave={handlePopoverSave}
           onClose={() => setPopover(null)}

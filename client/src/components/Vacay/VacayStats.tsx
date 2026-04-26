@@ -184,22 +184,30 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
         </div>
       )}
 
-      {/* Comp-time section */}
+      {/* Comp-time section: earned and breakdown of used TvT vs vacation */}
       {s.comp_hours > 0 && (
-        <div
-          className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
-          style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}
-          onMouseEnter={() => setHoveredStat('comp')}
-          onMouseLeave={() => setHoveredStat(null)}
-        >
-          <TrendingUp size={10} style={{ color: '#22c55e', flexShrink: 0 }} />
-          <span className="text-[10px] font-medium" style={{ color: '#16a34a' }}>
-            {/* {hoveredStat === 'comp' ? 
-            `${t('vacay.compTime')}: +${fmtHours(s.comp_hours)} (${remainingCompHours > 0 ? `${fmtHours(remainingCompHours)} ${t('vacay.remaining')}` : `${t('vacay.used')}`})`
-             : `${t('vacay.compTime')}: +${fmtHours(s.comp_hours)}`
-             } */}
-             {`${t('vacay.compTime')}: +${fmtHours(s.comp_hours)}`}
-          </span>
+        <div className="space-y-1">
+          <div
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
+            style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}
+          >
+            <TrendingUp size={10} style={{ color: '#22c55e', flexShrink: 0 }} />
+            <span className="text-[10px] font-medium flex-1" style={{ color: '#16a34a' }}>
+              {`${t('vacay.compTime')}: +${fmtHours(s.comp_hours)}`}
+            </span>
+            {(s.tvt_used_hours ?? 0) > 0 && (
+              <span className="text-[10px]" style={{ color: '#d97706' }}>
+                {fmtHours(s.tvt_used_hours)} {t('vacay.tvtUsed')}
+              </span>
+            )}
+          </div>
+          {(s.tvt_used_hours ?? 0) > 0 && (s.vacation_used_hours ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+              <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                {t('vacay.vacationUsed')}: {fmtHours(s.vacation_used_hours)} · {t('vacay.tvtUsedLabel')}: {fmtHours(s.tvt_used_hours)}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

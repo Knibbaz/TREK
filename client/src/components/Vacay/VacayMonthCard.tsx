@@ -95,13 +95,16 @@ export default function VacayMonthCard({
 
               // Detect partial day entries
               const allDayEntries = entryMap[dateStr] || []
-              const vacEntries = allDayEntries.filter(e => !e.type || e.type === 'vacation')
+              // Vacation entries = both 'vacation' and 'tvt' types (leave taken from different budgets)
+              const vacEntries = allDayEntries.filter(e => !e.type || e.type === 'vacation' || e.type === 'tvt')
               const compEntries = allDayEntries.filter(e => e.type === 'comp')
+              const tvtEntries = allDayEntries.filter(e => e.type === 'tvt')
               const isBlocked = !!holiday || (weekend && blockWeekends) || (isCompany && !companyMode) && (weekend && blockWeekends) || (isCompany && !companyMode)
 
               // Detect partial day entries
               const hasPartialVac = vacEntries.some(e => e.hours != null && e.hours < standardHours)
               const hasComp = compEntries.length > 0
+              const hasTvt = tvtEntries.length > 0
 
               return (
                 <div
@@ -171,6 +174,14 @@ export default function VacayMonthCard({
                     <div
                       className="absolute top-0.5 right-0.5 rounded-full"
                       style={{ width: 5, height: 5, background: '#22c55e', zIndex: 2 }}
+                    />
+                  )}
+
+                  {/* TvT used indicator: amber dot in top-left */}
+                  {hasTvt && !hasComp && (
+                    <div
+                      className="absolute top-0.5 left-0.5 rounded-full"
+                      style={{ width: 5, height: 5, background: '#f59e0b', zIndex: 2 }}
                     />
                   )}
 

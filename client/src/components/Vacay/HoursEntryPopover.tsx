@@ -1,15 +1,16 @@
 import { useEffect, useRef, useState } from 'react'
 import { useTranslation } from '../../i18n'
-import { Clock, TrendingUp } from 'lucide-react'
+import { Clock, TrendingDown, TrendingUp } from 'lucide-react'
 
 interface HoursEntryPopoverProps {
   date: string
-  initialType: 'vacation' | 'comp'
+  initialType: 'vacation' | 'comp' | 'tvt'
   standardHours: number
   existingVacationHours: number | null
   existingCompHours: number | null
+  existingTvtHours: number | null
   position: { x: number; y: number }
-  onSave: (hours: number | null, type: 'vacation' | 'comp') => void
+  onSave: (hours: number | null, type: 'vacation' | 'comp' | 'tvt') => void
   onClose: () => void
 }
 
@@ -19,23 +20,24 @@ export default function HoursEntryPopover({
   standardHours,
   existingVacationHours,
   existingCompHours,
+  existingTvtHours,
   position,
   onSave,
   onClose,
 }: HoursEntryPopoverProps) {
   const { t } = useTranslation()
-  const [type, setType] = useState<'vacation' | 'comp'>(initialType)
+  const [type, setType] = useState<'vacation' | 'comp' | 'tvt'>(initialType)
   const [hours, setHours] = useState<string>(() => {
-    const existing = initialType === 'comp' ? existingCompHours : existingVacationHours
+    const existing = initialType === 'comp' ? existingCompHours : initialType === 'tvt' ? existingTvtHours : existingVacationHours
     return existing != null ? String(existing) : String(standardHours)
   })
   const ref = useRef<HTMLDivElement>(null)
 
   // Update hours input when type changes
   useEffect(() => {
-    const existing = type === 'comp' ? existingCompHours : existingVacationHours
+    const existing = type === 'comp' ? existingCompHours : type === 'tvt' ? existingTvtHours : existingVacationHours
     setHours(existing != null ? String(existing) : String(standardHours))
-  }, [type, existingVacationHours, existingCompHours, standardHours])
+  }, [type, existingVacationHours, existingCompHours, existingTvtHours, standardHours])
 
   // Close on outside click
   useEffect(() => {
@@ -75,7 +77,7 @@ export default function HoursEntryPopover({
     ? position.y - POPOVER_H - 4
     : position.y + 8
 
-  const hasExisting = type === 'comp' ? existingCompHours != null : existingVacationHours != null
+  const hasExisting = type === 'comp' ? existingCompHours != null : type === 'tvt' ? existingTvtHours != null : existingVacationHours != null
 
   return (
     <div
@@ -103,6 +105,18 @@ export default function HoursEntryPopover({
         >
           <Clock size={11} />
           {t('vacay.modeVacation')}
+        </button>
+        <button
+          onClick={() => setType('tvt')}
+          className="flex-1 flex items-center justify-center gap-1 py-1 rounded-md text-[11px] font-medium transition-all"
+          style={{
+            background: type === 'tvt' ? 'var(--bg-card)' : 'transparent',
+            color: type === 'tvt' ? '#f59e0b' : 'var(--text-faint)',
+            boxShadow: type === 'tvt' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
+          }}
+        >
+          <TrendingDown size={11} />
+          {t('vacay.modeTvtUsed')}
         </button>
         <button
           onClick={() => setType('comp')}
@@ -153,7 +167,7 @@ export default function HoursEntryPopover({
           onClick={handleSave}
           disabled={!isValid}
           className="flex-1 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-40"
-          style={{ background: type === 'comp' ? '#22c55e' : 'var(--text-primary)', color: type === 'comp' ? '#fff' : 'var(--bg-card)' }}
+          style={{ background: type === 'comp' ? '#22c55e' : type === 'tvt' ? '#f59e0b' : 'var(--text-primary)', color: type === 'comp' || type === 'tvt' ? '#fff' : 'var(--bg-card)' }}
         >
           {t('vacay.save')}
         </button>

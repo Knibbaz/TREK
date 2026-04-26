@@ -541,17 +541,23 @@ export function deleteYear(planId: number, year: number, socketId: string | unde
 // Entries
 // ---------------------------------------------------------------------------
 
-/** Helper: returns vacation hours used and comp-time hours earned for a user/year */
-function getUsedAndCompHours(userId: number, planId: number, year: number, stdHours: number): { used_hours: number; comp_hours: number } {
+/** Helper: returns vacation hours used, TvT hours used, and comp-time hours earned for a user/year */
+function getUsedAndCompHours(userId: number, planId: number, year: number, stdHours: number): { used_hours: number; comp_hours: number; tvt_used_hours: number; vacation_used_hours: number } {
   const vacRow = db.prepare(`
-    SELECT COALESCE(SUM(COALESCE(hours, ?)), 0) as used_hours
+    SELECT COALESCE(SUM(COALESCE(hours, ?)), 0) as vacation_used_hours
     FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ? AND type = 'vacation'
-  `).get(stdHours, userId, planId, `${year}-%`) as { used_hours: number };
+  `).get(stdHours, userId, planId, `${year}-%`) as { vacation_used_hours: number };
+  const tvtRow = db.prepare(`
+    SELECT COALESCE(SUM(COALESCE(hours, ?)), 0) as tvt_used_hours
+    FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ? AND type = 'tvt'
+  `).get(stdHours, userId, planId, `${year}-%`) as { tvt_used_hours: number };
   const compRow = db.prepare(`
     SELECT COALESCE(SUM(COALESCE(hours, 0)), 0) as comp_hours
     FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date LIKE ? AND type = 'comp'
   `).get(userId, planId, `${year}-%`) as { comp_hours: number };
-  return { used_hours: vacRow.used_hours, comp_hours: compRow.comp_hours };
+  const vacation_used_hours = vacRow.vacation_used_hours;
+  const tvt_used_hours = tvtRow.tvt_used_hours;
+  return { used_hours: vacation_used_hours + tvt_used_hours, comp_hours: compRow.comp_hours, tvt_used_hours, vacation_used_hours };
 }
 
 export function getEntries(planId: number, year: string) {
@@ -567,16 +573,24 @@ export function getEntries(planId: number, year: string) {
 }
 
 export function toggleEntry(userId: number, planId: number, date: string, socketId: string | undefined): { action: string } {
-  const existing = db.prepare("SELECT id FROM vacay_entries WHERE user_id = ? AND date = ? AND plan_id = ? AND type = 'vacation'").get(userId, date, planId) as { id: number } | undefined;
+  // Check for any leave entry (vacation or tvt)
+  const existing = db.prepare("SELECT id FROM vacay_entries WHERE user_id = ? AND date = ? AND plan_id = ? AND type IN ('vacation', 'tvt')").get(userId, date, planId) as { id: number } | undefined;
   if (existing) {
     db.prepare('DELETE FROM vacay_entries WHERE id = ?').run(existing.id);
     notifyPlanUsers(planId, socketId);
     return { action: 'removed' };
-  } else {
-    db.prepare("INSERT INTO vacay_entries (plan_id, user_id, date, note, type) VALUES (?, ?, ?, '', 'vacation')").run(planId, userId, date);
-    notifyPlanUsers(planId, socketId);
-    return { action: 'added' };
   }
+
+  // Determine type: use TvT first if comp balance is available
+  const plan = db.prepare('SELECT * FROM vacay_plans WHERE id = ?').get(planId) as VacayPlan | undefined;
+  const stdHours = plan?.standard_hours_per_day ?? 8;
+  const year = parseInt(date.slice(0, 4), 10);
+  const { comp_hours, tvt_used_hours } = getUsedAndCompHours(userId, planId, year, stdHours);
+  const entryType = comp_hours - tvt_used_hours > 0 ? 'tvt' : 'vacation';
+
+  db.prepare("INSERT INTO vacay_entries (plan_id, user_id, date, note, type) VALUES (?, ?, ?, '', ?)").run(planId, userId, date, entryType);
+  notifyPlanUsers(planId, socketId);
+  return { action: 'added' };
 }
 
 export function upsertEntry(
@@ -584,14 +598,21 @@ export function upsertEntry(
   planId: number,
   date: string,
   hours: number | null,
-  type: 'vacation' | 'comp',
+  type: 'vacation' | 'comp' | 'tvt',
   socketId: string | undefined,
-): { action: string } {
+): { action: string; error?: string } {
   if (hours === null || hours <= 0) {
     // Treat as removal
     db.prepare('DELETE FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date = ? AND type = ?').run(userId, planId, date, type);
     notifyPlanUsers(planId, socketId);
     return { action: 'removed' };
+  }
+  if (type === 'tvt') {
+    // Cannot set TvT on a date already recorded as vacation
+    const existingVacation = db.prepare("SELECT id FROM vacay_entries WHERE user_id = ? AND plan_id = ? AND date = ? AND type = 'vacation'").get(userId, planId, date);
+    if (existingVacation) {
+      return { action: 'error', error: 'Cannot set TvT on a date already recorded as vacation' };
+    }
   }
   db.prepare(`
     INSERT INTO vacay_entries (plan_id, user_id, date, hours, type, note) VALUES (?, ?, ?, ?, ?, '')
@@ -631,7 +652,7 @@ export function getStats(planId: number, year: number) {
     const carriedOverHours = carryOverEnabled ? (config ? (config.carried_over_hours ?? 0) : 0) : 0;
     const carriedOver = carryOverEnabled ? (config ? config.carried_over : 0) : 0;
 
-    const { used_hours, comp_hours } = getUsedAndCompHours(u.id, planId, year, stdHours);
+    const { used_hours, comp_hours, tvt_used_hours, vacation_used_hours } = getUsedAndCompHours(u.id, planId, year, stdHours);
     const totalHours = (vacationDays * stdHours) + carriedOverHours + comp_hours;
     const remainingHours = totalHours - used_hours;
 
@@ -657,6 +678,7 @@ export function getStats(planId: number, year: number) {
       year, vacation_days: vacationDays, carried_over: carriedOver, carried_over_hours: carriedOverHours,
       total_available: totalDays, used: usedDays, remaining: remainingDays,
       used_hours, remaining_hours: remainingHours, comp_hours, standard_hours_per_day: stdHours,
+      tvt_used_hours, vacation_used_hours,
     };
   });
 }

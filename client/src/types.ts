@@ -452,7 +452,7 @@ export interface VacayEntry {
   person_color?: string
   person_name?: string
   hours?: number | null
-  type?: 'vacation' | 'comp'
+  type?: 'vacation' | 'comp' | 'tvt'
 }
 
 export interface VacayStat {
@@ -466,6 +466,8 @@ export interface VacayStat {
   used_hours: number
   remaining_hours: number
   comp_hours: number
+  tvt_used_hours: number
+  vacation_used_hours: number
   standard_hours_per_day: number
   person_name: string
   person_color: string

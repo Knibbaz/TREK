@@ -74,6 +74,7 @@ function formatDateShort(dateStr: string | null | undefined, locale: string = 'e
 function sortTrips(trips: DashboardTrip[]): DashboardTrip[] {
   const today = new Date().toISOString().split('T')[0]
   function rank(t) {
+    if (!t.start_date) return 3 // concept (no date) — always last
     if (t.start_date && t.end_date && t.start_date <= today && t.end_date >= today) return 0 // ongoing
     if (t.start_date && t.start_date >= today) return 1 // upcoming
     return 2 // past
@@ -83,7 +84,8 @@ function sortTrips(trips: DashboardTrip[]): DashboardTrip[] {
     if (ra !== rb) return ra - rb
     const ad = a.start_date || '', bd = b.start_date || ''
     if (ra <= 1) return ad.localeCompare(bd)
-    return bd.localeCompare(ad)
+    if (ra === 2) return bd.localeCompare(ad)
+    return a.title.localeCompare(b.title) // concepts: sort by title
   })
 }
 
@@ -281,7 +283,9 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
   const daysLeft = Math.max(0, totalDays - currentDay)
   const progress = Math.round((currentDay / totalDays) * 100)
 
-  const badgeText = isLive ? t('dashboard.mobile.liveNow')
+  const isConcept = !trip.start_date
+  const badgeText = isConcept ? t('dashboard.status.concept')
+    : isLive ? t('dashboard.mobile.liveNow')
     : status === 'today' ? t('dashboard.mobile.startsToday')
     : status === 'tomorrow' ? t('dashboard.mobile.tomorrow')
     : status === 'future' ? t('dashboard.status.daysLeft', { count: daysUntil(trip.start_date) })
@@ -312,9 +316,12 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
         {/* Top: badge + actions */}
         <div className="flex items-center justify-between mb-5">
           {badgeText ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-black/40 backdrop-blur-sm border border-white/15 rounded-full text-[10px] font-bold uppercase tracking-[0.1em]">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+              style={isConcept ? { background: 'rgba(245,158,11,0.25)', borderColor: 'rgba(245,158,11,0.4)' } : { background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.15)' }}>
               {isLive ? (
                 <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
+              ) : isConcept ? (
+                <Edit2 size={10} />
               ) : (
                 <Clock size={10} />
               )}
@@ -419,7 +426,15 @@ function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, on
               {t('dashboard.shared')}
             </span>
           )}
-          {status && (
+          {!trip.start_date ? (
+            <span style={{
+              fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 99,
+              background: 'rgba(245,158,11,0.1)', color: '#d97706',
+              whiteSpace: 'nowrap', flexShrink: 0,
+            }}>
+              {t('dashboard.status.concept')}
+            </span>
+          ) : status && (
             <span style={{
               fontSize: 10, fontWeight: 700, padding: '1px 8px', borderRadius: 99,
               background: status === 'ongoing' ? 'rgba(239,68,68,0.1)' : 'var(--bg-tertiary)',
@@ -601,6 +616,7 @@ export default function DashboardPage(): React.ReactElement {
   const [showArchived, setShowArchived] = useState<boolean>(false)
   const [showWidgetSettings, setShowWidgetSettings] = useState<boolean | 'mobile' | 'mobile-currency' | 'mobile-timezone'>(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>(() => (localStorage.getItem('trek_dashboard_view') as 'grid' | 'list') || 'grid')
+  const [filterMode, setFilterMode] = useState<'all' | 'live' | 'upcoming' | 'past' | 'concept'>('all')
   const [deleteTrip, setDeleteTrip] = useState<DashboardTrip | null>(null)
   const [copyTrip, setCopyTrip] = useState<DashboardTrip | null>(null)
 
@@ -764,11 +780,18 @@ export default function DashboardPage(): React.ReactElement {
   }
 
   const today = new Date().toISOString().split('T')[0]
-  const spotlight = trips.find(t => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today)
-    || trips.find(t => t.start_date && t.start_date >= today)
-    || trips[0]
-    || null
-  const rest = spotlight ? trips.filter(t => t.id !== spotlight.id) : trips
+  const filteredTrips = filterMode === 'all' ? trips
+    : filterMode === 'concept' ? trips.filter(t => !t.start_date)
+    : filterMode === 'live' ? trips.filter(t => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today)
+    : filterMode === 'upcoming' ? trips.filter(t => t.start_date && t.start_date > today)
+    : trips.filter(t => t.start_date && t.end_date && t.end_date < today)
+
+  const spotlight = filteredTrips.length > 0
+    ? (filteredTrips.find(t => t.start_date && t.end_date && t.start_date <= today && t.end_date >= today)
+      || filteredTrips.find(t => t.start_date && t.start_date >= today)
+      || filteredTrips[0])
+    : null
+  const rest = spotlight ? filteredTrips.filter(t => t.id !== spotlight.id) : filteredTrips
 
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', background: 'var(--bg-secondary)', ...font }}>
@@ -877,6 +900,28 @@ export default function DashboardPage(): React.ReactElement {
                   : t('dashboard.subtitle.empty')}
               </span>
 
+              {/* Filter tabs */}
+              {trips.length > 0 && (
+                <div style={{ display: 'inline-flex', gap: 2, background: 'var(--bg-secondary)', padding: '3px', borderRadius: 10, flexShrink: 0 }}>
+                  {(['all', 'live', 'upcoming', 'past', 'concept'] as const).map(mode => (
+                    <button key={mode} onClick={() => setFilterMode(mode)} style={{
+                      appearance: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                      padding: '4px 10px', borderRadius: 7, fontSize: 12, fontWeight: 500,
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      background: filterMode === mode ? 'var(--bg-card)' : 'transparent',
+                      color: filterMode === mode
+                        ? (mode === 'live' ? '#ef4444' : mode === 'concept' ? '#d97706' : 'var(--text-primary)')
+                        : 'var(--text-muted)',
+                      boxShadow: filterMode === mode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                      transition: 'all 0.15s',
+                    }}>
+                      {mode === 'live' && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#ef4444', flexShrink: 0, animation: filterMode === 'live' ? 'blink 1s ease-in-out infinite' : undefined }} />}
+                      {t(`dashboard.filter.${mode}`)}
+                    </button>
+                  ))}
+                </div>
+              )}
+
               <div style={{ display: 'inline-flex', gap: 6, alignItems: 'center', marginLeft: 'auto', flexShrink: 0 }}>
                 <button
                   onClick={toggleViewMode}
@@ -970,6 +1015,13 @@ export default function DashboardPage(): React.ReactElement {
             </>
           )}
 
+          {/* Filter empty state */}
+          {!isLoading && trips.length > 0 && filteredTrips.length === 0 && filterMode !== 'all' && (
+            <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+              <p style={{ fontSize: 14, color: '#9ca3af' }}>{t('dashboard.filter.empty')}</p>
+            </div>
+          )}
+
           {/* Empty state */}
           {!isLoading && trips.length === 0 && (
             <div style={{ textAlign: 'center', padding: '80px 20px' }}>
@@ -1005,7 +1057,7 @@ export default function DashboardPage(): React.ReactElement {
           )}
 
           {/* Trips — desktop grid or list */}
-          {!isLoading && (viewMode === 'grid' ? rest : trips).length > 0 && (
+          {!isLoading && (viewMode === 'grid' ? rest : filteredTrips).length > 0 && (
             viewMode === 'grid' ? (
               <div className="trip-grid hidden md:grid trek-stagger" style={{ gap: 16, marginBottom: 40 }}>
                 {rest.map(trip => (
@@ -1024,7 +1076,7 @@ export default function DashboardPage(): React.ReactElement {
               </div>
             ) : (
               <div className="hidden md:flex trek-stagger" style={{ flexDirection: 'column', gap: 8, marginBottom: 40 }}>
-                {trips.map(trip => (
+                {filteredTrips.map(trip => (
                   <TripListItem
                     key={trip.id}
                     trip={trip}
