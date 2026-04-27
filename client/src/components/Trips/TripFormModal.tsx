@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { AlertTriangle, Calendar, Camera, X, Clipboard, UserPlus, Bell, Sparkles } from 'lucide-react'
+import { AlertTriangle, Calendar, Camera, X, Bell, Sparkles } from 'lucide-react'
 import { tripsApi, authApi } from '../../api/client'
-import CustomSelect from '../shared/CustomSelect'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useToast } from '../shared/Toast'
@@ -55,10 +54,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const [coverPreview, setCoverPreview] = useState(null)
   const [pendingCoverFile, setPendingCoverFile] = useState(null)
   const [uploadingCover, setUploadingCover] = useState(false)
-  const [allUsers, setAllUsers] = useState<{ id: number; username: string }[]>([])
-  const [selectedMembers, setSelectedMembers] = useState<number[]>([])
-  const [existingMembers, setExistingMembers] = useState<{ id: number; username: string }[]>([])
-  const [memberSelectValue, setMemberSelectValue] = useState('')
   const [overflowInfo, setOverflowInfo] = useState<{ daysToRemove: number; assignments: number; notes: number; accommodations: number } | null>(null)
   const [shrinkConfirmed, setShrinkConfirmed] = useState(false)
 
@@ -97,18 +92,11 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       setCoverPreview(null)
     }
     setPendingCoverFile(null)
-    setSelectedMembers([])
     setError('')
     if (isOpen) {
       authApi.getAppConfig().then((c: { trip_reminders_enabled?: boolean }) => {
         if (c?.trip_reminders_enabled !== undefined) setTripRemindersEnabled(c.trip_reminders_enabled)
       }).catch(() => {})
-    }
-    authApi.listUsers().then(d => setAllUsers(d.users || [])).catch(() => {})
-    if (trip) {
-      tripsApi.getMembers(trip.id).then(d => setExistingMembers(d.members || [])).catch(() => {})
-    } else {
-      setExistingMembers([])
     }
   }, [trip, isOpen])
 
@@ -186,15 +174,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         reminder_days: formData.reminder_days,
         ...(!formData.start_date && !formData.end_date ? { day_count: formData.day_count } : {}),
       })
-      // Add selected members for newly created trips
-      if (selectedMembers.length > 0 && result?.trip?.id) {
-        for (const userId of selectedMembers) {
-          const user = allUsers.find(u => u.id === userId)
-          if (user) {
-            try { await tripsApi.addMember(result.trip.id, user.username) } catch {}
-          }
-        }
-      }
       // Upload pending cover for newly created trips
       if (pendingCoverFile && result?.trip?.id) {
         try {
@@ -539,84 +518,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         </div>
         )}
 
-        {/* Members */}
-        {allUsers.filter(u => u.id !== currentUser?.id).length > 0 && (
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">
-              <UserPlus className="inline w-4 h-4 mr-1" />{isEditing ? t('dashboard.addMembers') : t('dashboard.addMembers')}
-            </label>
-            {/* Existing members (editing mode) */}
-            {isEditing && existingMembers.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                {existingMembers.map(m => (
-                  <span key={m.id}
-                    onClick={async () => {
-                      if (m.id === currentUser?.id) return
-                      try {
-                        await tripsApi.removeMember(trip!.id, m.id)
-                        setExistingMembers(prev => prev.filter(x => x.id !== m.id))
-                        toast.success(t('trips.memberRemoved', { username: m.username }))
-                      } catch { toast.error(t('trips.memberRemoveError')) }
-                    }}
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 99,
-                      background: 'var(--bg-secondary)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)',
-                      cursor: m.id === currentUser?.id ? 'default' : 'pointer',
-                      border: '1px solid var(--border-primary)',
-                    }}>
-                    {m.username}
-                    {m.id !== currentUser?.id && <X size={11} style={{ color: 'var(--text-faint)' }} />}
-                  </span>
-                ))}
-              </div>
-            )}
-            {/* Newly selected members (both modes) */}
-            {selectedMembers.length > 0 && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
-                {selectedMembers.map(uid => {
-                  const user = allUsers.find(u => u.id === uid)
-                  if (!user) return null
-                  return (
-                    <span key={uid} onClick={() => setSelectedMembers(prev => prev.filter(id => id !== uid))}
-                      style={{
-                        display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 99,
-                        background: 'var(--bg-secondary)', fontSize: 12, fontWeight: 500, color: 'var(--text-primary)', cursor: 'pointer',
-                        border: '1px solid var(--border-primary)',
-                      }}>
-                      {user.username}
-                      <X size={11} style={{ color: 'var(--text-faint)' }} />
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-            <div style={{ display: 'flex', gap: 8 }}>
-              <CustomSelect
-                value={memberSelectValue}
-                onChange={async value => {
-                  if (!value) return
-                  if (isEditing && trip?.id) {
-                    const user = allUsers.find(u => u.id === Number(value))
-                    if (user) {
-                      try {
-                        await tripsApi.addMember(trip.id, user.username)
-                        setExistingMembers(prev => [...prev, { id: user.id, username: user.username }])
-                        toast.success(t('trips.memberAdded', { username: user.username }))
-                      } catch { toast.error(t('trips.memberAddError')) }
-                    }
-                  } else {
-                    setSelectedMembers(prev => prev.includes(Number(value)) ? prev : [...prev, Number(value)])
-                  }
-                  setMemberSelectValue('')
-                }}
-                placeholder={t('dashboard.addMember')}
-                options={allUsers.filter(u => u.id !== currentUser?.id && !selectedMembers.includes(u.id) && !existingMembers.some(m => m.id === u.id)).map(u => ({ value: u.id, label: u.username }))}
-                searchable
-                size="sm"
-              />
-            </div>
-          </div>
-        )}
 
       </form>
     </Modal>

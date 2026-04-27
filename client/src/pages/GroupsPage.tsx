@@ -548,15 +548,6 @@ export default function GroupsPage(): React.ReactElement {
                     {t('groups.members') || 'Members'}
                     <span className="ml-1.5 text-xs font-normal" style={{ color: 'var(--text-faint)' }}>({currentGroup.members?.length || 0})</span>
                   </h2>
-                  {canManageMembers && (
-                    <button
-                      onClick={() => setShowAddMember(true)}
-                      className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-white"
-                      style={{ background: 'var(--accent)' }}
-                    >
-                      <Plus size={12} /> {t('groups.addMember') || 'Add'}
-                    </button>
-                  )}
                 </div>
 
                 <div className="space-y-2">
@@ -769,70 +760,6 @@ export default function GroupsPage(): React.ReactElement {
               className="w-full px-3 py-2 rounded-lg border text-sm resize-none"
               style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
             />
-          </div>
-        </div>
-      </Modal>
-
-      {/* Add Member Modal */}
-      <Modal
-        isOpen={showAddMember}
-        onClose={() => { setShowAddMember(false); setMemberSearch(''); setMemberResults([]) }}
-        title={t('groups.addMember') || 'Add Member'}
-        size="md"
-      >
-        <div className="space-y-3">
-          <div className="relative">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-faint)' }} />
-            <input
-              value={memberSearch}
-              onChange={e => handleSearchMembers(e.target.value)}
-              placeholder={t('groups.searchUser') || 'Search by username or email...'}
-              className="w-full pl-9 pr-3 py-2 rounded-lg border text-sm"
-              style={{ background: 'var(--bg-primary)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
-            />
-          </div>
-
-          {searchingMembers && (
-            <div className="flex justify-center py-4">
-              <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'var(--text-primary)' }} />
-            </div>
-          )}
-
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {memberResults.map(u => (
-              <div
-                key={u.id}
-                className="flex items-center justify-between p-2.5 rounded-lg"
-                style={{ background: 'var(--bg-secondary)' }}
-              >
-                <div className="flex items-center gap-2">
-                  {u.avatar ? (
-                    <img src={u.avatar} alt="" className="w-7 h-7 rounded-full object-cover" />
-                  ) : (
-                    <div className="w-7 h-7 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-card)' }}>
-                      <User size={12} style={{ color: 'var(--text-faint)' }} />
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{u.username}</p>
-                    <p className="text-xs" style={{ color: 'var(--text-faint)' }}>{u.email}</p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => handleAddMember(u.id)}
-                  className="px-2.5 py-1 rounded-lg text-xs font-medium text-white"
-                  style={{ background: 'var(--accent)' }}
-                >
-                  {t('common.add') || 'Add'}
-                </button>
-              </div>
-            ))}
-
-            {!searchingMembers && memberSearch.trim().length >= 2 && memberResults.length === 0 && (
-              <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>
-                {t('groups.noUsersFound') || 'No users found.'}
-              </p>
-            )}
           </div>
         </div>
       </Modal>
