@@ -285,6 +285,16 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         next.end_date = newEnd.toISOString().split('T')[0]
       }
     }
+    // Keep day_count in sync with the active date range so that clearing dates
+    // shows the correct count (e.g. period was May1-May5 → day_count = 5).
+    const s = (field === 'start_date' ? value : next.start_date) as string
+    const e = (field === 'end_date' ? value : next.end_date) as string
+    if (s && e && e >= s) {
+      const [sy, sm, sd] = s.split('-').map(Number)
+      const [ey, em, ed] = e.split('-').map(Number)
+      const periodDays = Math.floor((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000) + 1
+      next.day_count = Math.min(Math.max(periodDays, 1), 365)
+    }
     return next
   })
 

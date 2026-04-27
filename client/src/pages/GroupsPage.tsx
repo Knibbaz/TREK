@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useCallback } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { useGroupsStore } from '../store/groupsStore'
@@ -8,11 +8,12 @@ import { joinGroup, leaveGroup, addListener, removeListener } from '../api/webso
 import Navbar from '../components/Layout/Navbar'
 import Modal from '../components/shared/Modal'
 import {
-  Users, Plus, X, Search, Trash2, ChevronLeft, Crown, Shield,
+  Users, Plus, X, Trash2, ChevronLeft, Crown, Shield,
   User, MapPin, CalendarDays, ExternalLink, MoreHorizontal,
   Link2, Copy, Check
 } from 'lucide-react'
 import DateAvailabilityV2 from '../components/Collab/DateAvailabilityV2'
+import TripFormModal from '../components/Trips/TripFormModal'
 import toast from 'react-hot-toast'
 
 interface TripOption {
@@ -31,27 +32,25 @@ export default function GroupsPage(): React.ReactElement {
     groups, currentGroup, loading, error,
     loadGroups, createGroup, getGroup, updateGroup, deleteGroup,
     addMember, removeMember, updateMemberRole, addTrip, removeTrip,
-    searchUsers, setCurrentGroup, clearError
+    setCurrentGroup, clearError
   } = useGroupsStore()
 
   const [view, setView] = useState<'list' | 'detail'>('list')
   const [showCreate, setShowCreate] = useState(false)
   const [createName, setCreateName] = useState('')
   const [createDesc, setCreateDesc] = useState('')
-  const [showAddMember, setShowAddMember] = useState(false)
-  const [memberSearch, setMemberSearch] = useState('')
-  const [memberResults, setMemberResults] = useState<Array<{ id: number; username: string; email: string; avatar: string | null }>>([])
-  const [searchingMembers, setSearchingMembers] = useState(false)
   const [showAddTrip, setShowAddTrip] = useState(false)
   const [availableTrips, setAvailableTrips] = useState<TripOption[]>([])
   const [tripsLoading, setTripsLoading] = useState(false)
+  const [selectedTrip, setSelectedTrip] = useState<TripOption | null>(null)
+  const [shareCloneLoading, setShareCloneLoading] = useState(false)
+  const [showCreateTripForGroup, setShowCreateTripForGroup] = useState(false)
   const [editingGroup, setEditingGroup] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [memberMenuOpen, setMemberMenuOpen] = useState<number | null>(null)
   const memberMenuRef = useRef<HTMLDivElement>(null)
-  const searchTimeout = useRef<ReturnType<typeof setTimeout>>()
 
   const [inviteLink, setInviteLink] = useState<string | null>(null)
   const [inviteLoading, setInviteLoading] = useState(false)
@@ -175,40 +174,6 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
-  const handleSearchMembers = useCallback((q: string) => {
-    setMemberSearch(q)
-    if (searchTimeout.current) clearTimeout(searchTimeout.current)
-    if (q.trim().length < 2) {
-      setMemberResults([])
-      return
-    }
-    setSearchingMembers(true)
-    searchTimeout.current = setTimeout(async () => {
-      try {
-        const results = await searchUsers(q.trim())
-        setMemberResults(results)
-      } catch (err: any) {
-        toast.error(err.message)
-      } finally {
-        setSearchingMembers(false)
-      }
-    }, 300)
-  }, [searchUsers])
-
-  const handleAddMember = async (userId: number) => {
-    if (!currentGroup) return
-    try {
-      await addMember(currentGroup.id, userId)
-      toast.success(t('groups.toast.memberAdded') || 'Member added')
-      setShowAddMember(false)
-      setMemberSearch('')
-      setMemberResults([])
-      getGroup(currentGroup.id)
-    } catch (err: any) {
-      toast.error(err.message)
-    }
-  }
-
   const handleRemoveMember = async (memberUserId: number) => {
     if (!currentGroup) return
     try {
@@ -260,10 +225,47 @@ export default function GroupsPage(): React.ReactElement {
       await addTrip(currentGroup.id, tripId)
       toast.success(t('groups.toast.tripAdded') || 'Trip added')
       setShowAddTrip(false)
+      setSelectedTrip(null)
       setAvailableTrips([])
       getGroup(currentGroup.id)
     } catch (err: any) {
       toast.error(err.message)
+    }
+  }
+
+  const handleShareOriginal = async () => {
+    if (!selectedTrip) return
+    await handleAddTrip(selectedTrip.id)
+  }
+
+  const handleCreateTripForGroup = async (data: Record<string, string | number | null>) => {
+    if (!currentGroup) return
+    const result = await tripsApi.create(data)
+    await addTrip(currentGroup.id, result.trip.id)
+    setShowCreateTripForGroup(false)
+    setShowAddTrip(false)
+    setSelectedTrip(null)
+    setAvailableTrips([])
+    toast.success(t('groups.toast.tripAdded') || 'Trip added')
+    getGroup(currentGroup.id)
+    return result
+  }
+
+  const handleCloneTrip = async () => {
+    if (!currentGroup || !selectedTrip) return
+    setShareCloneLoading(true)
+    try {
+      const copy = await tripsApi.copy(selectedTrip.id)
+      await addTrip(currentGroup.id, copy.trip.id)
+      toast.success(t('groups.toast.tripAdded') || 'Trip added')
+      setShowAddTrip(false)
+      setSelectedTrip(null)
+      setAvailableTrips([])
+      getGroup(currentGroup.id)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setShareCloneLoading(false)
     }
   }
 
@@ -767,50 +769,121 @@ export default function GroupsPage(): React.ReactElement {
       {/* Add Trip Modal */}
       <Modal
         isOpen={showAddTrip}
-        onClose={() => { setShowAddTrip(false); setAvailableTrips([]) }}
-        title={t('groups.addTrip') || 'Add Trip'}
+        onClose={() => { setShowAddTrip(false); setAvailableTrips([]); setSelectedTrip(null) }}
+        title={selectedTrip ? (t('groups.addTrip.shareOrClone') || 'Share or Clone') : (t('groups.addTrip') || 'Add Trip')}
         size="md"
       >
-        <div className="space-y-3">
-          {tripsLoading && (
-            <div className="flex justify-center py-4">
-              <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'var(--text-primary)' }} />
-            </div>
-          )}
+        {selectedTrip ? (
+          /* Share / Clone choice */
+          <div className="space-y-3">
+            <button
+              onClick={() => setSelectedTrip(null)}
+              className="flex items-center gap-1.5 text-xs mb-1 transition-opacity hover:opacity-70"
+              style={{ color: 'var(--text-muted)' }}
+            >
+              <ChevronLeft size={13} />
+              {t('common.back') || 'Back'}
+            </button>
 
-          {!tripsLoading && availableTrips.length === 0 && (
-            <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>
-              {t('groups.noTripsAvailable') || 'No trips available to add.'}
-            </p>
-          )}
-
-          <div className="space-y-1 max-h-64 overflow-y-auto">
-            {availableTrips.map(trip => (
-              <button
-                key={trip.id}
-                onClick={() => handleAddTrip(trip.id)}
-                className="w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors hover:opacity-80"
-                style={{ background: 'var(--bg-secondary)' }}
-              >
-                {trip.cover_image ? (
-                  <img src={trip.cover_image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                ) : (
-                  <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)' }}>
-                    <CalendarDays size={12} style={{ color: 'var(--text-faint)' }} />
-                  </div>
-                )}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{trip.title}</p>
-                  {(trip.start_date || trip.end_date) && (
-                    <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
-                      {trip.start_date || ''}{trip.start_date && trip.end_date ? ' – ' : ''}{trip.end_date || ''}
-                    </p>
-                  )}
+            <div className="flex items-center gap-3 p-3 rounded-lg mb-2" style={{ background: 'var(--bg-secondary)' }}>
+              {selectedTrip.cover_image ? (
+                <img src={selectedTrip.cover_image} alt="" className="w-10 h-10 rounded object-cover flex-shrink-0" />
+              ) : (
+                <div className="w-10 h-10 rounded flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)' }}>
+                  <CalendarDays size={14} style={{ color: 'var(--text-faint)' }} />
                 </div>
-              </button>
-            ))}
+              )}
+              <div className="min-w-0">
+                <p className="text-sm font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{selectedTrip.title}</p>
+                {(selectedTrip.start_date || selectedTrip.end_date) && (
+                  <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                    {selectedTrip.start_date || ''}{selectedTrip.start_date && selectedTrip.end_date ? ' – ' : ''}{selectedTrip.end_date || ''}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <button
+              onClick={handleShareOriginal}
+              disabled={shareCloneLoading}
+              className="w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-colors hover:opacity-90 disabled:opacity-50"
+              style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
+              <Link2 size={18} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('groups.addTrip.shareOriginal') || 'Share original'}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('groups.addTrip.shareOriginalDesc') || 'All group members see and can edit the same trip.'}</p>
+              </div>
+            </button>
+
+            <button
+              onClick={handleCloneTrip}
+              disabled={shareCloneLoading}
+              className="w-full flex items-start gap-3 p-3.5 rounded-xl border text-left transition-colors hover:opacity-90 disabled:opacity-50"
+              style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+            >
+              {shareCloneLoading
+                ? <div className="w-4.5 h-4.5 mt-0.5 flex-shrink-0 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'var(--text-primary)' }} />
+                : <Copy size={18} className="mt-0.5 flex-shrink-0" style={{ color: 'var(--accent)' }} />
+              }
+              <div>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{t('groups.addTrip.cloneTrip') || 'Make a copy'}</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{t('groups.addTrip.cloneTripDesc') || 'Creates an independent copy; changes won\'t affect the original.'}</p>
+              </div>
+            </button>
           </div>
-        </div>
+        ) : (
+          /* Trip list */
+          <div className="space-y-3">
+            {tripsLoading && (
+              <div className="flex justify-center py-4">
+                <div className="w-5 h-5 border-2 rounded-full animate-spin" style={{ borderColor: 'var(--border-primary)', borderTopColor: 'var(--text-primary)' }} />
+              </div>
+            )}
+
+            <button
+              onClick={() => { setShowAddTrip(false); setShowCreateTripForGroup(true) }}
+              className="w-full flex items-center gap-2 p-2.5 rounded-lg text-sm font-medium transition-colors hover:opacity-90"
+              style={{ background: 'var(--accent)', color: 'white' }}
+            >
+              <Plus size={14} />
+              {t('groups.addTrip.createNew') || 'Create new trip'}
+            </button>
+
+            {!tripsLoading && availableTrips.length === 0 && (
+              <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>
+                {t('groups.noTripsAvailable') || 'No trips available to add.'}
+              </p>
+            )}
+
+            <div className="space-y-1 max-h-64 overflow-y-auto">
+              {availableTrips.map(trip => (
+                <button
+                  key={trip.id}
+                  onClick={() => setSelectedTrip(trip)}
+                  className="w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors hover:opacity-80"
+                  style={{ background: 'var(--bg-secondary)' }}
+                >
+                  {trip.cover_image ? (
+                    <img src={trip.cover_image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                  ) : (
+                    <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)' }}>
+                      <CalendarDays size={12} style={{ color: 'var(--text-faint)' }} />
+                    </div>
+                  )}
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{trip.title}</p>
+                    {(trip.start_date || trip.end_date) && (
+                      <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                        {trip.start_date || ''}{trip.start_date && trip.end_date ? ' – ' : ''}{trip.end_date || ''}
+                      </p>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </Modal>
 
       {/* Delete Confirm Modal */}
@@ -842,6 +915,15 @@ export default function GroupsPage(): React.ReactElement {
           {t('groups.deleteConfirm.body') || 'Are you sure? This will permanently delete the group and remove all members and trip links.'}
         </p>
       </Modal>
+
+      {/* Create Trip for Group */}
+      <TripFormModal
+        isOpen={showCreateTripForGroup}
+        onClose={() => setShowCreateTripForGroup(false)}
+        onSave={handleCreateTripForGroup}
+        trip={null}
+        onCoverUpdate={() => {}}
+      />
 
       {/* Invite link creation modal */}
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title={t('admin.invite.create')} size="sm">
