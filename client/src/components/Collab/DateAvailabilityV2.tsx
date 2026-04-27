@@ -397,7 +397,10 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, onDelete, onA
       const onVacation = proposal.vacationDays?.some(
         v => v.user_id === currentUserId && dateStr >= v.start_date && dateStr <= v.end_date
       )
-      prefill[dateStr] = onVacation ? 'no' : 'yes'
+      const hasVacayEntry = proposal.vacayEntries?.some(
+        e => e.user_id === currentUserId && e.date === dateStr
+      )
+      prefill[dateStr] = (onVacation || hasVacayEntry) ? 'no' : 'yes'
     }
     setPending(prefill)
     dateProposalsApi.setAvailability(groupId, proposal.id, prefill)
