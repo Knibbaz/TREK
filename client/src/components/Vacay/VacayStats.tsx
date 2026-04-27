@@ -80,9 +80,9 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
   const pct = s.total_available > 0 ? Math.min(100, (s.used / s.total_available) * 100) : 0
   const hasPartial = !Number.isInteger(s.used) || s.comp_hours > 0
 
-  // Calculate remaining after comp-time usage
-  const remainingAfterComp = Math.max(0, s.remaining_hours - s.comp_hours)
-  const remainingCompHours = Math.max(0, s.comp_hours - s.remaining_hours)
+  // Vacation-only values (excluding TvT used)
+  const vacationUsedDays = (s.vacation_used_hours ?? 0) / stdHours
+  const vacationOnlyRemaining = s.total_available - vacationUsedDays
 
   // Sync local state when stats reload from server
   useEffect(() => {
@@ -111,7 +111,7 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
           onMouseEnter={() => setHoveredStat('header')}
           onMouseLeave={() => setHoveredStat(null)}
         >
-          {hoveredStat === 'header' && hasPartial ? `${fmtHours(s.used_hours)}/${fmtHours(s.total_available * stdHours)}` : (hasPartial ? fmtDays(s.used, stdHours) : s.used) + '/' + (hasPartial ? fmtDays(s.total_available, stdHours) : s.total_available)}
+          {hoveredStat === 'header' && hasPartial ? `${fmtDays(vacationUsedDays, stdHours)}/${fmtDays(s.total_available, stdHours)}` : (hasPartial ? fmtDays(s.used, stdHours) : s.used) + '/' + (hasPartial ? fmtDays(s.total_available, stdHours) : s.total_available)}
         </span>
       </div>
       <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
@@ -158,7 +158,7 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
         >
           <div className="text-[10px] mb-1" style={{ color: 'var(--text-faint)', height: 14, lineHeight: '14px' }}>{t('vacay.used')}</div>
           <div className="text-sm font-bold" style={{ color: 'var(--text-primary)', height: 18, lineHeight: '18px' }}>
-            {hasPartial && hoveredStat === 'used' ? fmtHours(s.used_hours) : (hasPartial ? fmtDays(s.used, stdHours) : s.used)}
+            {hasPartial && hoveredStat === 'used' ? fmtDays(vacationUsedDays, stdHours) : (hasPartial ? fmtDays(s.used, stdHours) : s.used)}
           </div>
         </div>
         {/* Remaining */}
@@ -171,7 +171,7 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
           <div className="text-[10px] mb-1" style={{ color: 'var(--text-faint)', height: 14, lineHeight: '14px' }}>{t('vacay.remaining')}</div>
           <div className="text-sm font-bold" style={{ color: s.remaining < 0 ? '#ef4444' : s.remaining <= 3 ? '#f59e0b' : '#22c55e', height: 18, lineHeight: '18px' }}>
             {hoveredStat === 'remaining' && hasPartial ? (
-              fmtHours(s.comp_hours + remainingAfterComp)
+              fmtDays(vacationOnlyRemaining, stdHours)
             ) : (hasPartial ? fmtDays(s.remaining, stdHours) : s.remaining)}
           </div>
         </div>
