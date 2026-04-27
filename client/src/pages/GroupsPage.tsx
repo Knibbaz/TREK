@@ -49,6 +49,7 @@ export default function GroupsPage(): React.ReactElement {
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [memberMenuOpen, setMemberMenuOpen] = useState<number | null>(null)
   const memberMenuRef = useRef<HTMLDivElement>(null)
 
@@ -169,6 +170,19 @@ export default function GroupsPage(): React.ReactElement {
       toast.success(t('groups.toast.deleted') || 'Group deleted')
       setShowDeleteConfirm(false)
       setView('list')
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleLeaveGroup = async () => {
+    if (!currentGroup || !user) return
+    try {
+      await removeMember(currentGroup.id, user.id)
+      toast.success(t('groups.toast.left') || 'Left group')
+      setShowLeaveConfirm(false)
+      setView('list')
+      setCurrentGroup(null)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -407,6 +421,15 @@ export default function GroupsPage(): React.ReactElement {
                   style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
                 >
                   {t('common.edit') || 'Edit'}
+                </button>
+              )}
+              {!isOwner && (
+                <button
+                  onClick={() => setShowLeaveConfirm(true)}
+                  className="px-3 py-2 rounded-lg text-sm font-medium transition-colors"
+                  style={{ background: 'var(--bg-danger)', color: 'white' }}
+                >
+                  {t('groups.leave') || 'Leave'}
                 </button>
               )}
               {isOwner && (
@@ -913,6 +936,36 @@ export default function GroupsPage(): React.ReactElement {
       >
         <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
           {t('groups.deleteConfirm.body') || 'Are you sure? This will permanently delete the group and remove all members and trip links.'}
+        </p>
+      </Modal>
+
+      {/* Leave Group Confirm Modal */}
+      <Modal
+        isOpen={showLeaveConfirm}
+        onClose={() => setShowLeaveConfirm(false)}
+        title={t('groups.leaveConfirm.title') || 'Leave Group'}
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setShowLeaveConfirm(false)}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+            >
+              {t('common.cancel') || 'Cancel'}
+            </button>
+            <button
+              onClick={handleLeaveGroup}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'var(--text-danger)' }}
+            >
+              {t('groups.leave') || 'Leave'}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+          {t('groups.leaveConfirm.body', { name: currentGroup?.name || '' }) || `Are you sure you want to leave ${currentGroup?.name}?`}
         </p>
       </Modal>
 

@@ -163,13 +163,18 @@ export function removeMemberFromGroup(groupId: number, memberUserId: number, act
   const target = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, memberUserId) as { role: string } | undefined;
   if (!target) return { success: false, error: 'Member not found' };
 
-  // Owner can remove anyone; admin can remove members but not other admins or owner
+  // Any member can remove themselves (leave the group)
+  const isSelf = actingUserId === memberUserId;
+
+  // Owner can remove anyone; admin can remove members but not other admins or owner; members can only remove themselves
   if (actor.role === 'owner') {
     // ok
   } else if (actor.role === 'admin') {
-    if (target.role === 'owner' || target.role === 'admin') {
+    if (!isSelf && (target.role === 'owner' || target.role === 'admin')) {
       return { success: false, error: 'Admins cannot remove owners or other admins' };
     }
+  } else if (isSelf) {
+    // Regular member leaving — allowed
   } else {
     return { success: false, error: 'Forbidden' };
   }
