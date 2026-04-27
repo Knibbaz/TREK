@@ -2499,6 +2499,7 @@ const nl: Record<string, string> = {
   'dateAvail.allYes': 'Iedereen ja',
   'dateAvail.someYes': 'Sommigen ja',
   'dateAvail.vacation': 'Vakantie',
+  'dateAvail.scheduledVacation': 'Ingepland verlof',
   'dateAvail.companyHoliday': 'Bedrijfsfeestdag',
   'dateAvail.publicHoliday': 'Feestdag',
   'dateAvail.settings': 'Beschikbaarheid instellingen',

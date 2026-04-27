@@ -274,6 +274,7 @@ export interface DateProposal {
   memberRegions?: Record<number, string>
   vacationDays?: VacationDay[]
   companyHolidays?: CompanyHoliday[]
+  vacayEntries?: Array<{ user_id: number; date: string }>
 }
 
 export interface PlaceVote {

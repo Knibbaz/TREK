@@ -62,6 +62,15 @@ router.get('/', authenticate, (req: Request, res: Response) => {
       `).all() as Array<{ id: number; user_id: number; start_date: string; end_date: string; label: string | null; color: string }>
     : [];
 
+  // Fetch scheduled vacay_entries (type='vacation') for group members
+  const vacayEntries = memberIds
+    ? db.prepare(`
+        SELECT user_id, date
+        FROM vacay_entries
+        WHERE user_id IN (${memberIds}) AND type = 'vacation'
+      `).all() as Array<{ user_id: number; date: string }>
+    : [];
+
   // Fetch company holidays for the current + next year
   const currentYear = new Date().getFullYear();
   const companyHolidays = db.prepare(
@@ -88,6 +97,11 @@ router.get('/', authenticate, (req: Request, res: Response) => {
       h.date >= proposalStart && h.date <= proposalEnd
     );
 
+    // Filter vacay_entries within proposal range
+    const overlappingVacayEntries = vacayEntries.filter(e =>
+      e.date >= proposalStart && e.date <= proposalEnd
+    );
+
     return {
       ...p,
       availability,
@@ -95,6 +109,7 @@ router.get('/', authenticate, (req: Request, res: Response) => {
       memberRegions,
       vacationDays: overlappingVacation,
       companyHolidays: overlappingCompany,
+      vacayEntries: overlappingVacayEntries,
     };
   });
 
@@ -222,3 +237,24 @@ router.put('/:proposalId/availability', authenticate, (req: Request, res: Respon
 });
 
 export default router;
+
+// ── GET /api/date-proposals/mine ──────────────────────────────────────────────
+
+export const mineRouter = express.Router();
+
+mineRouter.get('/', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const userId = authReq.user.id;
+
+  // All proposals from groups the user is a member of
+  const proposals = db.prepare(`
+    SELECT dp.id, dp.title, dp.group_id, g.name AS group_name,
+           dp.period_start, dp.period_end
+    FROM date_proposals dp
+    JOIN groups g ON g.id = dp.group_id
+    JOIN group_members gm ON gm.group_id = dp.group_id AND gm.user_id = ?
+    ORDER BY dp.period_start ASC
+  `).all(userId) as Array<{ id: number; title: string; group_id: number; group_name: string; period_start: string; period_end: string }>;
+
+  res.json({ proposals });
+});

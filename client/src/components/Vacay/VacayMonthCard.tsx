@@ -27,11 +27,12 @@ interface VacayMonthCardProps {
   standardHours?: number
   tripDates?: Set<string>
   weekStart?: number
+  proposalDates?: Map<string, Array<{ title: string; group_name: string }>>
 }
 
 export default function VacayMonthCard({
   year, month, holidays, companyHolidaySet, companyHolidaysEnabled = true, entryMap,
-  onCellClick, onCellRightClick, companyMode, blockWeekends, weekendDays = [0, 6], tripDates, weekStart = 1, standardHours = 8,
+  onCellClick, onCellRightClick, companyMode, blockWeekends, weekendDays = [0, 6], tripDates, weekStart = 1, standardHours = 8, proposalDates,
 }: VacayMonthCardProps) {
   const { t, locale } = useTranslation()
 
@@ -198,6 +199,19 @@ export default function VacayMonthCard({
                   {tripDates?.has(dateStr) && (
                     <span className="absolute top-[3px] right-[3px] w-[5px] h-[5px] rounded-full z-[2]" style={{ background: '#3b82f6' }} />
                   )}
+
+                  {(() => {
+                    const pEntries = proposalDates?.get(dateStr)
+                    if (!pEntries?.length) return null
+                    const label = pEntries.map(p => `${p.group_name}: ${p.title}`).join('\n')
+                    return (
+                      <span
+                        className="absolute top-[3px] left-[3px] w-[5px] h-[5px] rounded-full z-[2]"
+                        style={{ background: '#f97316' }}
+                        title={label}
+                      />
+                    )
+                  })()}
 
                   <span className="relative z-[1] text-[11px]" style={{
                     fontWeight: allDayEntries.length > 0 ? 700 : 500,

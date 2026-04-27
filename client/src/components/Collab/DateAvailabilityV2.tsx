@@ -44,7 +44,7 @@ function monthKey(year: number, month: number): string {
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
-type OverlayType = 'vacation' | 'company' | 'public' | 'availability'
+type OverlayType = 'vacation' | 'vacayEntry' | 'company' | 'public' | 'availability'
 
 interface DayOverlay {
   type: OverlayType
@@ -215,6 +215,12 @@ function MonthGrid({ year, month, proposal, myStatus, onToggle, publicHolidays, 
       if (date >= v.start_date && date <= v.end_date) {
         const member = proposal.members.find(m => m.id === v.user_id)
         overlays.push({ type: 'vacation', color: v.color, label: `${member?.username || ''} — ${v.label || t('dateAvail.vacation') || 'Vacation'}`, userId: v.user_id })
+      }
+    })
+    proposal.vacayEntries?.forEach(e => {
+      if (e.date === date) {
+        const member = proposal.members.find(m => m.id === e.user_id)
+        overlays.push({ type: 'vacayEntry', color: '#7c3aed', label: `${member?.username || ''} — ${t('dateAvail.scheduledVacation') || 'Scheduled vacation'}`, userId: e.user_id })
       }
     })
     return overlays

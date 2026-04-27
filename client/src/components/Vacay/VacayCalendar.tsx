@@ -2,7 +2,7 @@ import { useMemo, useState, useCallback, useEffect } from 'react'
 import { useVacayStore } from '../../store/vacayStore'
 import { useTranslation } from '../../i18n'
 import { isWeekend } from './holidays'
-import { tripsApi } from '../../api/client'
+import { tripsApi, dateProposalsApi } from '../../api/client'
 import VacayMonthCard from './VacayMonthCard'
 import HoursEntryPopover from './HoursEntryPopover'
 import { Building2, Clock, MousePointer2, TrendingUp } from 'lucide-react'
@@ -24,14 +24,20 @@ export default function VacayCalendar() {
   const [mode, setMode] = useState<CalendarMode>('vacation')
   const [popover, setPopover] = useState<PopoverState | null>(null)
   const [tripDates, setTripDates] = useState<Set<string>>(new Set())
+  const [proposalDates, setProposalDates] = useState<Map<string, Array<{ title: string; group_name: string }>>>(new Map())
 
   useEffect(() => {
     let cancelled = false
     ;(async () => {
       try {
-        const data = await tripsApi.list()
+        const [tripsData, proposalsData] = await Promise.all([
+          tripsApi.list(),
+          dateProposalsApi.myProposals().catch(() => ({ proposals: [] })),
+        ])
+
+        // Trip dates
         const dates = new Set<string>()
-        for (const trip of data.trips || []) {
+        for (const trip of tripsData.trips || []) {
           if (!trip.start_date || !trip.end_date) continue
           const start = new Date(trip.start_date + 'T00:00:00')
           const end = new Date(trip.end_date + 'T00:00:00')
@@ -42,7 +48,26 @@ export default function VacayCalendar() {
             }
           }
         }
-        if (!cancelled) setTripDates(dates)
+
+        // Proposal dates map: date → [{ title, group_name }]
+        const pMap = new Map<string, Array<{ title: string; group_name: string }>>()
+        for (const p of proposalsData.proposals || []) {
+          if (!p.period_start || !p.period_end) continue
+          const start = new Date(p.period_start + 'T00:00:00')
+          const end = new Date(p.period_end + 'T00:00:00')
+          for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+            const y = d.getFullYear()
+            if (y !== selectedYear) continue
+            const key = `${y}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+            if (!pMap.has(key)) pMap.set(key, [])
+            pMap.get(key)!.push({ title: p.title, group_name: p.group_name })
+          }
+        }
+
+        if (!cancelled) {
+          setTripDates(dates)
+          setProposalDates(pMap)
+        }
       } catch { /* ignore */ }
     })()
     return () => { cancelled = true }
@@ -131,6 +156,7 @@ export default function VacayCalendar() {
             blockWeekends={blockWeekends}
             weekendDays={weekendDays}
             tripDates={tripDates}
+            proposalDates={proposalDates}
             weekStart={plan?.week_start ?? 1}
             standardHours={standardHours}
           />

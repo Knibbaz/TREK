@@ -507,6 +507,7 @@ export const dateProposalsApi = {
     apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),
   setAvailability: (groupId: number | string, proposalId: number, responses: Record<string, 'yes' | 'no' | 'maybe' | null>) =>
     apiClient.put(`/groups/${groupId}/date-proposals/${proposalId}/availability`, { responses }).then(r => r.data),
+  myProposals: () => apiClient.get('/date-proposals').then(r => r.data),
 }
 
 export const availabilityApi = {

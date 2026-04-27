@@ -2564,6 +2564,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'dateAvail.allYes': 'All yes',
   'dateAvail.someYes': 'Some yes',
   'dateAvail.vacation': 'Vacation',
+  'dateAvail.scheduledVacation': 'Scheduled vacation',
   'dateAvail.companyHoliday': 'Company holiday',
   'dateAvail.publicHoliday': 'Public holiday',
   'dateAvail.settings': 'Availability Settings',
