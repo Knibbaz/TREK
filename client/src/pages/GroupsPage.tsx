@@ -435,11 +435,10 @@ export default function GroupsPage(): React.ReactElement {
                   </div>
                   <button
                     onClick={() => setShowInviteModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-white transition-opacity hover:opacity-90"
-                    style={{ background: 'var(--accent)' }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-sm bg-slate-900 text-white rounded-lg hover:bg-slate-700 transition-colors"
                   >
-                    <Link2 size={12} />
-                    {t('groups.invite.create') || 'Create Link'}
+                    <Plus size={14} />
+                    {t('admin.invite.create')}
                   </button>
                 </div>
                 {inviteError && (
