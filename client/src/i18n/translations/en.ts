@@ -2580,6 +2580,48 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'dateAvail.deadline': 'Deadline',
   'dateAvail.reminderDays': 'Reminder days before deadline',
   'dateAvail.reminderHint': 'A reminder email will be sent {days} day(s) before the deadline to members who haven\'t responded yet.',
+  'dateAvail.myAvailability': 'My availability',
+  'dateAvail.group': 'Group',
+  // Notes
+  'dateAvail.addNote': 'Add note',
+  'dateAvail.editNote': 'Edit note',
+  'dateAvail.notePlaceholder': 'Add a note for this day...',
+  'dateAvail.rightClickNote': 'Right-click for note',
+  // Quick-select
+  'dateAvail.monthAvailable': 'Month available',
+  'dateAvail.monthUnavailable': 'Month unavailable',
+  'dateAvail.allAvailable': 'All available',
+  'dateAvail.allUnavailable': 'All unavailable',
+  // Heatmap
+  'dateAvail.lowOverlap': 'Low overlap',
+  'dateAvail.highOverlap': 'High overlap',
+  // Analysis
+  'dateAvail.overlapAnalysis': 'Overlap analysis',
+  'dateAvail.analyze': 'Analyze',
+  'dateAvail.minDays': 'Min. days',
+  'dateAvail.analysisStats': '{responded}/{total} members have responded',
+  'dateAvail.noPeriodsFound': 'No suitable periods found. Try fewer minimum days.',
+  'dateAvail.days': 'days',
+  'dateAvail.available': 'available',
+  'dateAvail.bestPeriod': 'Best period',
+  // Confirmation
+  'dateAvail.confirm': 'Confirm',
+  'dateAvail.confirmed': 'Confirmed',
+  'dateAvail.confirmedBanner': 'Confirmed',
+  'dateAvail.reopen': 'Reopen',
+  'dateAvail.proposalLocked': 'This proposal is confirmed and read-only',
+  'dateAvail.confirmPeriod': 'Confirm period',
+  // Trip-dates coupling
+  'dateAvail.updateTripDates': 'Update trip dates?',
+  'dateAvail.updateTripDatesDesc': 'Would you like to update the trip dates to match the confirmed period?',
+  'dateAvail.tripDatesUpdated': 'Trip dates updated',
+  // Guest links
+  'dateAvail.guestLink': 'Guest link',
+  'dateAvail.guestLinks': 'Guest links',
+  'dateAvail.createGuestLink': 'New',
+  'dateAvail.guestLinkCopied': 'Guest link copied!',
+  'dateAvail.noGuestLinks': 'No guest links created yet.',
+  'dateAvail.unnamedGuest': 'Guest',
   // Place votes
   'placeVote.upvote': 'Upvote',
   'placeVote.downvote': 'Downvote',

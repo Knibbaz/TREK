@@ -2515,6 +2515,48 @@ const nl: Record<string, string> = {
   'dateAvail.deadline': 'Deadline',
   'dateAvail.reminderDays': 'Herinneringsdagen voor deadline',
   'dateAvail.reminderHint': 'Er wordt {days} dag(en) voor de deadline een herinnering gestuurd aan leden die nog niet hebben gereageerd.',
+  'dateAvail.myAvailability': 'Mijn beschikbaarheid',
+  'dateAvail.group': 'Groep',
+  // Notities
+  'dateAvail.addNote': 'Notitie toevoegen',
+  'dateAvail.editNote': 'Notitie bewerken',
+  'dateAvail.notePlaceholder': 'Voeg een notitie toe voor deze dag...',
+  'dateAvail.rightClickNote': 'Rechts-klik voor notitie',
+  // Snel-selectie
+  'dateAvail.monthAvailable': 'Maand beschikbaar',
+  'dateAvail.monthUnavailable': 'Maand niet beschikbaar',
+  'dateAvail.allAvailable': 'Alles beschikbaar',
+  'dateAvail.allUnavailable': 'Alles niet beschikbaar',
+  // Heatmap
+  'dateAvail.lowOverlap': 'Weinig overlap',
+  'dateAvail.highOverlap': 'Veel overlap',
+  // Analyse
+  'dateAvail.overlapAnalysis': 'Overlap analyse',
+  'dateAvail.analyze': 'Analyseer',
+  'dateAvail.minDays': 'Min. dagen',
+  'dateAvail.analysisStats': '{responded}/{total} leden hebben gereageerd',
+  'dateAvail.noPeriodsFound': 'Geen geschikte perioden gevonden. Probeer minder minimale dagen.',
+  'dateAvail.days': 'dagen',
+  'dateAvail.available': 'beschikbaar',
+  'dateAvail.bestPeriod': 'Beste periode',
+  // Bevestiging
+  'dateAvail.confirm': 'Bevestig',
+  'dateAvail.confirmed': 'Bevestigd',
+  'dateAvail.confirmedBanner': 'Bevestigd',
+  'dateAvail.reopen': 'Heropenen',
+  'dateAvail.proposalLocked': 'Dit voorstel is bevestigd en alleen-lezen',
+  'dateAvail.confirmPeriod': 'Bevestig periode',
+  // Trip-dates koppeling
+  'dateAvail.updateTripDates': 'Reisdatums bijwerken?',
+  'dateAvail.updateTripDatesDesc': 'Wil je de reisdatums bijwerken naar de bevestigde periode?',
+  'dateAvail.tripDatesUpdated': 'Reisdatums bijgewerkt',
+  // Gastlinks
+  'dateAvail.guestLink': 'Gastlink',
+  'dateAvail.guestLinks': 'Gastlinks',
+  'dateAvail.createGuestLink': 'Nieuw',
+  'dateAvail.guestLinkCopied': 'Gastlink gekopieerd!',
+  'dateAvail.noGuestLinks': 'Nog geen gastlinks aangemaakt.',
+  'dateAvail.unnamedGuest': 'Gast',
   // Locatie stemmen
   'placeVote.upvote': 'Positief stemmen',
   'placeVote.downvote': 'Negatief stemmen',

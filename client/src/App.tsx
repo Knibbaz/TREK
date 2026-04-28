@@ -17,6 +17,7 @@ import JourneyPage from './pages/JourneyPage'
 import JourneyDetailPage from './pages/JourneyDetailPage'
 import GroupsPage from './pages/GroupsPage'
 import GroupJoinPage from './pages/GroupJoinPage'
+import GuestAvailabilityPage from './pages/GuestAvailabilityPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
 import ExplorePage from './pages/ExplorePage'
 import SharedTripPage from './pages/SharedTripPage'
@@ -222,6 +223,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/join-group/:token" element={<GroupJoinPage />} />
+        <Route path="/guest/availability/:token" element={<GuestAvailabilityPage />} />
         {/* OAuth 2.1 consent page — intentionally outside ProtectedRoute */}
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
         <Route

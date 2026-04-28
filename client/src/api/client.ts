@@ -505,9 +505,19 @@ export const dateProposalsApi = {
     apiClient.post(`/groups/${groupId}/date-proposals`, data).then(r => r.data),
   delete: (groupId: number | string, proposalId: number) =>
     apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),
-  setAvailability: (groupId: number | string, proposalId: number, responses: Record<string, 'yes' | 'no' | 'maybe' | null>) =>
-    apiClient.put(`/groups/${groupId}/date-proposals/${proposalId}/availability`, { responses }).then(r => r.data),
+  setAvailability: (groupId: number | string, proposalId: number, responses: Record<string, 'yes' | 'no' | 'maybe' | null>, notes?: Record<string, string | null>) =>
+    apiClient.put(`/groups/${groupId}/date-proposals/${proposalId}/availability`, { responses, notes }).then(r => r.data),
   myProposals: () => apiClient.get('/date-proposals').then(r => r.data),
+  getAnalysis: (groupId: number | string, proposalId: number, minDays = 3, maxSuggestions = 5) =>
+    apiClient.get(`/groups/${groupId}/date-proposals/${proposalId}/analysis`, { params: { min_days: minDays, max_suggestions: maxSuggestions } }).then(r => r.data),
+  confirm: (groupId: number | string, proposalId: number, data: { confirmed_start: string; confirmed_end: string }) =>
+    apiClient.patch(`/groups/${groupId}/date-proposals/${proposalId}/confirm`, data).then(r => r.data),
+  reopen: (groupId: number | string, proposalId: number) =>
+    apiClient.patch(`/groups/${groupId}/date-proposals/${proposalId}/reopen`).then(r => r.data),
+  createGuestLink: (groupId: number | string, proposalId: number, expiresInDays?: number) =>
+    apiClient.post(`/groups/${groupId}/date-proposals/${proposalId}/guest-link`, { expires_in_days: expiresInDays }).then(r => r.data),
+  deleteGuestLink: (groupId: number | string, proposalId: number, tokenId: number) =>
+    apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}/guest-link/${tokenId}`).then(r => r.data),
 }
 
 export const availabilityApi = {

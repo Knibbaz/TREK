@@ -46,6 +46,7 @@ import publicConfigRoutes from './routes/publicConfig';
 import systemNoticesRoutes from './routes/systemNotices';
 import dateProposalsRoutes, { mineRouter as dateProposalsMineRouter } from './routes/dateProposals';
 import availabilityRoutes from './routes/availability';
+import guestAvailabilityRoutes from './routes/guestAvailability';
 import { mcpHandler } from './mcp';
 import { Addon } from './types';
 import { getPhotoProviderConfig } from './services/memories/helpersService';
@@ -257,6 +258,7 @@ export function createApp(): express.Application {
   app.use('/api/groups/:groupId/date-proposals', dateProposalsRoutes);
   app.use('/api/date-proposals', dateProposalsMineRouter);
   app.use('/api/availability', availabilityRoutes);
+  app.use('/api/guest/availability', guestAvailabilityRoutes);
   app.use('/api/trips/:tripId/reservations', reservationsRoutes);
   app.use('/api/trips/:tripId/days/:dayId/notes', dayNotesRoutes);
   app.get('/api/health', (_req: Request, res: Response) => res.json({ status: 'ok' }));

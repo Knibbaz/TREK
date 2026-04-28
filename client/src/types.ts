@@ -239,6 +239,7 @@ export interface DateAvailabilityEntry {
   date: string
   status: 'yes' | 'no' | 'maybe'
   username: string
+  note?: string | null
 }
 
 export interface VacationDay {
@@ -269,12 +270,29 @@ export interface DateProposal {
   reminder_days: number
   reminder_sent: number
   created_at: string
+  status?: 'open' | 'confirmed' | 'cancelled'
+  confirmed_start?: string | null
+  confirmed_end?: string | null
   availability: DateAvailabilityEntry[]
   members: DateProposalMember[]
   memberRegions?: Record<number, string>
   vacationDays?: VacationDay[]
   companyHolidays?: CompanyHoliday[]
   vacayEntries?: Array<{ user_id: number; date: string }>
+  guestTokens?: Array<{ id: number; token: string; guest_name: string | null; created_at: string; expires_at: string | null }>
+}
+
+export interface DateProposalAnalysis {
+  perDayOverlap: Array<{ date: string; yes: number; maybe: number; no: number; total: number; score: number }>
+  bestPeriods: Array<{ start: string; end: string; days: number; avgScore: number; avgPercent: number; compositeScore: number }>
+  statistics: { totalMembers: number; totalResponded: number; overallAvgScore: number }
+}
+
+export interface GuestAvailabilityInfo {
+  proposal: { id: number; title: string; period_start: string; period_end: string; group_name: string }
+  guestName: string | null
+  responses: Record<string, 'yes' | 'no' | 'maybe'>
+  notes: Record<string, string>
 }
 
 export interface PlaceVote {
