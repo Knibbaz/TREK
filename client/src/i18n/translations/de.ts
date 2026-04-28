@@ -1086,7 +1086,7 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'reservations.empty': 'Keine Reservierungen vorhanden',
   'reservations.emptyHint': 'Füge Reservierungen für Flüge, Hotels und mehr hinzu',
   'reservations.add': 'Reservierung hinzufügen',
-  'reservations.addManual': 'Manuelle Buchung',
+  'reservations.addManual': 'Buchung',
   'reservations.placeHint': 'Tipp: Buchungen werden am besten direkt über einen angelegten Ort erstellt, um sie mit dem Tagesplan zu verknüpfen.',
   'reservations.confirmed': 'Bestätigt',
   'reservations.pending': 'Ausstehend',
@@ -2367,7 +2367,7 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'transport.modalTitle.create': 'Transport hinzufügen',
   'transport.modalTitle.edit': 'Transport bearbeiten',
   'transport.title': 'Transporte',
-  'transport.addManual': 'Manuelles Transportmittel',
+  'transport.addManual': 'Transportmittel',
 }
 
 export default de

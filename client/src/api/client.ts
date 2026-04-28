@@ -187,6 +187,7 @@ export const tripsApi = {
   bundle: (id: number | string) => apiClient.get(`/trips/${id}/bundle`).then(r => r.data),
   checkOverflow: (id: number | string, startDate: string, endDate: string) =>
     apiClient.get(`/trips/${id}/overflow-check`, { params: { start_date: startDate, end_date: endDate } }).then(r => r.data) as Promise<{ daysToRemove: number; assignments: number; notes: number; accommodations: number }>,
+  getGroups: (id: number | string) => apiClient.get(`/trips/${id}/groups`).then(r => r.data) as Promise<{ groups: Array<{ id: number; name: string }> }>,
 }
 
 export const daysApi = {

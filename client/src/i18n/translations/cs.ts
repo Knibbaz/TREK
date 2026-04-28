@@ -1080,7 +1080,7 @@ const cs: Record<string, string | { name: string; category: string }[]> = {
   'reservations.empty': 'Zatím žádné rezervace',
   'reservations.emptyHint': 'Přidejte rezervace letů, hotelů a dalších',
   'reservations.add': 'Přidat rezervaci',
-  'reservations.addManual': 'Ruční rezervace',
+  'reservations.addManual': 'Rezervace',
   'reservations.placeHint': 'Tip: Rezervace je nejlepší vytvářet přímo z místa – propojí se tak s denním plánem.',
   'reservations.confirmed': 'Potvrzeno',
   'reservations.pending': 'Čeká na potvrzení',

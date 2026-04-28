@@ -76,19 +76,19 @@ export function getAdminWebhookUrl(): string | null {
 
 // ── Email i18n strings ─────────────────────────────────────────────────────
 
-interface EmailStrings { footer: string; manage: string; madeWith: string; openTrek: string }
+interface EmailStrings { footer: string; manage: string; madeWith: string; openRoam: string }
 
 const I18N: Record<string, EmailStrings> = {
-  en: { footer: 'You received this because you have notifications enabled in TREK.', manage: 'Manage preferences in Settings', madeWith: 'Made with', openTrek: 'Open TREK' },
-  de: { footer: 'Du erhältst diese E-Mail, weil du Benachrichtigungen in TREK aktiviert hast.', manage: 'Einstellungen verwalten', madeWith: 'Made with', openTrek: 'TREK öffnen' },
-  fr: { footer: 'Vous recevez cet e-mail car les notifications sont activées dans TREK.', manage: 'Gérer les préférences', madeWith: 'Made with', openTrek: 'Ouvrir TREK' },
-  es: { footer: 'Recibiste esto porque tienes las notificaciones activadas en TREK.', manage: 'Gestionar preferencias', madeWith: 'Made with', openTrek: 'Abrir TREK' },
-  nl: { footer: 'Je ontvangt dit omdat je meldingen hebt ingeschakeld in TREK.', manage: 'Voorkeuren beheren', madeWith: 'Made with', openTrek: 'TREK openen' },
-  ru: { footer: 'Вы получили это, потому что у вас включены уведомления в TREK.', manage: 'Управление настройками', madeWith: 'Made with', openTrek: 'Открыть TREK' },
-  zh: { footer: '您收到此邮件是因为您在 TREK 中启用了通知。', manage: '管理偏好设置', madeWith: 'Made with', openTrek: '打开 TREK' },
-  'zh-TW': { footer: '您收到這封郵件是因為您在 TREK 中啟用了通知。', manage: '管理偏好設定', madeWith: 'Made with', openTrek: '開啟 TREK' },
-  ar: { footer: 'تلقيت هذا لأنك قمت بتفعيل الإشعارات في TREK.', manage: 'إدارة التفضيلات', madeWith: 'Made with', openTrek: 'فتح TREK' },
-  id: { footer: 'Anda menerima ini karena Anda telah mengaktifkan notifikasi di TREK.', manage: 'Kelola preferensi di Pengaturan', madeWith: 'Dibuat dengan', openTrek: 'Buka TREK' },
+  en: { footer: 'You received this because you have notifications enabled in ROAM.', manage: 'Manage preferences in Settings', madeWith: 'Made with', openRoam: 'Open ROAM' },
+  de: { footer: 'Du erhältst diese E-Mail, weil du Benachrichtigungen in ROAM aktiviert hast.', manage: 'Einstellungen verwalten', madeWith: 'Made with', openRoam: 'ROAM öffnen' },
+  fr: { footer: 'Vous recevez cet e-mail car les notifications sont activées dans ROAM.', manage: 'Gérer les préférences', madeWith: 'Made with', openRoam: 'Ouvrir ROAM' },
+  es: { footer: 'Recibiste esto porque tienes las notificaciones activadas en ROAM.', manage: 'Gestionar preferencias', madeWith: 'Made with', openRoam: 'Abrir ROAM' },
+  nl: { footer: 'Je ontvangt dit omdat je meldingen hebt ingeschakeld in ROAM.', manage: 'Voorkeuren beheren', madeWith: 'Made with', openRoam: 'ROAM openen' },
+  ru: { footer: 'Вы получили это, потому что у вас включены уведомления в ROAM.', manage: 'Управление настройками', madeWith: 'Made with', openRoam: 'Открыть ROAM' },
+  zh: { footer: '您收到此邮件是因为您在 ROAM 中启用了通知。', manage: '管理偏好设置', madeWith: 'Made with', openRoam: '打开 ROAM' },
+  'zh-TW': { footer: '您收到這封郵件是因為您在 ROAM 中啟用了通知。', manage: '管理偏好設定', madeWith: 'Made with', openRoam: '開啟 ROAM' },
+  ar: { footer: 'تلقيت هذا لأنك قمت بتفعيل الإشعارات في ROAM.', manage: 'إدارة التفضيلات', madeWith: 'Made with', openRoam: 'فتح ROAM' },
+  id: { footer: 'Anda menerima ini karena Anda telah mengaktifkan notifikasi di ROAM.', manage: 'Kelola preferensi di Pengaturan', madeWith: 'Dibuat dengan', openRoam: 'Buka ROAM' },
 };
 
 // Translated notification texts per event type
@@ -101,7 +101,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `New booking: ${p.booking}`, body: `${p.actor} added a new ${p.type} "${p.booking}" to "${p.trip}".` }),
     trip_reminder: p => ({ title: `Trip reminder: ${p.trip}`, body: `Your trip "${p.trip}" is coming up soon!` }),
     todo_due: p => ({ title: `To-do due: ${p.todo}`, body: `"${p.todo}" in "${p.trip}" is due on ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Vacay Fusion Invite', body: `${p.actor} invited you to fuse vacation plans. Open TREK to accept or decline.` }),
+    vacay_invite: p => ({ title: 'Vacay Fusion Invite', body: `${p.actor} invited you to fuse vacation plans. Open ROAM to accept or decline.` }),
     photos_shared: p => ({ title: `${p.count} photos shared`, body: `${p.actor} shared ${p.count} photo(s) in "${p.trip}".` }),
     collab_message: p => ({ title: `New message in "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Packing: ${p.category}`, body: `${p.actor} assigned you to the "${p.category}" packing category in "${p.trip}".` }),
@@ -114,7 +114,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Neue Buchung: ${p.booking}`, body: `${p.actor} hat eine neue Buchung "${p.booking}" (${p.type}) zu "${p.trip}" hinzugefügt.` }),
     trip_reminder: p => ({ title: `Reiseerinnerung: ${p.trip}`, body: `Deine Reise "${p.trip}" steht bald an!` }),
     todo_due: p => ({ title: `Aufgabe fällig: ${p.todo}`, body: `"${p.todo}" in "${p.trip}" ist am ${p.due} fällig.` }),
-    vacay_invite: p => ({ title: 'Vacay Fusion-Einladung', body: `${p.actor} hat dich eingeladen, Urlaubspläne zu fusionieren. Öffne TREK um anzunehmen oder abzulehnen.` }),
+    vacay_invite: p => ({ title: 'Vacay Fusion-Einladung', body: `${p.actor} hat dich eingeladen, Urlaubspläne zu fusionieren. Öffne ROAM um anzunehmen oder abzulehnen.` }),
     photos_shared: p => ({ title: `${p.count} Fotos geteilt`, body: `${p.actor} hat ${p.count} Foto(s) in "${p.trip}" geteilt.` }),
     collab_message: p => ({ title: `Neue Nachricht in "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Packliste: ${p.category}`, body: `${p.actor} hat dich der Kategorie "${p.category}" in der Packliste von "${p.trip}" zugewiesen.` }),
@@ -127,7 +127,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nouvelle réservation : ${p.booking}`, body: `${p.actor} a ajouté une réservation "${p.booking}" (${p.type}) à "${p.trip}".` }),
     trip_reminder: p => ({ title: `Rappel de voyage : ${p.trip}`, body: `Votre voyage "${p.trip}" approche !` }),
     todo_due: p => ({ title: `Tâche à échéance : ${p.todo}`, body: `"${p.todo}" dans "${p.trip}" est due le ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Invitation Vacay Fusion', body: `${p.actor} vous invite à fusionner les plans de vacances. Ouvrez TREK pour accepter ou refuser.` }),
+    vacay_invite: p => ({ title: 'Invitation Vacay Fusion', body: `${p.actor} vous invite à fusionner les plans de vacances. Ouvrez ROAM pour accepter ou refuser.` }),
     photos_shared: p => ({ title: `${p.count} photos partagées`, body: `${p.actor} a partagé ${p.count} photo(s) dans "${p.trip}".` }),
     collab_message: p => ({ title: `Nouveau message dans "${p.trip}"`, body: `${p.actor} : ${p.preview}` }),
     packing_tagged: p => ({ title: `Bagages : ${p.category}`, body: `${p.actor} vous a assigné à la catégorie "${p.category}" dans "${p.trip}".` }),
@@ -140,7 +140,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nueva reserva: ${p.booking}`, body: `${p.actor} añadió una reserva "${p.booking}" (${p.type}) a "${p.trip}".` }),
     trip_reminder: p => ({ title: `Recordatorio: ${p.trip}`, body: `¡Tu viaje "${p.trip}" se acerca!` }),
     todo_due: p => ({ title: `Tarea pendiente: ${p.todo}`, body: `"${p.todo}" en "${p.trip}" vence el ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Invitación Vacay Fusion', body: `${p.actor} te invitó a fusionar planes de vacaciones. Abre TREK para aceptar o rechazar.` }),
+    vacay_invite: p => ({ title: 'Invitación Vacay Fusion', body: `${p.actor} te invitó a fusionar planes de vacaciones. Abre ROAM para aceptar o rechazar.` }),
     photos_shared: p => ({ title: `${p.count} fotos compartidas`, body: `${p.actor} compartió ${p.count} foto(s) en "${p.trip}".` }),
     collab_message: p => ({ title: `Nuevo mensaje en "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Equipaje: ${p.category}`, body: `${p.actor} te asignó a la categoría "${p.category}" en "${p.trip}".` }),
@@ -153,7 +153,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nieuwe boeking: ${p.booking}`, body: `${p.actor} heeft een boeking "${p.booking}" (${p.type}) toegevoegd aan "${p.trip}".` }),
     trip_reminder: p => ({ title: `Reisherinnering: ${p.trip}`, body: `Je reis "${p.trip}" komt eraan!` }),
     todo_due: p => ({ title: `Taak verloopt: ${p.todo}`, body: `"${p.todo}" in "${p.trip}" verloopt op ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Vacay Fusion uitnodiging', body: `${p.actor} nodigt je uit om vakantieplannen te fuseren. Open TREK om te accepteren of af te wijzen.` }),
+    vacay_invite: p => ({ title: 'Vacay Fusion uitnodiging', body: `${p.actor} nodigt je uit om vakantieplannen te fuseren. Open ROAM om te accepteren of af te wijzen.` }),
     photos_shared: p => ({ title: `${p.count} foto's gedeeld`, body: `${p.actor} heeft ${p.count} foto('s) gedeeld in "${p.trip}".` }),
     collab_message: p => ({ title: `Nieuw bericht in "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Paklijst: ${p.category}`, body: `${p.actor} heeft je toegewezen aan de categorie "${p.category}" in "${p.trip}".` }),
@@ -166,7 +166,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Новое бронирование: ${p.booking}`, body: `${p.actor} добавил бронирование "${p.booking}" (${p.type}) в "${p.trip}".` }),
     trip_reminder: p => ({ title: `Напоминание: ${p.trip}`, body: `Ваша поездка "${p.trip}" скоро начнётся!` }),
     todo_due: p => ({ title: `Задача к сроку: ${p.todo}`, body: `"${p.todo}" в поездке "${p.trip}" — срок ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Приглашение Vacay Fusion', body: `${p.actor} приглашает вас объединить планы отпуска. Откройте TREK для подтверждения.` }),
+    vacay_invite: p => ({ title: 'Приглашение Vacay Fusion', body: `${p.actor} приглашает вас объединить планы отпуска. Откройте ROAM для подтверждения.` }),
     photos_shared: p => ({ title: `${p.count} фото`, body: `${p.actor} поделился ${p.count} фото в "${p.trip}".` }),
     collab_message: p => ({ title: `Новое сообщение в "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Список вещей: ${p.category}`, body: `${p.actor} назначил вас в категорию "${p.category}" в "${p.trip}".` }),
@@ -179,7 +179,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `新预订：${p.booking}`, body: `${p.actor} 在"${p.trip}"中添加了预订"${p.booking}"（${p.type}）。` }),
     trip_reminder: p => ({ title: `旅行提醒：${p.trip}`, body: `你的旅行"${p.trip}"即将开始！` }),
     todo_due: p => ({ title: `待办事项即将到期：${p.todo}`, body: `"${p.trip}" 中的"${p.todo}"将于 ${p.due} 到期。` }),
-    vacay_invite: p => ({ title: 'Vacay 融合邀请', body: `${p.actor} 邀请你合并假期计划。打开 TREK 接受或拒绝。` }),
+    vacay_invite: p => ({ title: 'Vacay 融合邀请', body: `${p.actor} 邀请你合并假期计划。打开 ROAM 接受或拒绝。` }),
     photos_shared: p => ({ title: `${p.count} 张照片已分享`, body: `${p.actor} 在"${p.trip}"中分享了 ${p.count} 张照片。` }),
     collab_message: p => ({ title: `"${p.trip}"中的新消息`, body: `${p.actor}：${p.preview}` }),
     packing_tagged: p => ({ title: `行李清单：${p.category}`, body: `${p.actor} 将你分配到"${p.trip}"中的"${p.category}"类别。` }),
@@ -192,7 +192,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `新預訂：${p.booking}`, body: `${p.actor} 在「${p.trip}」中新增了預訂「${p.booking}」（${p.type}）。` }),
     trip_reminder: p => ({ title: `行程提醒：${p.trip}`, body: `您的行程「${p.trip}」即將開始！` }),
     todo_due: p => ({ title: `待辦事項即將到期：${p.todo}`, body: `「${p.trip}」中的「${p.todo}」將於 ${p.due} 到期。` }),
-    vacay_invite: p => ({ title: 'Vacay 融合邀請', body: `${p.actor} 邀請您合併假期計畫。開啟 TREK 以接受或拒絕。` }),
+    vacay_invite: p => ({ title: 'Vacay 融合邀請', body: `${p.actor} 邀請您合併假期計畫。開啟 ROAM 以接受或拒絕。` }),
     photos_shared: p => ({ title: `已分享 ${p.count} 張照片`, body: `${p.actor} 在「${p.trip}」中分享了 ${p.count} 張照片。` }),
     collab_message: p => ({ title: `「${p.trip}」中的新訊息`, body: `${p.actor}：${p.preview}` }),
     packing_tagged: p => ({ title: `打包清單：${p.category}`, body: `${p.actor} 已將您指派到「${p.trip}」中的「${p.category}」分類。` }),
@@ -205,7 +205,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `حجز جديد: ${p.booking}`, body: `${p.actor} أضاف حجز "${p.booking}" (${p.type}) إلى "${p.trip}".` }),
     trip_reminder: p => ({ title: `تذكير: ${p.trip}`, body: `رحلتك "${p.trip}" تقترب!` }),
     todo_due: p => ({ title: `مهمة مستحقة: ${p.todo}`, body: `"${p.todo}" في "${p.trip}" مستحقة في ${p.due}.` }),
-    vacay_invite: p => ({ title: 'دعوة دمج الإجازة', body: `${p.actor} يدعوك لدمج خطط الإجازة. افتح TREK للقبول أو الرفض.` }),
+    vacay_invite: p => ({ title: 'دعوة دمج الإجازة', body: `${p.actor} يدعوك لدمج خطط الإجازة. افتح ROAM للقبول أو الرفض.` }),
     photos_shared: p => ({ title: `${p.count} صور مشتركة`, body: `${p.actor} شارك ${p.count} صورة في "${p.trip}".` }),
     collab_message: p => ({ title: `رسالة جديدة في "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `قائمة التعبئة: ${p.category}`, body: `${p.actor} عيّنك في فئة "${p.category}" في "${p.trip}".` }),
@@ -218,7 +218,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nova reserva: ${p.booking}`, body: `${p.actor} adicionou uma reserva "${p.booking}" (${p.type}) em "${p.trip}".` }),
     trip_reminder: p => ({ title: `Lembrete: ${p.trip}`, body: `Sua viagem "${p.trip}" está chegando!` }),
     todo_due: p => ({ title: `Tarefa com vencimento: ${p.todo}`, body: `"${p.todo}" em "${p.trip}" vence em ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Convite Vacay Fusion', body: `${p.actor} convidou você para fundir planos de férias. Abra o TREK para aceitar ou recusar.` }),
+    vacay_invite: p => ({ title: 'Convite Vacay Fusion', body: `${p.actor} convidou você para fundir planos de férias. Abra o ROAM para aceitar ou recusar.` }),
     photos_shared: p => ({ title: `${p.count} fotos compartilhadas`, body: `${p.actor} compartilhou ${p.count} foto(s) em "${p.trip}".` }),
     collab_message: p => ({ title: `Nova mensagem em "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Bagagem: ${p.category}`, body: `${p.actor} atribuiu você à categoria "${p.category}" em "${p.trip}".` }),
@@ -231,7 +231,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nová rezervace: ${p.booking}`, body: `${p.actor} přidal rezervaci "${p.booking}" (${p.type}) k "${p.trip}".` }),
     trip_reminder: p => ({ title: `Připomínka výletu: ${p.trip}`, body: `Váš výlet "${p.trip}" se blíží!` }),
     todo_due: p => ({ title: `Úkol se blíží: ${p.todo}`, body: `"${p.todo}" ve výletě "${p.trip}" má termín ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Pozvánka Vacay Fusion', body: `${p.actor} vás pozval ke spojení dovolenkových plánů. Otevřete TREK pro přijetí nebo odmítnutí.` }),
+    vacay_invite: p => ({ title: 'Pozvánka Vacay Fusion', body: `${p.actor} vás pozval ke spojení dovolenkových plánů. Otevřete ROAM pro přijetí nebo odmítnutí.` }),
     photos_shared: p => ({ title: `${p.count} sdílených fotek`, body: `${p.actor} sdílel ${p.count} foto v "${p.trip}".` }),
     collab_message: p => ({ title: `Nová zpráva v "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Balení: ${p.category}`, body: `${p.actor} vás přiřadil do kategorie "${p.category}" v "${p.trip}".` }),
@@ -244,7 +244,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Új foglalás: ${p.booking}`, body: `${p.actor} hozzáadott egy "${p.booking}" (${p.type}) foglalást a(z) "${p.trip}" utazáshoz.` }),
     trip_reminder: p => ({ title: `Utazás emlékeztető: ${p.trip}`, body: `A(z) "${p.trip}" utazás hamarosan kezdődik!` }),
     todo_due: p => ({ title: `Teendő esedékes: ${p.todo}`, body: `"${p.todo}" (${p.trip}) határideje: ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Vacay Fusion meghívó', body: `${p.actor} meghívott a nyaralási tervek összevonásához. Nyissa meg a TREK-et az elfogadáshoz vagy elutasításhoz.` }),
+    vacay_invite: p => ({ title: 'Vacay Fusion meghívó', body: `${p.actor} meghívott a nyaralási tervek összevonásához. Nyissa meg a ROAM-ot az elfogadáshoz vagy elutasításhoz.` }),
     photos_shared: p => ({ title: `${p.count} fotó megosztva`, body: `${p.actor} ${p.count} fotót osztott meg a(z) "${p.trip}" utazásban.` }),
     collab_message: p => ({ title: `Új üzenet a(z) "${p.trip}" utazásban`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Csomagolás: ${p.category}`, body: `${p.actor} hozzárendelte Önt a "${p.category}" csomagolási kategóriához a(z) "${p.trip}" utazásban.` }),
@@ -257,7 +257,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nuova prenotazione: ${p.booking}`, body: `${p.actor} ha aggiunto una prenotazione "${p.booking}" (${p.type}) a "${p.trip}".` }),
     trip_reminder: p => ({ title: `Promemoria viaggio: ${p.trip}`, body: `Il tuo viaggio "${p.trip}" si avvicina!` }),
     todo_due: p => ({ title: `Attività in scadenza: ${p.todo}`, body: `"${p.todo}" in "${p.trip}" scade il ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Invito Vacay Fusion', body: `${p.actor} ti ha invitato a fondere i piani vacanza. Apri TREK per accettare o rifiutare.` }),
+    vacay_invite: p => ({ title: 'Invito Vacay Fusion', body: `${p.actor} ti ha invitato a fondere i piani vacanza. Apri ROAM per accettare o rifiutare.` }),
     photos_shared: p => ({ title: `${p.count} foto condivise`, body: `${p.actor} ha condiviso ${p.count} foto in "${p.trip}".` }),
     collab_message: p => ({ title: `Nuovo messaggio in "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Bagagli: ${p.category}`, body: `${p.actor} ti ha assegnato alla categoria "${p.category}" in "${p.trip}".` }),
@@ -270,7 +270,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Nowa rezerwacja: ${p.booking}`, body: `${p.actor} dodał rezerwację "${p.booking}" (${p.type}) do "${p.trip}".` }),
     trip_reminder: p => ({ title: `Przypomnienie o podróży: ${p.trip}`, body: `Twoja podróż "${p.trip}" zbliża się!` }),
     todo_due: p => ({ title: `Zadanie z terminem: ${p.todo}`, body: `"${p.todo}" w "${p.trip}" — termin ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Zaproszenie Vacay Fusion', body: `${p.actor} zaprosił Cię do połączenia planów urlopowych. Otwórz TREK, aby zaakceptować lub odrzucić.` }),
+    vacay_invite: p => ({ title: 'Zaproszenie Vacay Fusion', body: `${p.actor} zaprosił Cię do połączenia planów urlopowych. Otwórz ROAM, aby zaakceptować lub odrzucić.` }),
     photos_shared: p => ({ title: `${p.count} zdjęć udostępnionych`, body: `${p.actor} udostępnił ${p.count} zdjęcie/zdjęcia w "${p.trip}".` }),
     collab_message: p => ({ title: `Nowa wiadomość w "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Pakowanie: ${p.category}`, body: `${p.actor} przypisał Cię do kategorii "${p.category}" w "${p.trip}".` }),
@@ -283,7 +283,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     booking_change: p => ({ title: `Pemesanan baru: ${p.booking}`, body: `${p.actor} menambahkan "${p.booking}" (${p.type}) baru ke "${p.trip}".` }),
     trip_reminder: p => ({ title: `Pengingat perjalanan: ${p.trip}`, body: `Perjalanan Anda "${p.trip}" akan segera tiba!` }),
     todo_due: p => ({ title: `Tugas jatuh tempo: ${p.todo}`, body: `"${p.todo}" di "${p.trip}" jatuh tempo pada ${p.due}.` }),
-    vacay_invite: p => ({ title: 'Undangan Penggabungan Vacay', body: `${p.actor} mengundang Anda untuk menggabungkan rencana liburan. Buka TREK untuk menerima atau menolak.` }),
+    vacay_invite: p => ({ title: 'Undangan Penggabungan Vacay', body: `${p.actor} mengundang Anda untuk menggabungkan rencana liburan. Buka ROAM untuk menerima atau menolak.` }),
     photos_shared: p => ({ title: `${p.count} foto dibagikan`, body: `${p.actor} membagikan ${p.count} foto di "${p.trip}".` }),
     collab_message: p => ({ title: `Pesan baru di "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Pengepakan: ${p.category}`, body: `${p.actor} menugaskan Anda ke kategori "${p.category}" di "${p.trip}".` }),
@@ -318,8 +318,8 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
         <!-- Header -->
         <tr><td style="background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%); padding: 32px 32px 28px; text-align: center;">
           <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4NCiAgPGRlZnM+DQogICAgPGxpbmVhckdyYWRpZW50IGlkPSJiZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGYxNzJhIi8+DQogICAgPC9saW5lYXJHcmFkaWVudD4NCiAgICA8Y2xpcFBhdGggaWQ9Imljb24iPg0KICAgICAgPHBhdGggZD0iTSA4NTUuNjM2NzE5IDY5OS4yMDMxMjUgTCAyMjIuMjQ2MDk0IDY5OS4yMDMxMjUgQyAxOTcuNjc5Njg4IDY5OS4yMDMxMjUgMTc5LjkwNjI1IDY3NS43NSAxODYuNTM5MDYyIDY1Mi4xMDE1NjIgTCAzNjAuNDI5Njg4IDMyLjM5MDYyNSBDIDM2NC45MjE4NzUgMTYuMzg2NzE5IDM3OS41MTE3MTkgNS4zMjgxMjUgMzk2LjEzMjgxMiA1LjMyODEyNSBMIDEwMjkuNTI3MzQ0IDUuMzI4MTI1IEMgMTA1NC4wODk4NDQgNS4zMjgxMjUgMTA3MS44NjcxODggMjguNzc3MzQ0IDEwNjUuMjMwNDY5IDUyLjQyOTY4OCBMIDg5MS4zMzk4NDQgNjcyLjEzNjcxOSBDIDg4Ni44NTE1NjIgNjg4LjE0MDYyNSA4NzIuMjU3ODEyIDY5OS4yMDMxMjUgODU1LjYzNjcxOSA2OTkuMjAzMTI1IFogTSA0NDQuMjM4MjgxIDExNjYuOTgwNDY5IEwgNTMzLjc3MzQzOCA4NDcuODk4NDM4IEMgNTQwLjQxMDE1NiA4MjQuMjQ2MDk0IDUyMi42MzI4MTIgODAwLjc5Njg3NSA0OTguMDcwMzEyIDgwMC43OTY4NzUgTCAxNzIuNDcyNjU2IDgwMC43OTY4NzUgQyAxNTUuODUxNTYyIDgwMC43OTY4NzUgMTQxLjI2MTcxOSA4MTEuODU1NDY5IDEzNi43Njk1MzEgODI3Ljg1OTM3NSBMIDQ3LjIzNDM3NSAxMTQ2Ljk0MTQwNiBDIDQwLjU5NzY1NiAxMTcwLjU5Mzc1IDU4LjM3NSAxMTk0LjA0Mjk2OSA4Mi45Mzc1IDExOTQuMDQyOTY5IEwgNDA4LjUzNTE1NiAxMTk0LjA0Mjk2OSBDIDQyNS4xNTYyNSAxMTk0LjA0Mjk2OSA0MzkuNzUgMTE4Mi45ODQzNzUgNDQ0LjIzODI4MSAxMTY2Ljk4MDQ2OSBaIE0gNjA5LjAwMzkwNiA4MjcuODU5Mzc1IEwgNDM1LjExMzI4MSAxNDQ3LjU3MDMxMiBDIDQyOC40NzY1NjIgMTQ3MS4yMTg3NSA0NDYuMjUzOTA2IDE0OTQuNjcxODc1IDQ3MC44MTY0MDYgMTQ5NC42NzE4NzUgTCAxMTA0LjIxMDkzOCAxNDk0LjY3MTg3NSBDIDExMjAuODMyMDMxIDE0OTQuNjcxODc1IDExMzUuNDIxODc1IDE0ODMuNjA5Mzc1IDExMzkuOTE0MDYyIDE0NjcuNjA1NDY5IEwgMTMxMy44MDQ2ODggODQ3Ljg5ODQzOCBDIDEzMjAuNDQxNDA2IDgyNC4yNDYwOTQgMTMwMi42NjQwNjIgODAwLjc5Njg3NSAxMjc4LjEwMTU2MiA4MDAuNzk2ODc1IEwgNjQ0LjcwNzAzMSA4MDAuNzk2ODc1IEMgNjI4LjA4NTkzOCA4MDAuNzk2ODc1IDYxMy40OTIxODggODExLjg1NTQ2OSA2MDkuMDAzOTA2IDgyNy44NTkzNzUgWiBNIDEwNTYuMTA1NDY5IDMzMy4wMTk1MzEgTCA5NjYuNTcwMzEyIDY1Mi4xMDE1NjIgQyA5NTkuOTMzNTk0IDY3NS43NSA5NzcuNzEwOTM4IDY5OS4yMDMxMjUgMTAwMi4yNzM0MzggNjk5LjIwMzEyNSBMIDEzMjcuODcxMDk0IDY5OS4yMDMxMjUgQyAxMzQ0LjQ5MjE4OCA2OTkuMjAzMTI1IDEzNTkuMDg1OTM4IDY4OC4xNDA2MjUgMTM2My41NzQyMTkgNjcyLjEzNjcxOSBMIDE0NTMuMTA5Mzc1IDM1My4wNTQ2ODggQyAxNDU5Ljc0NjA5NCAzMjkuNDA2MjUgMTQ0MS45Njg3NSAzMDUuOTUzMTI1IDE0MTcuNDA2MjUgMzA1Ljk1MzEyNSBMIDEwOTEuODA4NTk0IDMwNS45NTMxMjUgQyAxMDc1LjE4NzUgMzA1Ljk1MzEyNSAxMDYwLjU5NzY1NiAzMTcuMDE1NjI1IDEwNTYuMTA1NDY5IDMzMy4wMTk1MzEgWiIvPg0KICAgIDwvY2xpcFBhdGg+DQogIDwvZGVmcz4NCiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9InVybCgjYmcpIi8+DQogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU2LDUxKSBzY2FsZSgwLjI2NykiPg0KICAgIDxyZWN0IHdpZHRoPSIxNTAwIiBoZWlnaHQ9IjE1MDAiIGZpbGw9IiNmZmZmZmYiIGNsaXAtcGF0aD0idXJsKCNpY29uKSIvPg0KICA8L2c+DQo8L3N2Zz4NCg==" alt="TREK" width="48" height="48" style="border-radius: 14px; margin-bottom: 14px; display: block; margin-left: auto; margin-right: auto;" />
-          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">TREK</div>
-          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Travel Resource &amp; Exploration Kit</div>
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">ROAM</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Routes Organized Among Mates</div>
         </td></tr>
         <!-- Content -->
         <tr><td style="padding: 32px 32px 16px;">
@@ -329,7 +329,7 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
         </td></tr>
         <!-- CTA -->
         ${appUrl ? `<tr><td style="padding: 8px 32px 32px; text-align: center;">
-          <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openTrek}</a>
+          <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openRoam}</a>
         </td></tr>` : ''}
         <!-- Footer -->
         <tr><td style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center;">

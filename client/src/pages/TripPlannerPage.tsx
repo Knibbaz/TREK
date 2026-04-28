@@ -203,6 +203,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [tripAccommodations, setTripAccommodations] = useState<Accommodation[]>([])
   const [allowedFileTypes, setAllowedFileTypes] = useState<string | null>(null)
   const [tripMembers, setTripMembers] = useState<TripMember[]>([])
+  const [sharedWithGroup, setSharedWithGroup] = useState(false)
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -340,6 +341,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
           const all = [d.owner, ...(d.members || [])].filter(Boolean)
           setTripMembers(all)
         }).catch(() => {})
+        tripsApi.getGroups(tripId).then(d => setSharedWithGroup((d.groups || []).length > 0)).catch(() => {})
       }
     }
   }, [tripId])
@@ -1084,6 +1086,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                 }}
                 onUpdatePlace={plannerMode === 'view' ? undefined : async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
                 tripId={tripId}
+                sharedWithGroup={sharedWithGroup}
                 leftWidth={(isMobile || window.innerWidth < 900) ? 0 : (leftCollapsed ? 0 : leftWidth)}
                 rightWidth={(isMobile || window.innerWidth < 900) ? 0 : (rightCollapsed ? 0 : rightWidth)}
                 mode={plannerMode === 'view' ? 'right' : 'bottom'}
@@ -1147,6 +1150,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
                     }}
                     onUpdatePlace={plannerMode === 'view' ? undefined : async (placeId, data) => { try { await tripActions.updatePlace(tripId, placeId, data) } catch (err: unknown) { toast.error(err instanceof Error ? err.message : t('common.unknownError')) } }}
                     tripId={tripId}
+                    sharedWithGroup={sharedWithGroup}
                     leftWidth={0}
                     rightWidth={0}
                   />

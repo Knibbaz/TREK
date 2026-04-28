@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
-import { Settings, Palette, Map, Bell, Plug, CloudOff, User, Info } from 'lucide-react'
+import { Settings, Palette, Map, Bell, Plug, CloudOff, User } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { authApi } from '../api/client'
 import { useAddonStore } from '../store/addonStore'
@@ -11,7 +11,6 @@ import MapSettingsTab from '../components/Settings/MapSettingsTab'
 import NotificationsTab from '../components/Settings/NotificationsTab'
 import IntegrationsTab from '../components/Settings/IntegrationsTab'
 import AccountTab from '../components/Settings/AccountTab'
-import AboutTab from '../components/Settings/AboutTab'
 import OfflineTab from '../components/Settings/OfflineTab'
 
 export default function SettingsPage(): React.ReactElement {
@@ -47,9 +46,6 @@ export default function SettingsPage(): React.ReactElement {
       : []),
     { id: 'offline', label: t('settings.tabs.offline'), icon: CloudOff },
     { id: 'account', label: t('settings.tabs.account'), icon: User },
-    ...(appVersion
-      ? [{ id: 'about', label: t('settings.tabs.about'), icon: Info }]
-      : []),
   ]
 
   return (
@@ -83,7 +79,6 @@ export default function SettingsPage(): React.ReactElement {
             {activeTab === 'integrations' && hasIntegrations && <IntegrationsTab />}
             {activeTab === 'offline' && <OfflineTab />}
             {activeTab === 'account' && <AccountTab />}
-            {activeTab === 'about' && appVersion && <AboutTab appVersion={appVersion} />}
           </PageSidebar>
         </div>
       </div>

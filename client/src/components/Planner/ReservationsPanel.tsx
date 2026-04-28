@@ -624,14 +624,6 @@ export default function ReservationsPanel({ tripId, reservations, days, assignme
               <span className="hidden sm:inline">{t(addManualKey)}</span>
             </button>
           )}
-
-          {canEdit && (
-            <button onClick={onAdd} style={{display: 'flex', alignItems: 'center', gap: 5, padding: '7px 14px', borderRadius: 99,
-                border: 'none', background: 'var(--accent)', color: 'var(--accent-text)',
-                fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',}}>
-              <Plus size={13}/> <span className="hidden sm:inline">{t('reservations.addAutomatically')}</span>
-            </button>
-          )}
         </div>
       </div>
 

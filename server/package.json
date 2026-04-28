@@ -1,5 +1,5 @@
 {
-  "name": "trek-server",
+  "name": "roam-server",
   "version": "3.0.10",
   "main": "src/index.ts",
   "scripts": {

@@ -1051,7 +1051,7 @@ const br: Record<string, string | { name: string; category: string }[]> = {
   'reservations.empty': 'Nenhuma reserva ainda',
   'reservations.emptyHint': 'Adicione reservas de voos, hotéis e mais',
   'reservations.add': 'Adicionar reserva',
-  'reservations.addManual': 'Reserva manual',
+  'reservations.addManual': 'Reserva',
   'reservations.placeHint': 'Dica: o ideal é criar reservas a partir de um lugar para vinculá-las ao plano do dia.',
   'reservations.confirmed': 'Confirmada',
   'reservations.pending': 'Pendente',
@@ -2357,7 +2357,7 @@ const br: Record<string, string | { name: string; category: string }[]> = {
   'transport.modalTitle.create': 'Adicionar transporte',
   'transport.modalTitle.edit': 'Editar transporte',
   'transport.title': 'Transportes',
-  'transport.addManual': 'Transporte Manual',
+  'transport.addManual': 'Transporte',
 }
 
 export default br

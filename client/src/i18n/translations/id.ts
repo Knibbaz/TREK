@@ -1130,7 +1130,7 @@ const id: Record<string, string | { name: string; category: string }[]> = {
   'reservations.empty': 'Belum ada reservasi',
   'reservations.emptyHint': 'Tambahkan reservasi untuk penerbangan, hotel, dan lainnya',
   'reservations.add': 'Tambah Reservasi',
-  'reservations.addManual': 'Pemesanan Manual',
+  'reservations.addManual': 'Pemesanan',
   'reservations.placeHint': 'Tips: Reservasi paling baik dibuat langsung dari sebuah tempat agar terhubung dengan rencana harianmu.',
   'reservations.confirmed': 'Dikonfirmasi',
   'reservations.pending': 'Tertunda',
@@ -2390,7 +2390,7 @@ const id: Record<string, string | { name: string; category: string }[]> = {
   'transport.modalTitle.create': 'Tambah transportasi',
   'transport.modalTitle.edit': 'Edit transportasi',
   'transport.title': 'Transportasi',
-  'transport.addManual': 'Transportasi Manual',
+  'transport.addManual': 'Transportasi',
 };
 
 export default id;

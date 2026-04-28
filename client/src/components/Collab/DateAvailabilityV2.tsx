@@ -1159,7 +1159,11 @@ function CreateProposalForm({ groupId, onCreated, onCancel }: CreateFormProps) {
         reminder_days: reminderDays,
       })
       onCreated(data.proposal as DateProposal)
-    } catch { setError(t('common.error')) }
+    } catch (err: unknown) {
+      const status = (err as { response?: { status?: number } })?.response?.status
+      if (status === 409) setError(t('dateAvail.oneOpenProposal'))
+      else setError(t('common.error'))
+    }
     finally { setSaving(false) }
   }
 

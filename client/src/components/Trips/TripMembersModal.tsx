@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { tripsApi, authApi, shareApi } from '../../api/client'
+import { tripsApi, authApi, shareApi, groupsApi } from '../../api/client'
 import { useToast } from '../shared/Toast'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useTripStore } from '../../store/tripStore'
-import { Crown, UserMinus, UserPlus, Users, LogOut, Link2, Trash2, Copy, Check } from 'lucide-react'
+import { Crown, UserMinus, UserPlus, Users, LogOut, Link2, Trash2, Copy, Check, UsersRound } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { getApiErrorMessage } from '../../types'
 import CustomSelect from '../shared/CustomSelect'
@@ -158,6 +158,38 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
         }}>
           <Link2 size={12} /> {t('share.createLink')}
         </button>
+      )}
+    </div>
+  )
+}
+
+function GroupsSection({ tripId, t }: { tripId: number; t: (key: string) => string }) {
+  const [groups, setGroups] = useState<Array<{ id: number; name: string }>>([])
+
+  useEffect(() => {
+    tripsApi.getGroups(tripId).then(d => setGroups(d.groups || [])).catch(() => {})
+  }, [tripId])
+
+  return (
+    <div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
+        <UsersRound size={14} style={{ color: 'var(--text-muted)' }} />
+        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('members.sharedWithGroups')}</span>
+      </div>
+      {groups.length === 0 ? (
+        <p style={{ fontSize: 11, color: 'var(--text-faint)', margin: 0, lineHeight: 1.5 }}>{t('members.noGroups')}</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {groups.map(g => (
+            <div key={g.id} style={{
+              display: 'flex', alignItems: 'center', gap: 8, padding: '7px 10px',
+              background: 'var(--bg-secondary)', borderRadius: 8, border: '1px solid var(--border-faint)',
+            }}>
+              <UsersRound size={13} style={{ color: 'var(--accent)', flexShrink: 0 }} />
+              <span style={{ fontSize: 13, color: 'var(--text-primary)', fontWeight: 500 }}>{g.name}</span>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   )
@@ -369,9 +401,10 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
 
         </div>
 
-        {/* Right column: Share Link */}
-        {canManageShare && <div style={{ borderLeft: '1px solid var(--border-faint)', paddingLeft: 24 }}>
+        {/* Right column: Share Link + Groups */}
+        {canManageShare && <div style={{ borderLeft: '1px solid var(--border-faint)', paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
         <ShareLinkSection tripId={tripId} t={t} />
+        <GroupsSection tripId={tripId} t={t} />
         </div>}
 
         <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }`}</style>

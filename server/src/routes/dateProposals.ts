@@ -158,6 +158,11 @@ router.post('/', authenticate, (req: Request, res: Response) => {
   const days = (end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24) + 1;
   if (days > 366) return res.status(400).json({ error: 'Period cannot exceed 366 days' });
 
+  const existingOpen = db.prepare(
+    "SELECT id FROM date_proposals WHERE group_id = ? AND (status IS NULL OR status = 'open')"
+  ).get(groupId);
+  if (existingOpen) return res.status(409).json({ error: 'A group can only have one open proposal at a time' });
+
   const deadlineVal = deadline && !isNaN(new Date(deadline).getTime()) ? deadline : null;
   const reminderDaysVal = Number.isInteger(Number(reminder_days)) && Number(reminder_days) >= 0 ? Number(reminder_days) : 2;
 

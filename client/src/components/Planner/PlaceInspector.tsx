@@ -243,13 +243,14 @@ interface PlaceInspectorProps {
   leftWidth?: number
   rightWidth?: number
   mode?: 'bottom' | 'right'
+  sharedWithGroup?: boolean
 }
 
 export default function PlaceInspector({
   place, categories, days, selectedDayId, selectedAssignmentId, assignments, reservations = [],
   onClose, onEdit, onDelete, onAssignToDay, onRemoveAssignment,
   files, onFileUpload, tripMembers = [], onSetParticipants, onUpdatePlace,
-  tripId, leftWidth = 0, rightWidth = 0, mode = 'bottom',
+  tripId, leftWidth = 0, rightWidth = 0, mode = 'bottom', sharedWithGroup = false,
 }: PlaceInspectorProps) {
   const { t, locale, language } = useTranslation()
   const timeFormat = useSettingsStore(s => s.settings.time_format) || '24h'
@@ -568,8 +569,8 @@ export default function PlaceInspector({
           </button>
         </div>
 
-        {/* Vote bar */}
-        {tripId && (
+        {/* Vote bar — only when trip is shared with a group */}
+        {tripId && sharedWithGroup && (
           <PlaceVoteBar votes={votes} currentUserId={user?.id ?? null} onVote={handleVote} saving={voteSaving} />
         )}
 

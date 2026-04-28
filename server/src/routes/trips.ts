@@ -394,6 +394,23 @@ router.get('/:id/bundle', authenticate, (req: Request, res: Response) => {
   });
 });
 
+// ── Groups for a trip ─────────────────────────────────────────────────────
+
+router.get('/:id/groups', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  if (!canAccessTrip(req.params.id, authReq.user.id))
+    return res.status(404).json({ error: 'Trip not found' });
+
+  const groups = db.prepare(`
+    SELECT g.id, g.name
+    FROM group_trips gt
+    JOIN groups g ON g.id = gt.group_id
+    WHERE gt.trip_id = ?
+  `).all(req.params.id) as Array<{ id: number; name: string }>;
+
+  res.json({ groups });
+});
+
 // ── ICS calendar export ───────────────────────────────────────────────────
 
 router.get('/:id/export.ics', authenticate, (req: Request, res: Response) => {

@@ -1216,7 +1216,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'reservations.empty': 'No reservations yet',
   'reservations.emptyHint': 'Add reservations for flights, hotels and more',
   'reservations.add': 'Add Reservation',
-  'reservations.addManual': 'Manual Booking',
+  'reservations.addManual': 'Booking',
   'reservations.placeHint': 'Tip: Reservations are best created directly from a place to link them with your day plan.',
   'reservations.confirmed': 'Confirmed',
   'reservations.pending': 'Pending',
@@ -1510,6 +1510,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
 
   // Members / Sharing
   'members.shareTrip': 'Share Trip',
+  'members.sharedWithGroups': 'Shared with groups',
+  'members.noGroups': 'This trip is not linked to any group. Add it via a group to enable voting on places.',
   'members.inviteUser': 'Invite User',
   'members.selectUser': 'Select user…',
   'members.invite': 'Invite',
@@ -2484,7 +2486,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'transport.modalTitle.create': 'Add transport',
   'transport.modalTitle.edit': 'Edit transport',
   'transport.title': 'Transports',
-  'transport.addManual': 'Manual Transport',
+  'transport.addManual': 'Transport',
 
   // Groups
   'groups.title': 'Groups',
@@ -2551,6 +2553,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'collab.tabs.availability': 'Dates',
   'dateAvail.title': 'When can everyone go?',
   'dateAvail.newProposal': 'New proposal',
+  'dateAvail.oneOpenProposal': 'A group can only have one open proposal at a time. Close or delete the existing proposal first.',
   'dateAvail.titlePlaceholder': 'Optional title, e.g. "Summer trip"',
   'dateAvail.from': 'From',
   'dateAvail.to': 'To',

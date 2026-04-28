@@ -1078,7 +1078,7 @@ const fr: Record<string, string> = {
   'reservations.empty': 'Aucune réservation',
   'reservations.emptyHint': 'Ajoutez des réservations pour les vols, hôtels et plus',
   'reservations.add': 'Ajouter une réservation',
-  'reservations.addManual': 'Réservation manuelle',
+  'reservations.addManual': 'Réservation',
   'reservations.placeHint': 'Conseil : les réservations sont mieux créées directement depuis un lieu pour les lier à votre plan du jour.',
   'reservations.confirmed': 'Confirmée',
   'reservations.pending': 'En attente',
@@ -2357,7 +2357,7 @@ const fr: Record<string, string> = {
   'transport.modalTitle.create': 'Ajouter un transport',
   'transport.modalTitle.edit': 'Modifier le transport',
   'transport.title': 'Transports',
-  'transport.addManual': 'Transport manuel',
+  'transport.addManual': 'Transport',
 }
 
 export default fr

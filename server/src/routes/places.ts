@@ -287,6 +287,9 @@ router.put('/:id/vote', authenticate, requireTripAccess, (req: Request, res: Res
   const { tripId, id } = req.params;
   const { vote } = req.body as { vote: unknown };
 
+  const inGroup = db.prepare('SELECT 1 FROM group_trips WHERE trip_id = ?').get(tripId);
+  if (!inGroup) return res.status(403).json({ error: 'Voting is only available for trips shared with a group' });
+
   if (vote === null || vote === undefined) {
     db.prepare('DELETE FROM place_votes WHERE place_id = ? AND user_id = ?').run(id, authReq.user.id);
   } else if (vote === 1 || vote === -1) {

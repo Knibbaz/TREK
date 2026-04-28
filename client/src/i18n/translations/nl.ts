@@ -1136,7 +1136,7 @@ const nl: Record<string, string> = {
   'reservations.empty': 'Nog geen reserveringen',
   'reservations.emptyHint': 'Voeg reserveringen toe voor vluchten, hotels en meer',
   'reservations.add': 'Reservering toevoegen',
-  'reservations.addManual': 'Handmatige boeking',
+  'reservations.addManual': 'Boeking',
   'reservations.placeHint': 'Tip: Reserveringen kun je het beste direct vanuit een plaats aanmaken om ze te koppelen aan je dagplan.',
   'reservations.confirmed': 'Bevestigd',
   'reservations.pending': 'In behandeling',
@@ -1432,6 +1432,8 @@ const nl: Record<string, string> = {
 
   // Members / Sharing
   'members.shareTrip': 'Reis delen',
+  'members.sharedWithGroups': 'Gedeeld met groepen',
+  'members.noGroups': 'Deze reis is niet gekoppeld aan een groep. Voeg hem toe via een groep om stemmen op bestemmingen mogelijk te maken.',
   'members.inviteUser': 'Gebruiker uitnodigen',
   'members.selectUser': 'Selecteer gebruiker…',
   'members.invite': 'Uitnodigen',
@@ -2480,12 +2482,13 @@ const nl: Record<string, string> = {
   'transport.modalTitle.create': 'Vervoer toevoegen',
   'transport.modalTitle.edit': 'Vervoer bewerken',
   'transport.title': 'Transport',
-  'transport.addManual': 'Handmatig transport',
+  'transport.addManual': 'Transport',
 
   // Beschikbaarheid datums
   'collab.tabs.availability': 'Datums',
   'dateAvail.title': 'Wanneer kan iedereen?',
   'dateAvail.newProposal': 'Nieuw voorstel',
+  'dateAvail.oneOpenProposal': 'Een groep kan maar één open voorstel hebben. Sluit of verwijder het bestaande voorstel eerst.',
   'dateAvail.titlePlaceholder': 'Optionele titel, bijv. "Zomervakantie"',
   'dateAvail.from': 'Van',
   'dateAvail.to': 'Tot',
