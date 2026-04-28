@@ -231,9 +231,10 @@ interface RouteLabelProps {
   midpoint: [number, number]
   walkingText: string
   drivingText: string
+  distanceText?: string
 }
 
-function RouteLabel({ midpoint, walkingText, drivingText }: RouteLabelProps) {
+function RouteLabel({ midpoint, walkingText, drivingText, distanceText }: RouteLabelProps) {
   const map = useMap()
   const [visible, setVisible] = useState(map ? map.getZoom() >= 12 : false)
 
@@ -259,6 +260,11 @@ function RouteLabel({ midpoint, walkingText, drivingText }: RouteLabelProps) {
       pointer-events:none;
       position:relative;left:-50%;top:-50%;
     ">
+      ${distanceText ? `<span style="display:flex;align-items:center;gap:2px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+        ${distanceText}
+      </span>` : ''}
+      ${distanceText ? '<span style="opacity:0.3">|</span>' : ''}
       <span style="display:flex;align-items:center;gap:2px">
         <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M7 21l3-7"/><path d="M10 14l5-5"/><path d="M15 9l-4 7"/><path d="M18 18l-3-7"/></svg>
         ${walkingText}
@@ -612,7 +618,7 @@ export const MapView = memo(function MapView({
             />
           ))}
           {routeSegments.map((seg, i) => (
-            <RouteLabel key={i} midpoint={seg.mid} from={seg.from} to={seg.to} walkingText={seg.walkingText} drivingText={seg.drivingText} />
+            <RouteLabel key={i} midpoint={seg.mid} from={seg.from} to={seg.to} walkingText={seg.walkingText} drivingText={seg.drivingText} distanceText={seg.distanceText} />
           ))}
         </>
       )}

@@ -316,6 +316,8 @@ export interface RouteSegment {
   to: [number, number]
   walkingText: string
   drivingText: string
+  distance?: number
+  distanceText?: string
 }
 
 export interface RouteResult {
