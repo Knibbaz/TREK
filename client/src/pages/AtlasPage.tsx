@@ -1080,7 +1080,9 @@ export default function AtlasPage(): React.ReactElement {
                 {t('atlas.legend.visited') || 'Visited'}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fbbf24' }} />
+                <div style={{ width: 14, height: 14, borderRadius: '50%', background: '#fbbf24', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.2)' }}>
+                  <svg width="8" height="8" viewBox="0 0 24 24" fill="white" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+                </div>
                 {t('atlas.legend.bucket') || 'Bucket list'}
               </div>
             </div>
