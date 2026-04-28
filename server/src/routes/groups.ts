@@ -64,10 +64,10 @@ router.post('/:id/members', (req: Request, res: Response) => {
   if (!user_id) return res.status(400).json({ error: 'user_id required' });
   const result = svc.addMemberToGroup(groupId, parseInt(user_id), userId, role || 'member');
   if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
-  const addedUser = db.prepare('SELECT id, username, avatar_url FROM users WHERE id = ?').get(user_id) as { id: number; username: string; avatar_url: string | null } | undefined;
+  const addedUser = db.prepare('SELECT id, username, avatar FROM users WHERE id = ?').get(user_id) as { id: number; username: string; avatar: string | null } | undefined;
   broadcastToGroup(groupId, 'group:memberJoined', {
     groupId,
-    user: addedUser || { id: parseInt(user_id), username: '', avatar_url: null },
+    user: addedUser || { id: parseInt(user_id), username: '', avatar: null },
   }, req.headers['x-socket-id'] as string);
   const group = svc.getGroup(userId, groupId);
   res.json({ group });
@@ -173,10 +173,10 @@ router.post('/join/:token', (req: Request, res: Response) => {
   if (!result.success) return res.status(result.status || 400).json({ error: result.error });
   // Notify all clients in the group room that a new member joined
   if (result.groupId) {
-    const user = db.prepare('SELECT id, username, avatar_url FROM users WHERE id = ?').get(userId) as { id: number; username: string; avatar_url: string | null } | undefined;
+    const user = db.prepare('SELECT id, username, avatar FROM users WHERE id = ?').get(userId) as { id: number; username: string; avatar: string | null } | undefined;
     broadcastToGroup(result.groupId, 'group:memberJoined', {
       groupId: result.groupId,
-      user: user || { id: userId, username: '', avatar_url: null },
+      user: user || { id: userId, username: '', avatar: null },
     }, req.headers['x-socket-id'] as string);
   }
   res.json({ success: true, groupId: result.groupId });
