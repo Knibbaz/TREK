@@ -2423,6 +2423,103 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_user_volunteering_user ON user_volunteering(user_id);
       `);
     },
+    // Migration: Per-day notes on date_availability
+    () => {
+      const cols = db.prepare("PRAGMA table_info('date_availability')").all() as Array<{ name: string }>;
+      const names = new Set(cols.map(c => c.name));
+      if (!names.has('note')) {
+        db.exec("ALTER TABLE date_availability ADD COLUMN note TEXT DEFAULT NULL");
+      }
+    },
+    // Migration: Confirmation fields on date_proposals + guest tables for availability
+    () => {
+      const cols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const names = new Set(cols.map(c => c.name));
+      if (!names.has('confirmed_start')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN confirmed_start TEXT DEFAULT NULL");
+      }
+      if (!names.has('confirmed_end')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN confirmed_end TEXT DEFAULT NULL");
+      }
+      if (!names.has('status')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN status TEXT DEFAULT 'open'");
+      }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS date_proposal_guest_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          guest_name TEXT,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          created_at TEXT DEFAULT (datetime('now')),
+          expires_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_guest_token ON date_proposal_guest_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_guest_token_proposal ON date_proposal_guest_tokens(proposal_id);
+
+        CREATE TABLE IF NOT EXISTS date_availability_guests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+          guest_token_id INTEGER NOT NULL REFERENCES date_proposal_guest_tokens(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+          note TEXT,
+          UNIQUE(proposal_id, guest_token_id, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_date_avail_guests_proposal ON date_availability_guests(proposal_id);
+        CREATE INDEX IF NOT EXISTS idx_date_avail_guests_token ON date_availability_guests(guest_token_id);
+      `);
+    },
+    () => db.exec(`
+      -- Group polls (only 1 open per trip)
+      CREATE TABLE IF NOT EXISTS group_polls (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        description TEXT,
+        type TEXT NOT NULL DEFAULT 'single_choice',
+        anonymous INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT,
+        status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed', 'decided')),
+        decided_option_id TEXT,
+        allow_guest_votes INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_group_polls_trip ON group_polls(trip_id);
+      CREATE INDEX IF NOT EXISTS idx_group_polls_status ON group_polls(status);
+
+      CREATE TABLE IF NOT EXISTS group_poll_options (
+        id TEXT PRIMARY KEY,
+        poll_id TEXT NOT NULL REFERENCES group_polls(id) ON DELETE CASCADE,
+        label TEXT NOT NULL,
+        description TEXT,
+        image_url TEXT,
+        place_id INTEGER REFERENCES places(id),
+        lat REAL,
+        lng REAL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_poll_options_poll ON group_poll_options(poll_id);
+
+      CREATE TABLE IF NOT EXISTS group_poll_votes (
+        id TEXT PRIMARY KEY,
+        poll_id TEXT NOT NULL REFERENCES group_polls(id) ON DELETE CASCADE,
+        option_id TEXT NOT NULL REFERENCES group_poll_options(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        guest_name TEXT,
+        guest_token TEXT,
+        rank INTEGER,
+        swipe_value TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(poll_id, option_id, user_id),
+        UNIQUE(poll_id, option_id, guest_token)
+      );
+      CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON group_poll_votes(poll_id);
+      CREATE INDEX IF NOT EXISTS idx_poll_votes_user ON group_poll_votes(user_id);
+    `),
   ];
 
   if (currentVersion < migrations.length) {

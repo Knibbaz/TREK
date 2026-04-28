@@ -182,4 +182,23 @@ router.post('/join/:token', (req: Request, res: Response) => {
   res.json({ success: true, groupId: result.groupId });
 });
 
+// ── Create poll (only 1 open per group) ─────────────────────────────────────
+router.post('/polls/:tripId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { title, description, type, anonymous, deadline, allow_guest_votes } = req.body;
+  if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
+  
+  const result = svc.createGroupPoll(req.params.tripId, userId, {
+    title,
+    description,
+    type,
+    anonymous,
+    deadline,
+    allow_guest_votes,
+  });
+  
+  if (!result.success) return res.status(400).json({ error: result.error });
+  res.status(201).json({ pollId: result.pollId });
+});
+
 export default router;

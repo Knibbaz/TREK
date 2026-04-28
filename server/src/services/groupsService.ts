@@ -395,3 +395,55 @@ export function joinGroupWithToken(userId: number, token: string): { success: bo
 
   return { success: true, groupId: invite.group_id };
 }
+
+// ── Poll management: only 1 open poll per group ─────────────────────────────
+export function createGroupPoll(
+  tripId: string,
+  createdBy: number,
+  data: { title: string; description?: string; type?: string; anonymous?: boolean; deadline?: string; allow_guest_votes?: boolean }
+): { success: boolean; pollId?: string; error?: string } {
+  // Get trip and its groups
+  const trip = db.prepare('SELECT id FROM trips WHERE id = ?').get(tripId) as { id: string } | undefined;
+  if (!trip) return { success: false, error: 'Trip not found' };
+
+  // Get group(s) for this trip
+  const groups = db.prepare(`
+    SELECT DISTINCT gt.group_id FROM group_trips gt WHERE gt.trip_id = ?
+  `).all(tripId) as { group_id: number }[];
+
+  if (groups.length === 0) return { success: false, error: 'Trip not shared with any group' };
+
+  const groupId = groups[0].group_id; // Assuming 1 group per trip for now
+
+  // Check if user is member of the group
+  const isMember = db.prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, createdBy);
+  if (!isMember) return { success: false, error: 'Forbidden' };
+
+  // Check if there's already an open poll for this trip
+  const openPoll = db.prepare(`
+    SELECT id FROM group_polls WHERE trip_id = ? AND status = 'open'
+  `).get(tripId) as { id: string } | undefined;
+
+  if (openPoll) {
+    return { success: false, error: 'There is already an open poll for this trip. Only 1 open poll per group is allowed.' };
+  }
+
+  // Create the new poll
+  const pollId = require('crypto').randomBytes(12).toString('hex');
+  db.prepare(`
+    INSERT INTO group_polls (id, trip_id, created_by, title, description, type, anonymous, deadline, allow_guest_votes, status, created_at, updated_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', datetime('now'), datetime('now'))
+  `).run(
+    pollId,
+    tripId,
+    createdBy,
+    data.title,
+    data.description || null,
+    data.type || 'single_choice',
+    data.anonymous ? 1 : 0,
+    data.deadline || null,
+    data.allow_guest_votes !== false ? 1 : 0
+  );
+
+  return { success: true, pollId };
+}
