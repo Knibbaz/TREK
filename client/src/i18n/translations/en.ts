@@ -1035,6 +1035,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'atlas.legend.lived': 'Lived',
   'atlas.legend.volunteered': 'Volunteered',
   'atlas.legend.visited': 'Visited',
+  'atlas.legend.bucket': 'Bucket list',
   'account.homeCountry': 'Home country',
   'account.homeCountryHelp': 'Used for public holidays and your Atlas profile',
 

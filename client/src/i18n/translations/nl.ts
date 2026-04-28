@@ -935,6 +935,7 @@ const nl: Record<string, string> = {
   'atlas.legend.lived': 'Gewoond',
   'atlas.legend.volunteered': 'Vrijwilligerswerk',
   'atlas.legend.visited': 'Bezocht',
+  'atlas.legend.bucket': 'Bucketlist',
   'account.homeCountry': 'Thuisland',
   'account.homeCountryHelp': 'Gebruikt voor feestdagen en je Atlas-profiel',
   'atlas.statsTab': 'Statistieken',

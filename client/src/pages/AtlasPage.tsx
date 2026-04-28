@@ -429,6 +429,11 @@ export default function AtlasPage(): React.ReactElement {
     if (!mapInstance.current || !geoData || !data) return
 
     const visitedA3 = new Set(data.countries.map(c => A2_TO_A3[c.code]).filter(Boolean))
+    const bucketA3 = new Set(
+      bucketList
+        .map(b => b.country_code ? A2_TO_A3[b.country_code] : null)
+        .filter(Boolean)
+    )
     const countryMap = {}
     data.countries.forEach(c => { if (A2_TO_A3[c.code]) countryMap[A2_TO_A3[c.code]] = c })
 
@@ -442,6 +447,7 @@ export default function AtlasPage(): React.ReactElement {
 
     // Generate deterministic color per country code
     const VISITED_COLORS = ['#6366f1','#ec4899','#14b8a6','#f97316','#8b5cf6','#ef4444','#3b82f6','#22c55e','#06b6d4','#f43f5e','#a855f7','#10b981','#0ea5e9','#e11d48','#0d9488','#7c3aed','#2563eb','#dc2626','#059669','#d946ef']
+    const BUCKET_LIST_COLOR = '#fbbf24'
     const RESIDENCY_COLOR = '#3b82f6'
     const VOLUNTEERING_COLOR = '#f59e0b'
 
@@ -451,6 +457,7 @@ export default function AtlasPage(): React.ReactElement {
 
     // Assign colors in order of visit (by index in countries array) so no two neighbors share a color easily
     const visitedA3List = [...visitedA3]
+    const bucketA3List = [...bucketA3]
     const colorMap: Record<string, string> = {}
     // Residency highest priority
     residencyA3.forEach(a3 => { colorMap[a3] = RESIDENCY_COLOR })
@@ -458,6 +465,8 @@ export default function AtlasPage(): React.ReactElement {
     volunteeringA3.forEach(a3 => { if (!colorMap[a3]) colorMap[a3] = VOLUNTEERING_COLOR })
     // Visited last
     visitedA3List.forEach((a3, i) => { if (!colorMap[a3]) colorMap[a3] = VISITED_COLORS[i % VISITED_COLORS.length] })
+    // Bucketlist countries
+    bucketA3List.forEach((a3, i) => { if (!colorMap[a3]) colorMap[a3] = BUCKET_LIST_COLOR })
     const colorForCode = (a3: string) => colorMap[a3] || VISITED_COLORS[0]
 
     const canvasRenderer = L.canvas({ padding: 0.5, tolerance: 5 })
@@ -470,10 +479,16 @@ export default function AtlasPage(): React.ReactElement {
         const a3 = feature.properties?.ADM0_A3 || feature.properties?.ISO_A3 || feature.properties?.['ISO3166-1-Alpha-3'] || feature.id
         const isResidency = residencyA3.has(a3)
         const isVolunteering = volunteeringA3.has(a3)
-        const visited = visitedA3.has(a3) || isResidency || isVolunteering
+        const visited = visitedA3.has(a3) || isResidency || isVolunteering;
+        const isBucket = bucketA3.has(a3)
+
         return {
-          fillColor: visited ? colorForCode(a3) : (dark ? '#1e1e2e' : '#e2e8f0'),
-          fillOpacity: visited ? 0.75 : 0.3,
+          fillColor: isBucket
+            ? BUCKET_LIST_COLOR
+            : visited
+            ? colorForCode(a3)
+            : (dark ? '#1e1e2e' : '#e2e8f0'),
+          fillOpacity: isBucket || visited ? 0.75 : 0.3,
           color: dark ? '#333' : '#cbd5e1',
           weight: 0.5,
         }
@@ -544,7 +559,7 @@ export default function AtlasPage(): React.ReactElement {
 
     // Restore map view after re-render
     mapInstance.current.setView(currentCenter, currentZoom, { animate: false })
-  }, [geoData, data, dark])
+  }, [geoData, data, dark, bucketList])
 
   // Render sub-national region layer (zoom >= 5)
   useEffect(() => {
@@ -842,6 +857,10 @@ export default function AtlasPage(): React.ReactElement {
     setBucketSearch('')
   }
 
+  const bucketCountries = useMemo(() => {
+    return new Set(bucketList.map(b => b.country_code))
+  }, [bucketList])
+
   // Render bucket list markers on map
   useEffect(() => {
     if (!mapInstance.current) return
@@ -1059,6 +1078,10 @@ export default function AtlasPage(): React.ReactElement {
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1' }} />
                 {t('atlas.legend.visited') || 'Visited'}
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fbbf24' }} />
+                {t('atlas.legend.bucket') || 'Bucket list'}
               </div>
             </div>
           </div>
