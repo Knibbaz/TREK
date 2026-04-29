@@ -357,6 +357,7 @@ export async function searchPlaces(userId: number, query: string, lang?: string)
     rating: p.rating || null,
     website: p.websiteUri || null,
     phone: p.nationalPhoneNumber || null,
+    types: p.types || [],
     source: 'google',
   }));
 
@@ -370,11 +371,12 @@ export async function autocompletePlaces(
   input: string,
   lang?: string,
   locationBias?: { low: { lat: number; lng: number }; high: { lat: number; lng: number } },
+  types?: string[],
 ): Promise<{ suggestions: { placeId: string; mainText: string; secondaryText: string }[]; source: string }> {
   const apiKey = getMapsKey(userId);
 
   if (!apiKey) {
-    return autocompleteNominatim(input, lang);
+    return autocompleteNominatim(input, lang, types);
   }
 
   const body: Record<string, unknown> = {
@@ -388,6 +390,9 @@ export async function autocompletePlaces(
         high: { latitude: locationBias.high.lat, longitude: locationBias.high.lng },
       },
     };
+  }
+  if (types && types.length > 0) {
+    body.includedPrimaryTypes = types;
   }
 
   const response = await googleFetch('https://places.googleapis.com/v1/places:autocomplete', 'autocomplete', {
@@ -419,21 +424,46 @@ export async function autocompletePlaces(
   return { suggestions, source: 'google' };
 }
 
+// OSM types that correspond to city/region/country level
+const NOMINATIM_CITY_COUNTRY_TYPES = new Set([
+  'city', 'town', 'village', 'municipality', 'county', 'state',
+  'province', 'region', 'country', 'administrative', 'boundary',
+]);
+
 async function autocompleteNominatim(
   input: string,
   lang?: string,
+  types?: string[],
 ): Promise<{ suggestions: { placeId: string; mainText: string; secondaryText: string }[]; source: string }> {
+  const wantCityCountryOnly = types && types.some(t =>
+    ['locality', 'country', 'administrative_area_level_1', 'administrative_area_level_2'].includes(t)
+  );
+
   try {
     const places = await searchNominatim(input, lang);
-    const suggestions = places
-      .filter((p) => p.osm_id && p.osm_id.includes(':') && p.osm_id.split(':')[1] !== '')
+    let filtered = places.filter((p) => p.osm_id && p.osm_id.includes(':') && p.osm_id.split(':')[1] !== '');
+
+    if (wantCityCountryOnly) {
+      // Filter to city/country level results using OSM type from address parts
+      filtered = filtered.filter((p) => {
+        const addr = (p.address || '').toLowerCase();
+        // Keep if OSM type prefix is node/relation (cities/countries tend to be relations)
+        const osmType = p.osm_id?.split(':')[0];
+        if (osmType === 'relation') return true;
+        // Or if address looks like a city/country (short, no street numbers)
+        if (!/\d/.test(p.name || '')) return true;
+        return false;
+      });
+    }
+
+    const suggestions = filtered
       .slice(0, 5)
       .map((p) => {
-        const parts = (p.address || '').split(',').map((s) => s.trim());
+        const parts = (p.address || '').split(',').map((s: string) => s.trim());
         return {
           placeId: p.osm_id,
           mainText: p.name || parts[0] || '',
-          secondaryText: parts.slice(1).join(', '),
+          secondaryText: parts.slice(1, 3).join(', '),
         };
       });
     return { suggestions, source: 'nominatim' };
@@ -487,7 +517,7 @@ export async function getPlaceDetails(userId: number, placeId: string, lang?: st
     method: 'GET',
     headers: {
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,websiteUri,nationalPhoneNumber,regularOpeningHours,googleMapsUri',
+      'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,websiteUri,nationalPhoneNumber,regularOpeningHours,googleMapsUri,types',
     },
   });
 
@@ -512,6 +542,7 @@ export async function getPlaceDetails(userId: number, placeId: string, lang?: st
     opening_hours: data.regularOpeningHours?.weekdayDescriptions || null,
     open_now: data.regularOpeningHours?.openNow ?? null,
     google_maps_url: data.googleMapsUri || null,
+    types: data.types || [],
     summary: null,
     reviews: [],
     source: 'google' as const,
@@ -546,7 +577,7 @@ export async function getPlaceDetailsExpanded(userId: number, placeId: string, l
     method: 'GET',
     headers: {
       'X-Goog-Api-Key': apiKey,
-      'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,websiteUri,nationalPhoneNumber,regularOpeningHours,googleMapsUri,reviews,editorialSummary',
+      'X-Goog-FieldMask': 'id,displayName,formattedAddress,location,rating,userRatingCount,websiteUri,nationalPhoneNumber,regularOpeningHours,googleMapsUri,reviews,editorialSummary,types',
     },
   });
 
@@ -571,6 +602,7 @@ export async function getPlaceDetailsExpanded(userId: number, placeId: string, l
     opening_hours: data.regularOpeningHours?.weekdayDescriptions || null,
     open_now: data.regularOpeningHours?.openNow ?? null,
     google_maps_url: data.googleMapsUri || null,
+    types: data.types || [],
     summary: data.editorialSummary?.text || null,
     reviews: (data.reviews || []).slice(0, 5).map((r: NonNullable<GooglePlaceDetails['reviews']>[number]) => ({
       author: r.authorAttribution?.displayName || null,

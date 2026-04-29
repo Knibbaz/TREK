@@ -396,6 +396,241 @@ export function joinGroupWithToken(userId: number, token: string): { success: bo
   return { success: true, groupId: invite.group_id };
 }
 
+// ── Poll listing & details ───────────────────────────────────────────────────
+export function listGroupPolls(tripId: string, userId: number): Record<string, unknown>[] {
+  // Verify user has access to trip (trip member or group member)
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(tripId, userId, tripId, userId);
+  if (!hasTripAccess) return [];
+
+  const polls = db.prepare(`
+    SELECT p.*, u.username AS creator_name,
+      (SELECT COUNT(*) FROM group_poll_votes WHERE poll_id = p.id) AS total_votes,
+      (SELECT COUNT(DISTINCT user_id) FROM group_poll_votes WHERE poll_id = p.id AND user_id IS NOT NULL) AS voter_count
+    FROM group_polls p
+    LEFT JOIN users u ON u.id = p.created_by
+    WHERE p.trip_id = ?
+    ORDER BY p.created_at DESC
+  `).all(tripId) as Record<string, unknown>[];
+
+  for (const poll of polls) {
+    const pollId = poll.id as string;
+
+    // Options with vote counts
+    poll.options = db.prepare(`
+      SELECT o.*,
+        COUNT(v.id) AS vote_count,
+        MAX(CASE WHEN v.user_id = ? THEN 1 ELSE 0 END) AS user_voted
+      FROM group_poll_options o
+      LEFT JOIN group_poll_votes v ON v.option_id = o.id AND v.poll_id = o.poll_id
+      WHERE o.poll_id = ?
+      GROUP BY o.id
+      ORDER BY o.sort_order, o.created_at
+    `).all(userId, pollId);
+
+    // User's own vote (option id)
+    const myVote = db.prepare(`
+      SELECT option_id FROM group_poll_votes WHERE poll_id = ? AND user_id = ?
+    `).get(pollId, userId) as { option_id: string } | undefined;
+    poll.my_vote = myVote?.option_id || null;
+  }
+
+  return polls;
+}
+
+export function getGroupPoll(pollId: string, userId: number): Record<string, unknown> | null {
+  const poll = db.prepare(`
+    SELECT p.*, u.username AS creator_name
+    FROM group_polls p
+    LEFT JOIN users u ON u.id = p.created_by
+    WHERE p.id = ?
+  `).get(pollId) as Record<string, unknown> | undefined;
+
+  if (!poll) return null;
+
+  // Access check
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return null;
+
+  poll.options = db.prepare(`
+    SELECT o.*,
+      COUNT(v.id) AS vote_count,
+      MAX(CASE WHEN v.user_id = ? THEN 1 ELSE 0 END) AS user_voted
+    FROM group_poll_options o
+    LEFT JOIN group_poll_votes v ON v.option_id = o.id
+    WHERE o.poll_id = ?
+    GROUP BY o.id
+    ORDER BY o.sort_order, o.created_at
+  `).all(userId, pollId);
+
+  const myVote = db.prepare(`
+    SELECT option_id FROM group_poll_votes WHERE poll_id = ? AND user_id = ?
+  `).get(pollId, userId) as { option_id: string } | undefined;
+  poll.my_vote = myVote?.option_id || null;
+
+  return poll;
+}
+
+// ── Poll option management ───────────────────────────────────────────────────
+export function addPollOption(
+  pollId: string,
+  userId: number,
+  data: { label: string; description?: string; lat?: number; lng?: number; image_url?: string }
+): { success: boolean; option?: Record<string, unknown>; error?: string } {
+  const poll = db.prepare('SELECT * FROM group_polls WHERE id = ?').get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (poll.status !== 'open') return { success: false, error: 'Poll is closed' };
+
+  // Access check
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return { success: false, error: 'Forbidden' };
+
+  const count = (db.prepare('SELECT COUNT(*) AS c FROM group_poll_options WHERE poll_id = ?').get(pollId) as { c: number }).c;
+  const optionId = require('crypto').randomBytes(12).toString('hex');
+
+  db.prepare(`
+    INSERT INTO group_poll_options (id, poll_id, label, description, lat, lng, image_url, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(
+    optionId, pollId,
+    data.label.trim(),
+    data.description || null,
+    data.lat ?? null,
+    data.lng ?? null,
+    data.image_url || null,
+    count
+  );
+
+  const option = db.prepare('SELECT * FROM group_poll_options WHERE id = ?').get(optionId);
+  return { success: true, option: option as Record<string, unknown> };
+}
+
+export function deletePollOption(
+  optionId: string,
+  userId: number
+): { success: boolean; error?: string } {
+  const opt = db.prepare(`
+    SELECT o.*, p.status, p.created_by, p.trip_id
+    FROM group_poll_options o
+    JOIN group_polls p ON p.id = o.poll_id
+    WHERE o.id = ?
+  `).get(optionId) as Record<string, unknown> | undefined;
+
+  if (!opt) return { success: false, error: 'Option not found' };
+  if (opt.status !== 'open') return { success: false, error: 'Poll is closed' };
+
+  // Only creator of poll or trip owner can delete options
+  const isOwner = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+  `).get(opt.trip_id, userId);
+  if (opt.created_by !== userId && !isOwner) return { success: false, error: 'Forbidden' };
+
+  db.prepare('DELETE FROM group_poll_options WHERE id = ?').run(optionId);
+  return { success: true };
+}
+
+// ── Voting ───────────────────────────────────────────────────────────────────
+export function castVote(
+  pollId: string,
+  optionId: string,
+  userId: number
+): { success: boolean; error?: string } {
+  const poll = db.prepare('SELECT * FROM group_polls WHERE id = ?').get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (poll.status !== 'open') return { success: false, error: 'Poll is closed' };
+  if (poll.deadline && new Date(poll.deadline as string) < new Date()) {
+    return { success: false, error: 'Poll deadline has passed' };
+  }
+
+  const option = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(optionId, pollId);
+  if (!option) return { success: false, error: 'Option not found' };
+
+  // Access check
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return { success: false, error: 'Forbidden' };
+
+  // Single choice: remove existing vote first
+  if (poll.type === 'single_choice' || !poll.type) {
+    db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND user_id = ?').run(pollId, userId);
+  }
+
+  // Toggle: if already voted on this option, retract
+  const existing = db.prepare('SELECT id FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND user_id = ?').get(pollId, optionId, userId);
+  if (existing) {
+    db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND user_id = ?').run(pollId, optionId, userId);
+  } else {
+    const voteId = require('crypto').randomBytes(12).toString('hex');
+    db.prepare(`
+      INSERT INTO group_poll_votes (id, poll_id, option_id, user_id)
+      VALUES (?, ?, ?, ?)
+    `).run(voteId, pollId, optionId, userId);
+  }
+
+  return { success: true };
+}
+
+export function retractVote(
+  pollId: string,
+  optionId: string,
+  userId: number
+): { success: boolean; error?: string } {
+  const poll = db.prepare('SELECT status FROM group_polls WHERE id = ?').get(pollId) as { status: string } | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (poll.status !== 'open') return { success: false, error: 'Poll is closed' };
+
+  db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND user_id = ?').run(pollId, optionId, userId);
+  return { success: true };
+}
+
+// ── Poll status management ───────────────────────────────────────────────────
+export function updateGroupPollStatus(
+  pollId: string,
+  userId: number,
+  status: 'closed' | 'decided',
+  decidedOptionId?: string
+): { success: boolean; error?: string } {
+  const poll = db.prepare(`
+    SELECT p.*, t.user_id AS trip_owner
+    FROM group_polls p
+    JOIN trips t ON t.id = p.trip_id
+    WHERE p.id = ?
+  `).get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+
+  // Only trip owner or poll creator can close/decide
+  const isGroupAdmin = db.prepare(`
+    SELECT gm.role FROM group_trips gt
+    JOIN group_members gm ON gm.group_id = gt.group_id AND gm.user_id = ?
+    WHERE gt.trip_id = ?
+  `).get(userId, poll.trip_id) as { role: string } | undefined;
+
+  const canManage = poll.trip_owner === userId || poll.created_by === userId ||
+    (isGroupAdmin && (isGroupAdmin.role === 'owner' || isGroupAdmin.role === 'admin'));
+  if (!canManage) return { success: false, error: 'Forbidden' };
+
+  if (decidedOptionId) {
+    const opt = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(decidedOptionId, pollId);
+    if (!opt) return { success: false, error: 'Option not found' };
+  }
+
+  db.prepare(`
+    UPDATE group_polls SET status = ?, decided_option_id = ?, updated_at = datetime('now') WHERE id = ?
+  `).run(status, decidedOptionId || null, pollId);
+
+  return { success: true };
+}
+
 // ── Poll management: only 1 open poll per group ─────────────────────────────
 export function createGroupPoll(
   tripId: string,

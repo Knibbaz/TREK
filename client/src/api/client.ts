@@ -401,8 +401,8 @@ export const journeyApi = {
 
 export const mapsApi = {
   search: (query: string, lang?: string) => apiClient.post(`/maps/search?lang=${lang || 'en'}`, { query }).then(r => r.data),
-  autocomplete: (input: string, lang?: string, locationBias?: { low: { lat: number; lng: number }; high: { lat: number; lng: number } }, signal?: AbortSignal) =>
-    apiClient.post('/maps/autocomplete', { input, lang, locationBias }, { signal }).then(r => r.data),
+  autocomplete: (input: string, lang?: string, locationBias?: { low: { lat: number; lng: number }; high: { lat: number; lng: number } }, signal?: AbortSignal, types?: string[]) =>
+    apiClient.post('/maps/autocomplete', { input, lang, locationBias, types }, { signal }).then(r => r.data),
   details: (placeId: string, lang?: string) => apiClient.get(`/maps/details/${encodeURIComponent(placeId)}`, { params: { lang } }).then(r => r.data),
   placePhoto: (placeId: string, lat?: number, lng?: number, name?: string) => apiClient.get(`/maps/place-photo/${encodeURIComponent(placeId)}`, { params: { lat, lng, name } }).then(r => r.data),
   reverse: (lat: number, lng: number, lang?: string) => apiClient.get('/maps/reverse', { params: { lat, lng, lang } }).then(r => r.data),
@@ -627,6 +627,19 @@ export const groupsApi = {
   deleteInviteLink: (id: number) => apiClient.delete(`/addons/groups/${id}/invite-link`).then(r => r.data),
   validateInvite: (token: string) => apiClient.get(`/addons/groups/join/${token}`).then(r => r.data),
   joinWithToken: (token: string) => apiClient.post(`/addons/groups/join/${token}`).then(r => r.data),
+
+  // Polls
+  listPolls: (tripId: number | string) => apiClient.get(`/addons/groups/polls/${tripId}`).then(r => r.data),
+  createPoll: (tripId: number | string, data: { title: string; description?: string; type?: string; deadline?: string }) =>
+    apiClient.post(`/addons/groups/polls/${tripId}`, data).then(r => r.data),
+  addPollOption: (tripId: number | string, pollId: string, data: { label: string; description?: string; lat?: number; lng?: number }) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/options`, data).then(r => r.data),
+  deletePollOption: (tripId: number | string, pollId: string, optionId: string) =>
+    apiClient.delete(`/addons/groups/polls/${tripId}/${pollId}/options/${optionId}`).then(r => r.data),
+  vote: (tripId: number | string, pollId: string, optionId: string) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/vote`, { option_id: optionId }).then(r => r.data),
+  closePoll: (tripId: number | string, pollId: string, status: 'closed' | 'decided', decidedOptionId?: string) =>
+    apiClient.patch(`/addons/groups/polls/${tripId}/${pollId}`, { status, decided_option_id: decidedOptionId }).then(r => r.data),
 }
 
 export const exploreApi = {

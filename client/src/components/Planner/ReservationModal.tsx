@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import apiClient from '../../api/client'
+import apiClient, { mapsApi } from '../../api/client'
 import { useTripStore } from '../../store/tripStore'
 import { useAddonStore } from '../../store/addonStore'
 import Modal from '../shared/Modal'
 import CustomSelect from '../shared/CustomSelect'
-import { Hotel, Utensils, Ticket, FileText, Users, Paperclip, X, ExternalLink, Link2 } from 'lucide-react'
+import { Hotel, Utensils, Ticket, FileText, Users, Paperclip, X, ExternalLink, Link2, MapPin } from 'lucide-react'
 import { useToast } from '../shared/Toast'
 import { useTranslation } from '../../i18n'
 import { CustomDatePicker } from '../shared/CustomDateTimePicker'
@@ -102,6 +102,12 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
   const [showFilePicker, setShowFilePicker] = useState(false)
   const [linkedFileIds, setLinkedFileIds] = useState<number[]>([])
 
+  // Location autocomplete
+  const [locSuggestions, setLocSuggestions] = useState<{ placeId: string; mainText: string; secondaryText: string }[]>([])
+  const [locOpen, setLocOpen] = useState(false)
+  const locationRef = useRef<HTMLDivElement>(null)
+  const locDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const assignmentOptions = useMemo(
     () => buildAssignmentOptions(days, assignments, t, locale),
     [days, assignments, t, locale]
@@ -166,6 +172,8 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
       })
       setPendingFiles([])
     }
+    setLocSuggestions([])
+    setLocOpen(false)
   }, [reservation, isOpen, selectedDayId, defaultAssignmentId])
 
   // Re-hydrate hotel day range when the accommodations prop arrives after the modal opens
@@ -181,6 +189,37 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
   }, [accommodations, isOpen, reservation])
 
   const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }))
+
+  // Debounced location autocomplete
+  useEffect(() => {
+    if (locDebounceRef.current) clearTimeout(locDebounceRef.current)
+    const trimmed = form.location.trim()
+    if (trimmed.length < 3) { setLocSuggestions([]); return }
+    locDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await mapsApi.autocomplete(trimmed, locale)
+        setLocSuggestions(data.suggestions || [])
+      } catch {
+        setLocSuggestions([])
+      }
+    }, 320)
+    return () => { if (locDebounceRef.current) clearTimeout(locDebounceRef.current) }
+  }, [form.location, locale])
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!locationRef.current?.contains(e.target as Node)) setLocOpen(false)
+    }
+    if (locOpen) document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [locOpen])
+
+  const pickLocation = (s: { placeId: string; mainText: string; secondaryText: string }) => {
+    const addr = s.secondaryText ? `${s.mainText}, ${s.secondaryText}` : s.mainText
+    set('location', addr)
+    setLocSuggestions([])
+    setLocOpen(false)
+  }
 
   const _flightForm: FlightFormFields = {
     type: form.type,
@@ -351,6 +390,45 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
           <label style={labelStyle}>{t('reservations.titleLabel')} *</label>
           <input type="text" value={form.title} onChange={e => set('title', e.target.value)} required
             placeholder={t('reservations.titlePlaceholder')} style={inputStyle} />
+        </div>
+
+        {/* Location / Address with autocomplete */}
+        <div ref={locationRef} style={{ position: 'relative' }}>
+          <label style={labelStyle}>{t('reservations.locationAddress')}</label>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border-primary)', borderRadius: 10, padding: '8px 12px', background: 'var(--bg-input)' }}>
+            <MapPin size={13} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
+            <input
+              type="text"
+              value={form.location}
+              onChange={e => { set('location', e.target.value); setLocOpen(true) }}
+              onFocus={() => { if (locSuggestions.length > 0) setLocOpen(true) }}
+              placeholder={t('reservations.locationPlaceholder')}
+              style={{ flex: 1, border: 'none', outline: 'none', background: 'transparent', fontSize: 13, color: 'var(--text-primary)', fontFamily: 'inherit' }}
+            />
+            {form.location && (
+              <button type="button" onClick={() => { set('location', ''); setLocSuggestions([]); setLocOpen(false) }}
+                style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-faint)', display: 'flex' }}>
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          {locOpen && locSuggestions.length > 0 && (
+            <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border-primary)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.18)', maxHeight: 220, overflowY: 'auto', zIndex: 1000 }}>
+              {locSuggestions.map(s => (
+                <button key={s.placeId} type="button" onClick={() => pickLocation(s)}
+                  style={{ display: 'flex', alignItems: 'flex-start', gap: 8, width: '100%', padding: '8px 12px', border: 'none', cursor: 'pointer', textAlign: 'left', background: 'transparent', color: 'var(--text-primary)', fontFamily: 'inherit' }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--bg-hover)' }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent' }}
+                >
+                  <MapPin size={12} style={{ color: 'var(--text-faint)', marginTop: 2, flexShrink: 0 }} />
+                  <span>
+                    <div style={{ fontSize: 13, fontWeight: 500 }}>{s.mainText}</div>
+                    {s.secondaryText && <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{s.secondaryText}</div>}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Assignment Picker (hidden for hotels) */}

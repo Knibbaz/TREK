@@ -13,6 +13,7 @@ import {
   Link2, Copy, Check
 } from 'lucide-react'
 import DateAvailabilityV2 from '../components/Collab/DateAvailabilityV2'
+import GroupPolls from '../components/Groups/GroupPolls'
 import TripFormModal from '../components/Trips/TripFormModal'
 import toast from 'react-hot-toast'
 
@@ -730,6 +731,26 @@ export default function GroupsPage(): React.ReactElement {
               isAdmin={canManageMembers}
             />
           </div>
+
+          {/* Destination polls — one section per trip in group */}
+          {(currentGroup.trips || []).map(gt => (
+            <div key={gt.trip_id} className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+              <GroupPolls
+                tripId={gt.trip_id}
+                tripTitle={(currentGroup.trips || []).length > 1 ? (gt.trip_title || undefined) : undefined}
+                canCreate={canManageMembers || currentGroup.role === 'member'}
+              />
+            </div>
+          ))}
+
+          {/* No trips — show create/add prompt */}
+          {(currentGroup.trips || []).length === 0 && (
+            <div className="rounded-xl border p-4 text-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+              <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                {t('groups.polls.noTripsForPolls') || 'Voeg een reis toe om bestemmingen voor te stellen en te stemmen.'}
+              </p>
+            </div>
+          )}
           </div>
         )}
       </div>

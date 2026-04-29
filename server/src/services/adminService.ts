@@ -71,7 +71,7 @@ export function listUsers() {
   }));
 }
 
-export function createUser(data: { username: string; email: string; password: string; role?: string }) {
+export function createUser(data: { username: string; email: string; password: string; role?: string; must_change_password?: boolean }) {
   const username = data.username?.trim();
   const email = data.email?.trim();
   const password = data.password?.trim();
@@ -94,10 +94,11 @@ export function createUser(data: { username: string; email: string; password: st
   if (existingEmail) return { error: 'Email already taken', status: 409 };
 
   const passwordHash = bcrypt.hashSync(password, 12);
+  const mustChange = data.must_change_password ? 1 : 0;
 
   const result = db.prepare(
-    'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)'
-  ).run(username, email, passwordHash, data.role || 'user');
+    'INSERT INTO users (username, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)'
+  ).run(username, email, passwordHash, data.role || 'user', mustChange);
 
   const user = db.prepare(
     'SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?'

@@ -206,7 +206,7 @@ export default function AdminPage(): React.ReactElement {
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
   const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string }>({ username: '', email: '', role: 'user', password: '' })
   const [showCreateUser, setShowCreateUser] = useState<boolean>(false)
-  const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string }>({ username: '', email: '', password: '', role: 'user' })
+  const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string; send_welcome_email: boolean }>({ username: '', email: '', password: '', role: 'user', send_welcome_email: false })
 
   // Bag tracking
   const [bagTrackingEnabled, setBagTrackingEnabled] = useState<boolean>(false)
@@ -434,20 +434,33 @@ export default function AdminPage(): React.ReactElement {
   }
 
   const handleCreateUser = async () => {
-    if (!createForm.username.trim() || !createForm.email.trim() || !createForm.password.trim()) {
+    if (!createForm.username.trim() || !createForm.email.trim()) {
       toast.error(t('admin.toast.fieldsRequired'))
       return
     }
-    if (createForm.password.trim().length < 8) {
-      toast.error(t('settings.passwordTooShort'))
-      return
+    if (!createForm.send_welcome_email) {
+      if (!createForm.password.trim()) {
+        toast.error(t('admin.toast.fieldsRequired'))
+        return
+      }
+      if (createForm.password.trim().length < 8) {
+        toast.error(t('settings.passwordTooShort'))
+        return
+      }
     }
     try {
-      const data = await adminApi.createUser(createForm)
+      const payload: Record<string, unknown> = {
+        username: createForm.username,
+        email: createForm.email,
+        role: createForm.role,
+        send_welcome_email: createForm.send_welcome_email,
+      }
+      if (!createForm.send_welcome_email) payload.password = createForm.password
+      const data = await adminApi.createUser(payload)
       setUsers(prev => [data.user, ...prev])
       setShowCreateUser(false)
-      setCreateForm({ username: '', email: '', password: '', role: 'user' })
-      toast.success(t('admin.toast.userCreated'))
+      setCreateForm({ username: '', email: '', password: '', role: 'user', send_welcome_email: false })
+      toast.success(createForm.send_welcome_email ? t('admin.toast.userCreatedWithEmail') : t('admin.toast.userCreated'))
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t('admin.toast.createError')))
     }
@@ -1822,15 +1835,31 @@ export default function AdminPage(): React.ReactElement {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('common.password')} *</label>
-            <input
-              type="password"
-              value={createForm.password}
-              onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
-              placeholder={t('common.password')}
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent text-sm"
-            />
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={createForm.send_welcome_email}
+                onChange={e => setCreateForm(f => ({ ...f, send_welcome_email: e.target.checked, password: '' }))}
+                className="w-4 h-4 rounded border-slate-300 text-slate-900"
+              />
+              <span className="text-sm font-medium text-slate-700">{t('admin.sendWelcomeEmail')}</span>
+            </label>
+            {createForm.send_welcome_email && (
+              <p className="mt-1.5 text-xs text-slate-500">{t('admin.sendWelcomeEmailHint')}</p>
+            )}
           </div>
+          {!createForm.send_welcome_email && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('common.password')} *</label>
+              <input
+                type="password"
+                value={createForm.password}
+                onChange={e => setCreateForm(f => ({ ...f, password: e.target.value }))}
+                placeholder={t('common.password')}
+                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-slate-900 focus:ring-2 focus:ring-slate-400 focus:border-transparent text-sm"
+              />
+            </div>
+          )}
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('settings.role')}</label>
             <CustomSelect

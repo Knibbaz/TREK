@@ -3,7 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { db } from '../db/database';
 import * as svc from '../services/groupsService';
-import { broadcastToGroup } from '../websocket';
+import { broadcastToGroup, broadcast } from '../websocket';
 
 const router = express.Router();
 
@@ -187,7 +187,7 @@ router.post('/polls/:tripId', (req: Request, res: Response) => {
   const userId = (req as AuthRequest).user.id;
   const { title, description, type, anonymous, deadline, allow_guest_votes } = req.body;
   if (!title?.trim()) return res.status(400).json({ error: 'Title is required' });
-  
+
   const result = svc.createGroupPoll(req.params.tripId, userId, {
     title,
     description,
@@ -196,9 +196,84 @@ router.post('/polls/:tripId', (req: Request, res: Response) => {
     deadline,
     allow_guest_votes,
   });
-  
+
   if (!result.success) return res.status(400).json({ error: result.error });
   res.status(201).json({ pollId: result.pollId });
+});
+
+// ── List polls for a trip ────────────────────────────────────────────────────
+router.get('/polls/:tripId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const polls = svc.listGroupPolls(req.params.tripId, userId);
+  res.json({ polls });
+});
+
+// ── Get single poll ──────────────────────────────────────────────────────────
+router.get('/polls/:tripId/:pollId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const poll = svc.getGroupPoll(req.params.pollId, userId);
+  if (!poll) return res.status(404).json({ error: 'Poll not found' });
+  res.json({ poll });
+});
+
+// ── Add option to poll ───────────────────────────────────────────────────────
+router.post('/polls/:tripId/:pollId/options', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { label, description, lat, lng, image_url } = req.body;
+  if (!label?.trim()) return res.status(400).json({ error: 'Label is required' });
+  const result = svc.addPollOption(req.params.pollId, userId, { label, description, lat, lng, image_url });
+  if (!result.success) return res.status(400).json({ error: result.error });
+
+  broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, pollId: req.params.pollId },
+    req.headers['x-socket-id'] as string);
+  res.status(201).json({ option: result.option });
+});
+
+// ── Delete option from poll ──────────────────────────────────────────────────
+router.delete('/polls/:tripId/:pollId/options/:optionId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const result = svc.deletePollOption(req.params.optionId, userId);
+  if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  res.json({ success: true });
+});
+
+// ── Vote ─────────────────────────────────────────────────────────────────────
+router.post('/polls/:tripId/:pollId/vote', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { option_id } = req.body;
+  if (!option_id) return res.status(400).json({ error: 'option_id required' });
+  const result = svc.castVote(req.params.pollId, option_id, userId);
+  if (!result.success) return res.status(400).json({ error: result.error });
+
+  // Broadcast updated poll
+  const poll = svc.getGroupPoll(req.params.pollId, userId);
+  broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, poll },
+    req.headers['x-socket-id'] as string);
+  res.json({ success: true });
+});
+
+// ── Retract vote ─────────────────────────────────────────────────────────────
+router.delete('/polls/:tripId/:pollId/vote/:optionId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const result = svc.retractVote(req.params.pollId, req.params.optionId, userId);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  res.json({ success: true });
+});
+
+// ── Update poll status (close / decide) ─────────────────────────────────────
+router.patch('/polls/:tripId/:pollId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { status, decided_option_id } = req.body;
+  if (!status || (status !== 'closed' && status !== 'decided')) {
+    return res.status(400).json({ error: 'status must be closed or decided' });
+  }
+  const result = svc.updateGroupPollStatus(req.params.pollId, userId, status, decided_option_id);
+  if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+
+  const poll = svc.getGroupPoll(req.params.pollId, userId);
+  broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, poll },
+    req.headers['x-socket-id'] as string);
+  res.json({ success: true, poll });
 });
 
 export default router;

@@ -1,4 +1,5 @@
 import express, { Request, Response } from 'express';
+import { randomBytes } from 'crypto';
 import { authenticate, adminOnly } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { writeAudit, getClientIp, logInfo } from '../services/auditLog';
@@ -6,6 +7,7 @@ import * as svc from '../services/adminService';
 import { getAdminUserDefaults, setAdminUserDefaults } from '../services/settingsService';
 import { invalidateMcpSessions } from '../mcp';
 import { getPreferencesMatrix, setAdminPreferences } from '../services/notificationPreferencesService';
+import { sendWelcomeEmail } from '../services/notifications';
 
 const router = express.Router();
 
@@ -17,9 +19,21 @@ router.get('/users', (_req: Request, res: Response) => {
   res.json({ users: svc.listUsers() });
 });
 
-router.post('/users', (req: Request, res: Response) => {
-  const result = svc.createUser(req.body);
+router.post('/users', async (req: Request, res: Response) => {
+  const { send_welcome_email, ...bodyRest } = req.body;
+  const sendWelcome = !!send_welcome_email;
+
+  // Auto-generate password when welcome email is requested
+  let generatedPassword: string | undefined;
+  if (sendWelcome) {
+    generatedPassword = randomBytes(12).toString('base64url').slice(0, 16);
+    bodyRest.password = generatedPassword;
+    bodyRest.must_change_password = true;
+  }
+
+  const result = svc.createUser(bodyRest);
   if ('error' in result) return res.status(result.status!).json({ error: result.error });
+
   const authReq = req as AuthRequest;
   writeAudit({
     userId: authReq.user.id,
@@ -28,7 +42,12 @@ router.post('/users', (req: Request, res: Response) => {
     ip: getClientIp(req),
     details: result.auditDetails,
   });
-  res.status(201).json({ user: result.user });
+
+  if (sendWelcome && generatedPassword) {
+    await sendWelcomeEmail(bodyRest.email.trim(), bodyRest.username.trim(), generatedPassword);
+  }
+
+  res.status(201).json({ user: result.user, welcome_email_sent: sendWelcome });
 });
 
 router.put('/users/:id', (req: Request, res: Response) => {

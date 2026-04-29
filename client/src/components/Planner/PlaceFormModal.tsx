@@ -35,6 +35,9 @@ interface PlaceFormData {
   price: string
   price_type: string
   currency: string
+  google_place_id?: string
+  osm_id?: string
+  phone?: string
 }
 
 function isGoogleMapsUrl(input: string): boolean {
@@ -84,6 +87,148 @@ interface PlaceFormModalProps {
   onCategoryCreated: (category: Category) => void
   assignmentId: number | null
   dayAssignments?: Assignment[]
+}
+
+// Helper function to map Google Places API types to TREK categories
+function mapGoogleTypesToCategory(googleTypes: string[] = [], existingCategories: Category[]): string | null {
+  if (!googleTypes || googleTypes.length === 0) return null
+
+  // Define mapping of Google types to TREK category names
+  const typeToCategoryMap: Record<string, string> = {
+    // Tourist attractions & landmarks
+    'tourist_attraction': 'Landmark',
+    'landmark': 'Landmark',
+    'point_of_interest': 'Landmark',
+    'museum': 'Museum',
+    'art_gallery': 'Museum',
+    'church': 'Church',
+    'place_of_worship': 'Church',
+    'temple': 'Church',
+    'mosque': 'Church',
+    'synagogue': 'Church',
+    'park': 'Park',
+    'national_park': 'Park',
+    'zoo': 'Zoo',
+    'amusement_park': 'Theme Park',
+    'aquarium': 'Aquarium',
+    'historical_landmark': 'Historical Site',
+    'monument': 'Monument',
+    'castle': 'Castle',
+    'palace': 'Palace',
+    
+    // Food & restaurants
+    'restaurant': 'Restaurant',
+    'cafe': 'Cafe',
+    'bakery': 'Bakery',
+    'bar': 'Bar',
+    'night_club': 'Night Club',
+    'meal_takeaway': 'Takeaway',
+    'meal_delivery': 'Delivery',
+    'food': 'Food',
+    
+    // Shopping
+    'shopping_mall': 'Shopping Mall',
+    'store': 'Shop',
+    'clothing_store': 'Clothing Store',
+    'supermarket': 'Supermarket',
+    'grocery': 'Grocery',
+    'department_store': 'Department Store',
+    'convenience_store': 'Convenience Store',
+    'book_store': 'Book Store',
+    'jewelry_store': 'Jewelry Store',
+    'shoe_store': 'Shoe Store',
+    'electronics_store': 'Electronics Store',
+    'home_goods_store': 'Home Goods',
+    
+    // Accommodation
+    'lodging': 'Hotel',
+    'hotel': 'Hotel',
+    'motel': 'Motel',
+    'hostel': 'Hostel',
+    'bed_and_breakfast': 'B&B',
+    'resort': 'Resort',
+    'campground': 'Campground',
+    'rv_park': 'RV Park',
+    
+    // Transportation
+    'airport': 'Airport',
+    'bus_station': 'Bus Station',
+    'train_station': 'Train Station',
+    'subway_station': 'Subway',
+    'transit_station': 'Transit Station',
+    'taxi_stand': 'Taxi Stand',
+    'parking': 'Parking',
+    'gas_station': 'Gas Station',
+    'car_rental': 'Car Rental',
+    'car_wash': 'Car Wash',
+    
+    // Outdoor & nature
+    'beach': 'Beach',
+    'mountain': 'Mountain',
+    'lake': 'Lake',
+    'river': 'River',
+    'garden': 'Garden',
+    'hiking_area': 'Hiking',
+    'ski_resort': 'Ski Resort',
+    'beach_resort': 'Beach Resort',
+    
+    // Business & services
+    'bank': 'Bank',
+    'atm': 'ATM',
+    'hospital': 'Hospital',
+    'doctor': 'Doctor',
+    'pharmacy': 'Pharmacy',
+    'school': 'School',
+    'university': 'University',
+    'library': 'Library',
+    'city_hall': 'City Hall',
+    'courthouse': 'Courthouse',
+    'post_office': 'Post Office',
+    'embassy': 'Embassy',
+    'police': 'Police',
+    'fire_station': 'Fire Station',
+    'local_government_office': 'Government Office',
+    
+    // Entertainment
+    'movie_theater': 'Cinema',
+    'theater': 'Theater',
+    'concert_hall': 'Concert Hall',
+    'bowling_alley': 'Bowling',
+    'stadium': 'Stadium',
+    'gym': 'Gym',
+    'spa': 'Spa',
+    'casino': 'Casino',
+    
+    // Default fallback
+    'establishment': 'Place',
+    'locality': 'City',
+    'neighborhood': 'Neighborhood',
+  }
+
+  // Create reverse mapping for quick lookup by existing category name
+  const existingCategoryMap = new Map(existingCategories.map(cat => [cat.name.toLowerCase(), cat.id]))
+  
+  // Try to find a direct match from Google types to existing TREK categories
+  for (const googleType of googleTypes) {
+    const mappedName = typeToCategoryMap[googleType]
+    if (mappedName) {
+      // Check if this category already exists in TREK
+      const existingId = existingCategoryMap.get(mappedName.toLowerCase())
+      if (existingId) {
+        return String(existingId)
+      }
+    }
+  }
+  
+  // If no existing category matched, suggest creating the first valid mapped category
+  for (const googleType of googleTypes) {
+    const mappedName = typeToCategoryMap[googleType]
+    if (mappedName) {
+      return null // Signal that a new category should be created
+    }
+  }
+  
+  return null // No matching category found
 }
 
 export default function PlaceFormModal({
@@ -149,6 +294,35 @@ export default function PlaceFormModal({
 
   // Derive location bias bounding box from the trip's existing places
   const places = useTripStore((s) => s.places)
+
+  // Helper function to check if a place already exists in the trip
+  const isPlaceInList = useCallback((result: any): boolean => {
+    if (!places || places.length === 0) return false
+    
+    // Check by google_place_id (most reliable)
+    if (result.google_place_id) {
+      const exists = places.some(p => p.google_place_id === result.google_place_id)
+      if (exists) return true
+    }
+    
+    // Check by osm_id
+    if (result.osm_id) {
+      const exists = places.some(p => p.osm_id === result.osm_id)
+      if (exists) return true
+    }
+    
+    // Fallback: check by name and coordinates
+    if (result.name && result.lat && result.lng) {
+      const exists = places.some(p =>
+        p.name === result.name &&
+        p.lat === result.lat &&
+        p.lng === result.lng
+      )
+      if (exists) return true
+    }
+    
+    return false
+  }, [places])
   const locationBias = useMemo(() => {
     const withCoords = (places || []).filter((p) => p.lat != null && p.lng != null)
     if (withCoords.length === 0) return undefined
@@ -241,7 +415,18 @@ export default function PlaceFormModal({
         }
       }
       const result = await mapsApi.search(mapsSearch, language)
-      setMapsResults(result.places || [])
+      const searchResults = result.places || []
+      // Filter out places that are already in the trip
+      const filteredResults = searchResults.filter((place: any) => !isPlaceInList(place))
+      setMapsResults(filteredResults)
+      
+      // Notify user if some results were filtered out
+      if (searchResults.length > 0 && filteredResults.length === 0) {
+        toast.info(t('places.allPlacesAlreadyInList'))
+      } else if (searchResults.length > filteredResults.length) {
+        const filteredCount = searchResults.length - filteredResults.length
+        toast.info(t('places.filteredExistingPlaces', { count: filteredCount }))
+      }
     } catch (err: unknown) {
       toast.error(t('places.mapsSearchError'))
     } finally {
@@ -249,7 +434,66 @@ export default function PlaceFormModal({
     }
   }
 
-  const handleSelectMapsResult = (result) => {
+  const handleSelectMapsResult = async (result) => {
+    // Try to automatically assign a category based on Google Places types
+    let autoCategoryId = null
+    if (result.types && result.types.length > 0 && categories) {
+      const mappedCategoryId = mapGoogleTypesToCategory(result.types, categories)
+      if (mappedCategoryId) {
+        autoCategoryId = mappedCategoryId
+      } else {
+        // Check if we should create a new category
+        const typeToCategoryMap: Record<string, string> = {
+          'tourist_attraction': 'Landmark', 'landmark': 'Landmark', 'point_of_interest': 'Landmark',
+          'museum': 'Museum', 'art_gallery': 'Museum', 'church': 'Church', 'place_of_worship': 'Church',
+          'temple': 'Church', 'mosque': 'Church', 'synagogue': 'Church', 'park': 'Park',
+          'national_park': 'Park', 'zoo': 'Zoo', 'amusement_park': 'Theme Park', 'aquarium': 'Aquarium',
+          'historical_landmark': 'Historical Site', 'monument': 'Monument', 'castle': 'Castle',
+          'palace': 'Palace', 'restaurant': 'Restaurant', 'cafe': 'Cafe', 'bakery': 'Bakery',
+          'bar': 'Bar', 'night_club': 'Night Club', 'meal_takeaway': 'Takeaway',
+          'meal_delivery': 'Delivery', 'food': 'Food', 'shopping_mall': 'Shopping Mall',
+          'store': 'Shop', 'clothing_store': 'Clothing Store', 'supermarket': 'Supermarket',
+          'grocery': 'Grocery', 'department_store': 'Department Store',
+          'convenience_store': 'Convenience Store', 'book_store': 'Book Store',
+          'jewelry_store': 'Jewelry Store', 'shoe_store': 'Shoe Store',
+          'electronics_store': 'Electronics Store', 'home_goods_store': 'Home Goods',
+          'lodging': 'Hotel', 'hotel': 'Hotel', 'motel': 'Motel', 'hostel': 'Hostel',
+          'bed_and_breakfast': 'B&B', 'resort': 'Resort', 'campground': 'Campground',
+          'rv_park': 'RV Park', 'airport': 'Airport', 'bus_station': 'Bus Station',
+          'train_station': 'Train Station', 'subway_station': 'Subway',
+          'transit_station': 'Transit Station', 'taxi_stand': 'Taxi Stand',
+          'parking': 'Parking', 'gas_station': 'Gas Station', 'car_rental': 'Car Rental',
+          'car_wash': 'Car Wash', 'beach': 'Beach', 'mountain': 'Mountain',
+          'lake': 'Lake', 'river': 'River', 'garden': 'Garden', 'hiking_area': 'Hiking',
+          'ski_resort': 'Ski Resort', 'beach_resort': 'Beach Resort', 'bank': 'Bank',
+          'atm': 'ATM', 'hospital': 'Hospital', 'doctor': 'Doctor', 'pharmacy': 'Pharmacy',
+          'school': 'School', 'university': 'University', 'library': 'Library',
+          'city_hall': 'City Hall', 'courthouse': 'Courthouse', 'post_office': 'Post Office',
+          'embassy': 'Embassy', 'police': 'Police', 'fire_station': 'Fire Station',
+          'local_government_office': 'Government Office', 'movie_theater': 'Cinema',
+          'theater': 'Theater', 'concert_hall': 'Concert Hall', 'bowling_alley': 'Bowling',
+          'stadium': 'Stadium', 'gym': 'Gym', 'spa': 'Spa', 'casino': 'Casino',
+          'establishment': 'Place', 'locality': 'City', 'neighborhood': 'Neighborhood',
+        }
+        
+        for (const googleType of result.types) {
+          const mappedName = typeToCategoryMap[googleType]
+          if (mappedName) {
+            // Create new category
+            try {
+              const newCat = await onCategoryCreated?.({ name: mappedName, color: '#6366f1', icon: 'MapPin' })
+              if (newCat) {
+                autoCategoryId = String(newCat.id)
+              }
+            } catch (err) {
+              console.error('Failed to create category:', err)
+            }
+            break
+          }
+        }
+      }
+    }
+    
     setForm(prev => ({
       ...prev,
       name: result.name || prev.name,
@@ -260,6 +504,7 @@ export default function PlaceFormModal({
       osm_id: result.osm_id || prev.osm_id,
       website: result.website || prev.website,
       phone: result.phone || prev.phone,
+      category_id: autoCategoryId || prev.category_id,
     }))
     setMapsResults([])
     setMapsSearch('')

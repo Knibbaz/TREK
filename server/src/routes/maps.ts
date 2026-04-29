@@ -39,7 +39,7 @@ router.post('/autocomplete', authenticate, async (req: Request, res: Response) =
   if (autocompleteEnabledRow?.value === 'false') return res.status(200).json({ suggestions: [], source: 'disabled' });
 
   const authReq = req as AuthRequest;
-  const { input, lang, locationBias } = req.body;
+  const { input, lang, locationBias, types } = req.body;
 
   if (!input || typeof input !== 'string') {
     return res.status(400).json({ error: 'Input is required' });
@@ -64,6 +64,7 @@ router.post('/autocomplete', authenticate, async (req: Request, res: Response) =
       input,
       lang as string,
       locationBias as { low: { lat: number; lng: number }; high: { lat: number; lng: number } } | undefined,
+      Array.isArray(types) ? types as string[] : undefined,
     );
     res.json(result);
   } catch (err: unknown) {

@@ -442,6 +442,82 @@ export async function sendPasswordResetEmail(
   }
 }
 
+// ── Welcome email (admin-created accounts) ────────────────────────────────
+
+interface WelcomeStrings { subject: string; greeting: string; body: string; note: string; passwordLabel: string }
+
+const WELCOME_I18N: Record<string, WelcomeStrings> = {
+  en: { subject: 'Your ROAM account is ready', greeting: 'Hi', body: 'An administrator has created a ROAM account for you. Use the temporary password below to log in and change it immediately.', note: 'You will be prompted to set a new password on your first login.', passwordLabel: 'Temporary password' },
+  nl: { subject: 'Je ROAM-account is klaar', greeting: 'Hallo', body: 'Een beheerder heeft een ROAM-account voor je aangemaakt. Gebruik het tijdelijke wachtwoord hieronder om in te loggen en verander het direct.', note: 'Je wordt gevraagd een nieuw wachtwoord in te stellen bij je eerste inlog.', passwordLabel: 'Tijdelijk wachtwoord' },
+  de: { subject: 'Dein ROAM-Konto ist bereit', greeting: 'Hallo', body: 'Ein Administrator hat ein ROAM-Konto für dich erstellt. Verwende das temporäre Passwort unten zum Einloggen und ändere es sofort.', note: 'Du wirst beim ersten Login aufgefordert, ein neues Passwort festzulegen.', passwordLabel: 'Temporäres Passwort' },
+  fr: { subject: 'Votre compte ROAM est prêt', greeting: 'Bonjour', body: 'Un administrateur a créé un compte ROAM pour vous. Utilisez le mot de passe temporaire ci-dessous pour vous connecter et changez-le immédiatement.', note: 'Vous serez invité à définir un nouveau mot de passe lors de votre première connexion.', passwordLabel: 'Mot de passe temporaire' },
+};
+
+function buildWelcomeHtml(strings: WelcomeStrings, recipient: string, tempPassword: string, lang: string): string {
+  const safeGreeting = escapeHtml(`${strings.greeting}, ${recipient}`);
+  const safeBody = escapeHtml(strings.body);
+  const safeNote = escapeHtml(strings.note);
+  const safeLabel = escapeHtml(strings.passwordLabel);
+  const safePw = escapeHtml(tempPassword);
+  const block = `
+    <p style="margin:0 0 16px 0; font-size:16px;">${safeGreeting},</p>
+    <p style="margin:0 0 20px 0; font-size:15px; line-height:1.6;">${safeBody}</p>
+    <div style="margin:20px 0; padding:16px 20px; background:#f3f4f6; border-radius:10px; border-left:4px solid #111827;">
+      <p style="margin:0 0 6px 0; font-size:12px; color:#6B7280; text-transform:uppercase; letter-spacing:0.5px;">${safeLabel}</p>
+      <p style="margin:0; font-size:18px; font-weight:700; color:#111827; font-family:monospace; letter-spacing:1px;">${safePw}</p>
+    </div>
+    <p style="margin:0; font-size:13px; color:#6B7280;">${safeNote}</p>
+  `;
+  return buildEmailHtml(strings.subject, block, lang);
+}
+
+export async function sendWelcomeEmail(
+  to: string,
+  username: string,
+  tempPassword: string,
+): Promise<{ delivered: 'email' | 'log' | 'failed' }> {
+  const lang = 'en';
+  const strings = WELCOME_I18N[lang] || WELCOME_I18N.en;
+  const smtpCfg = getSmtpConfig();
+
+  if (!smtpCfg) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `\n===== WELCOME ACCOUNT CREATED =====\n` +
+      `to: ${to}\n` +
+      `username: ${username}\n` +
+      `temp password: ${tempPassword}\n` +
+      `(SMTP is not configured — deliver these credentials to the user manually.)\n` +
+      `===================================\n`,
+    );
+    logInfo(`Welcome email issued (no SMTP) for=${to}`);
+    return { delivered: 'log' };
+  }
+
+  try {
+    const skipTls = process.env.SMTP_SKIP_TLS_VERIFY === 'true' || getAppSetting('smtp_skip_tls_verify') === 'true';
+    const transporter = nodemailer.createTransport({
+      host: smtpCfg.host,
+      port: smtpCfg.port,
+      secure: smtpCfg.secure,
+      auth: smtpCfg.user ? { user: smtpCfg.user, pass: smtpCfg.pass } : undefined,
+      ...(skipTls ? { tls: { rejectUnauthorized: false } } : {}),
+    });
+    await transporter.sendMail({
+      from: smtpCfg.from,
+      to,
+      subject: `ROAM — ${strings.subject}`,
+      text: `${strings.greeting}, ${username}\n\n${strings.body}\n\n${strings.passwordLabel}: ${tempPassword}\n\n${strings.note}`,
+      html: buildWelcomeHtml(strings, username, tempPassword, lang),
+    });
+    logInfo(`Welcome email sent to=${to}`);
+    return { delivered: 'email' };
+  } catch (err) {
+    logError(`Welcome email failed to=${to}: ${err instanceof Error ? err.message : err}`);
+    return { delivered: 'failed' };
+  }
+}
+
 export async function sendEmail(to: string, subject: string, body: string, userId?: number, navigateTarget?: string): Promise<boolean> {
   const config = getSmtpConfig();
   if (!config) return false;
