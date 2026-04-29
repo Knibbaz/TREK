@@ -193,6 +193,27 @@ export function removeMemberFromGroup(groupId: number, memberUserId: number, act
   return { success: true };
 }
 
+// ── Leave group with optional admin reassignment ──────────────────────────────
+export function leaveGroupWithReassignment(groupId: number, userId: number, newAdminId?: number): { success: boolean; error?: string } {
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
+  if (!member) return { success: false, error: 'Member not found' };
+
+  // If leaving admin, require reassignment
+  if (member.role === 'admin' && newAdminId) {
+    const newAdmin = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, newAdminId) as { role: string } | undefined;
+    if (!newAdmin) return { success: false, error: 'New admin not found' };
+
+    // Promote new admin
+    db.prepare(`UPDATE group_members SET role = 'admin' WHERE group_id = ? AND user_id = ?`).run(groupId, newAdminId);
+  }
+
+  // Remove self
+  db.prepare(`DELETE FROM group_members WHERE group_id = ? AND user_id = ?`).run(groupId, userId);
+  removeUserFromGroupTrips(groupId, userId);
+
+  return { success: true };
+}
+
 // ── Update member role ──────────────────────────────────────────────────────
 export function updateMemberRole(groupId: number, memberUserId: number, actingUserId: number, newRole: 'admin' | 'member'): { success: boolean; error?: string } {
   const actor = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, actingUserId) as { role: string } | undefined;

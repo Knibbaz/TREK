@@ -611,6 +611,8 @@ export const groupsApi = {
     apiClient.post(`/addons/groups/${id}/members`, { user_id: userId, role }).then(r => r.data),
   removeMember: (id: number, userId: number) =>
     apiClient.delete(`/addons/groups/${id}/members/${userId}`).then(r => r.data),
+  leaveGroup: (id: number, newAdminId?: number) =>
+    apiClient.post(`/addons/groups/${id}/leave`, { new_admin_id: newAdminId }).then(r => r.data),
   updateMemberRole: (id: number, userId: number, role: string) =>
     apiClient.put(`/addons/groups/${id}/members/${userId}/role`, { role }).then(r => r.data),
 
@@ -660,6 +662,18 @@ export const exploreApi = {
     apiClient.post(`/addons/explore/trips/${sourceTripId}/community-places`, data).then(r => r.data),
   deleteCommunityPlace: (sourceTripId: number | string, placeId: number | string) =>
     apiClient.delete(`/addons/explore/trips/${sourceTripId}/community-places/${placeId}`).then(r => r.data),
+  // Creator submission flow
+  submitTrip: (id: number | string, data: { price?: number; descriptions?: Record<string, string>; community_enabled?: boolean }) =>
+    apiClient.post(`/addons/explore/trips/${id}/submit`, data).then(r => r.data),
+  getMySubmissions: () => apiClient.get('/addons/explore/my-submissions').then(r => r.data),
+  withdrawSubmission: (submissionId: number | string) => apiClient.delete(`/addons/explore/submissions/${submissionId}`).then(r => r.data),
+  // Admin submission management
+  getSubmissions: (status?: 'pending' | 'approved' | 'rejected') =>
+    apiClient.get('/addons/explore/submissions', { params: status ? { status } : undefined }).then(r => r.data),
+  approveSubmission: (submissionId: number | string, data: { auto_approve?: boolean; price?: number; descriptions?: Record<string, string>; community_enabled?: boolean }) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/approve`, data).then(r => r.data),
+  rejectSubmission: (submissionId: number | string) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/reject`).then(r => r.data),
 }
 
 export const atlasApi = {

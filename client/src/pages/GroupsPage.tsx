@@ -60,6 +60,8 @@ export default function GroupsPage(): React.ReactElement {
   const [copied, setCopied] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
   const [inviteForm, setInviteForm] = useState<{ max_uses: number; expires_in_days: number | '' }>({ max_uses: 1, expires_in_days: 7 })
+  const [showAdminReassignModal, setShowAdminReassignModal] = useState(false)
+  const [selectedNewAdmin, setSelectedNewAdmin] = useState<number | null>(null)
 
   useEffect(() => { loadGroups() }, [])
   useEffect(() => { clearError() }, [view])
@@ -178,12 +180,39 @@ export default function GroupsPage(): React.ReactElement {
 
   const handleLeaveGroup = async () => {
     if (!currentGroup || !user) return
+
+    // If admin, show reassignment modal
+    if (currentGroup.role === 'admin') {
+      setShowAdminReassignModal(true)
+      setShowLeaveConfirm(false)
+      return
+    }
+
     try {
       await removeMember(currentGroup.id, user.id)
       toast.success(t('groups.toast.left') || 'Left group')
       setShowLeaveConfirm(false)
       setView('list')
       setCurrentGroup(null)
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleLeaveAsAdmin = async () => {
+    if (!currentGroup || !user) return
+    if (!selectedNewAdmin) {
+      toast.error(t('groups.admin.selectReplacement') || 'Please select a member to promote to admin')
+      return
+    }
+    try {
+      await groupsApi.leaveGroup(currentGroup.id, selectedNewAdmin)
+      toast.success(t('groups.toast.left') || 'Left group')
+      setShowAdminReassignModal(false)
+      setShowLeaveConfirm(false)
+      setView('list')
+      setCurrentGroup(null)
+      setSelectedNewAdmin(null)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -998,6 +1027,65 @@ export default function GroupsPage(): React.ReactElement {
         trip={null}
         onCoverUpdate={() => {}}
       />
+
+      {/* Admin reassignment modal */}
+      <Modal
+        isOpen={showAdminReassignModal}
+        onClose={() => { setShowAdminReassignModal(false); setSelectedNewAdmin(null) }}
+        title={t('groups.admin.reassignTitle') || 'Select Replacement Admin'}
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setShowAdminReassignModal(false); setSelectedNewAdmin(null) }}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+            >
+              {t('common.cancel') || 'Cancel'}
+            </button>
+            <button
+              onClick={handleLeaveAsAdmin}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white"
+              style={{ background: 'var(--accent)' }}
+            >
+              {t('groups.admin.promoteAndLeave') || 'Promote & Leave'}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>
+            {t('groups.admin.reassignBody') || 'As an admin, please select a member to promote to admin before leaving.'}
+          </p>
+          <div className="space-y-2 max-h-48 overflow-y-auto">
+            {(currentGroup?.members || [])
+              .filter(m => m.user_id !== user?.id && m.role !== 'admin')
+              .map(member => (
+                <button
+                  key={member.user_id}
+                  onClick={() => setSelectedNewAdmin(member.user_id)}
+                  className="w-full text-left p-3 rounded-lg border transition-colors"
+                  style={{
+                    background: selectedNewAdmin === member.user_id ? 'var(--accent)' : 'var(--bg-secondary)',
+                    borderColor: selectedNewAdmin === member.user_id ? 'var(--accent)' : 'var(--border-primary)',
+                    color: selectedNewAdmin === member.user_id ? 'white' : 'var(--text-primary)',
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    {member.avatar ? (
+                      <img src={member.avatar} alt="" className="w-6 h-6 rounded-full object-cover" />
+                    ) : (
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'var(--bg-card)' }}>
+                        <User size={12} />
+                      </div>
+                    )}
+                    <span className="text-sm font-medium">{member.username}</span>
+                  </div>
+                </button>
+              ))}
+          </div>
+        </div>
+      </Modal>
 
       {/* Invite link creation modal */}
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title={t('admin.invite.create')} size="sm">

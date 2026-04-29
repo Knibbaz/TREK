@@ -87,6 +87,20 @@ router.delete('/:id/members/:userId', (req: Request, res: Response) => {
   res.json({ success: true });
 });
 
+// ── Leave group with optional admin reassignment ────────────────────────────
+router.post('/:id/leave', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const { new_admin_id } = req.body;
+  const result = svc.leaveGroupWithReassignment(groupId, userId, new_admin_id ? parseInt(new_admin_id) : undefined);
+  if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  broadcastToGroup(groupId, 'group:memberLeft', {
+    groupId,
+    userId,
+  }, req.headers['x-socket-id'] as string);
+  res.json({ success: true });
+});
+
 // ── Update member role ──────────────────────────────────────────────────────
 router.put('/:id/members/:userId/role', (req: Request, res: Response) => {
   const userId = (req as AuthRequest).user.id;
