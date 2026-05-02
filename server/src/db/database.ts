@@ -132,11 +132,11 @@ function canAccessGroup(groupId: number | string, userId: number): boolean {
   return !!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
 }
 
-try {
-  const { backfillFlightEndpoints } = require('../services/airportService');
+// Backfill flight endpoints on startup (lazy import to avoid circular deps)
+import('../services/airportService').then(({ backfillFlightEndpoints }) => {
   backfillFlightEndpoints();
-} catch (err) {
+}).catch((err) => {
   console.error('[DB] Flight endpoint backfill failed:', err);
-}
+});
 
 export { db, closeDb, reinitialize, getPlaceWithTags, canAccessTrip, canAccessGroup, isOwner };
