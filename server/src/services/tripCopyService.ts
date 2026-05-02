@@ -159,6 +159,26 @@ export function copyTripTransaction(
       if (newDayId) insertNote.run(newDayId, newTripId, n.text, n.time, n.icon, n.sort_order);
     }
 
+    // 12. Copy todo_items (checked reset to 0, assigned_user_id reset to null)
+    const oldTodos = db.prepare('SELECT * FROM todo_items WHERE trip_id = ?').all(sourceTripId) as any[];
+    const insertTodo = db.prepare(`
+      INSERT INTO todo_items (trip_id, name, checked, category, sort_order, due_date, description, assigned_user_id, priority)
+      VALUES (?, ?, 0, ?, ?, ?, ?, NULL, ?)
+    `);
+    for (const t of oldTodos) {
+      insertTodo.run(newTripId, t.name, t.category, t.sort_order, t.due_date, t.description, t.priority);
+    }
+
+    // 13. Copy budget_category_order
+    const oldCategoryOrder = db.prepare('SELECT category, sort_order FROM budget_category_order WHERE trip_id = ?').all(sourceTripId) as any[];
+    const insertCategoryOrder = db.prepare(`
+      INSERT INTO budget_category_order (trip_id, category, sort_order)
+      VALUES (?, ?, ?)
+    `);
+    for (const o of oldCategoryOrder) {
+      insertCategoryOrder.run(newTripId, o.category, o.sort_order);
+    }
+
     return newTripId;
   })();
 }

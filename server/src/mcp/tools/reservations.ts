@@ -61,7 +61,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
         ? { place_id, start_day_id, end_day_id, check_in: check_in || undefined, check_out: check_out || undefined, confirmation: confirmation_number || undefined }
         : undefined;
 
-      const { reservation, accommodationCreated } = createReservation(tripId, {
+      const { reservation, accommodationCreated } = await createReservation(tripId, {
         title, type, reservation_time, location, confirmation_number,
         notes, day_id, place_id, assignment_id,
         create_accommodation: createAccommodation,

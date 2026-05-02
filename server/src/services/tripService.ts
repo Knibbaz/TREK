@@ -119,7 +119,7 @@ export function generateDays(tripId: number | bigint | string, startDate: string
     }
   }
 
-  // Overflow dated days (trip shrunk): clip spanning accommodations, then delete
+  // Overflow dated days (trip shrunk): clip spanning accommodations, then make dateless
   const overflowDays = dated.slice(targetDates.length);
   if (overflowDays.length > 0) {
     const overflowIds = overflowDays.map(d => d.id);
@@ -134,16 +134,21 @@ export function generateDays(tripId: number | bigint | string, startDate: string
            AND start_day_id IN (${validIds.join(',')})`
       ).run(lastValidDayId);
     }
-    const del = db.prepare('DELETE FROM days WHERE id = ?');
-    for (const d of overflowDays) del.run(d.id);
+    // Convert overflow days to dateless (preserve assignments, notes, etc.)
+    const nullify = db.prepare('UPDATE days SET date = NULL WHERE id = ?');
+    for (const d of overflowDays) nullify.run(d.id);
   }
 
-  // Any remaining unused dateless days: keep as dateless, just renumber.
-  // Base must be max(targetDates.length, dated.length) to avoid colliding with
-  // positives already assigned by the main loop or the overflow loop above.
-  const maxAssigned = Math.max(targetDates.length, dated.length);
-  for (let i = datelessIdx; i < dateless.length; i++) {
-    setDayNumber.run(maxAssigned + (i - datelessIdx) + 1, dateless[i].id);
+  // Any remaining unused dateless days (including newly converted overflow):
+  // keep as dateless, just renumber behind the dated days.
+  // Collect all currently dateless days that haven't been assigned a slot yet.
+  const newlyDateless = overflowDays.filter(d => !dateless.some(dl => dl.id === d.id));
+  const allUnusedDateless = [
+    ...dateless.slice(datelessIdx),
+    ...newlyDateless,
+  ];
+  for (let i = 0; i < allUnusedDateless.length; i++) {
+    setDayNumber.run(targetDates.length + i + 1, allUnusedDateless[i].id);
   }
 
   // Final renumber to compact and eliminate any gaps/negatives
