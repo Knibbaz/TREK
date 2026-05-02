@@ -1,6 +1,6 @@
 /* Trip validation middleware tests */
 import { describe, it, beforeEach, afterEach } from 'vitest';
-import { validateTripRequirements } from '../../middleware/trip-validation';
+import { validateTripRequirements } from '../../middleware/trip-validation.ts';
 import { db } from '../../utils';
 
 describe('Trip Validation Middleware', () => {
