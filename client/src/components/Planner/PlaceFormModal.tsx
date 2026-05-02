@@ -7,10 +7,11 @@ import { useCanDo } from '../../store/permissionsStore'
 import { useTripStore } from '../../store/tripStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
-import { Search, Paperclip, X, AlertTriangle, Loader2 } from 'lucide-react'
+import { Search, Paperclip, X, AlertTriangle, Loader2, Camera, Trash2 } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import CustomTimePicker from '../shared/CustomTimePicker'
 import type { Place, Category, Assignment } from '../../types'
+import { placesApi } from '../../api/client'
 
 const CURRENCIES = [
   'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CZK', 'PLN', 'SEK', 'NOK', 'DKK',
@@ -80,6 +81,7 @@ interface PlaceFormModalProps {
   isOpen: boolean
   onClose: () => void
   onSave: (data: PlaceFormData, files?: File[]) => Promise<void> | void
+  onPhotoChange?: (placeId: number, imageUrl: string | null) => void
   place: Place | null
   prefillCoords?: { lat: number; lng: number; name?: string; address?: string } | null
   tripId: number
@@ -232,7 +234,7 @@ function mapGoogleTypesToCategory(googleTypes: string[] = [], existingCategories
 }
 
 export default function PlaceFormModal({
-  isOpen, onClose, onSave, place, prefillCoords, tripId, categories,
+  isOpen, onClose, onSave, onPhotoChange, place, prefillCoords, tripId, categories,
   onCategoryCreated, assignmentId, dayAssignments = [],
 }: PlaceFormModalProps) {
   const [form, setForm] = useState(DEFAULT_FORM)
@@ -243,7 +245,11 @@ export default function PlaceFormModal({
   const [showNewCategory, setShowNewCategory] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [pendingFiles, setPendingFiles] = useState([])
+  const [unsplashPhotos, setUnsplashPhotos] = useState<any[]>([])
+  const [isUnsplashModalOpen, setIsUnsplashModalOpen] = useState(false)
+  const [unsplashQuery, setUnsplashQuery] = useState('')
   const fileRef = useRef(null)
+  const photoRef = useRef(null)
   const [acSuggestions, setAcSuggestions] = useState<{ placeId: string; mainText: string; secondaryText: string }[]>([])
   const [acHighlight, setAcHighlight] = useState(-1)
   const acDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -580,6 +586,65 @@ export default function PlaceFormModal({
 
   const handleRemoveFile = (idx) => {
     setPendingFiles(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const handlePhotoAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file || !place) return
+
+    const formData = new FormData()
+    formData.append('photo', file)
+
+    try {
+      const result = await placesApi.uploadPhoto(tripId, place.id, formData)
+      if (result.place) {
+        toast.success(t('places.photoUploaded'))
+        onPhotoChange?.(place.id, result.place.image_url)
+      }
+    } catch (err: unknown) {
+      toast.error(t('places.photoUploadError'))
+    }
+    e.target.value = ''
+  }
+
+  const handlePhotoDelete = async () => {
+    if (!place) return
+
+    try {
+      await placesApi.deletePhoto(tripId, place.id)
+      toast.success(t('places.photoDeleted'))
+      onPhotoChange?.(place.id, null)
+    } catch (err: unknown) {
+      toast.error(t('places.photoDeleteError'))
+    }
+  }
+
+  const handleSearchUnsplash = useCallback(async (query?: string) => {
+    if (!place) return
+    const q = query || unsplashQuery
+    if (!q.trim() && !place.name) return
+    try {
+      const result = await placesApi.searchImage(tripId, place.id, q.trim() || undefined)
+      setUnsplashPhotos(result.photos || [])
+    } catch (error: unknown) {
+      console.error('Failed to search Unsplash:', error)
+      toast.error(t('places.unsplashSearchError'))
+    }
+  }, [unsplashQuery, place, tripId, t])
+
+  const handleSelectUnsplashImage = async (url: string) => {
+    if (!place) return
+    try {
+      const result = await placesApi.setImage(tripId, place.id, url)
+      if (result.place) {
+        toast.success(t('places.photoUploaded'))
+        onPhotoChange?.(place.id, result.place.image_url)
+      }
+      setIsUnsplashModalOpen(false)
+      setUnsplashPhotos([])
+    } catch (err: unknown) {
+      toast.error(t('places.photoUploadError'))
+    }
   }
 
   // Paste support for files/images
@@ -919,6 +984,134 @@ export default function PlaceFormModal({
             className="form-input"
           />
         </div>
+
+        {/* Photo */}
+        {place && (
+          <div className="border border-gray-200 rounded-xl p-3 space-y-3">
+            <label className="block text-sm font-medium text-gray-700">{t('places.formPhoto')}</label>
+
+            {/* Current photo preview */}
+            {place.image_url ? (
+              <div className="relative rounded-lg overflow-hidden" style={{ maxHeight: 160 }}>
+                <img
+                  src={place.image_url}
+                  alt={place.name}
+                  className="w-full h-full object-cover"
+                  style={{ maxHeight: 160 }}
+                />
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">{t('places.photoHint')}</p>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => photoRef.current?.click()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                <Camera size={13} />
+                {place.image_url ? t('places.changePhoto') : t('places.addPhoto')}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUnsplashQuery(place.name || '')
+                  setIsUnsplashModalOpen(true)
+                  handleSearchUnsplash(place.name || '')
+                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                <Search size={13} />
+                {t('places.searchUnsplash')}
+              </button>
+              {place.image_url && (
+                <button
+                  type="button"
+                  onClick={handlePhotoDelete}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 bg-white border border-red-200 rounded-lg hover:bg-red-50"
+                >
+                  <Trash2 size={13} />
+                  {t('places.deletePhoto')}
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={photoRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={handlePhotoAdd}
+            />
+
+            {/* Unsplash picker */}
+            {isUnsplashModalOpen && (
+              <div className="mt-3 border border-slate-200 rounded-xl p-3 bg-slate-50 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium text-gray-700">{t('places.searchUnsplash')}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setIsUnsplashModalOpen(false); setUnsplashPhotos([]) }}
+                    className="text-slate-400 hover:text-slate-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={unsplashQuery}
+                    onChange={e => setUnsplashQuery(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); handleSearchUnsplash() } }}
+                    placeholder={t('places.unsplashSearchPlaceholder')}
+                    className="flex-1 border border-slate-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-slate-400 bg-white"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleSearchUnsplash()}
+                    className="bg-slate-900 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-700"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                </div>
+                {unsplashPhotos.length > 0 ? (
+                  <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                    {unsplashPhotos.map((photo: any) => (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() => handleSelectUnsplashImage(photo.url)}
+                        className="relative group rounded-lg overflow-hidden aspect-[4/3] bg-slate-200"
+                        title={photo.description || ''}
+                      >
+                        <img
+                          src={photo.thumb || photo.url}
+                          alt={photo.description || ''}
+                          className="w-full h-full object-cover group-hover:opacity-80 transition-opacity"
+                          loading="lazy"
+                        />
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                          <span className="bg-slate-900 text-white text-xs px-2 py-1 rounded-md font-medium">
+                            {t('places.selectPhoto')}
+                          </span>
+                        </div>
+                        {photo.photographer && (
+                          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent px-2 py-1">
+                            <span className="text-[9px] text-white/90">{photo.photographer}</span>
+                          </div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">{t('places.noPhotosFound')}</p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* File Attachments */}
         {canUploadFiles && (

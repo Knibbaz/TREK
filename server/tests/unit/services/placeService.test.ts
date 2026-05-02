@@ -433,7 +433,7 @@ describe('searchPlaceImage', () => {
     const trip = createTrip(testDb, user.id);
     const place = createPlace(testDb, trip.id, { name: 'Eiffel Tower' }) as any;
     const result = await searchPlaceImage(String(trip.id), String(place.id), user.id) as any;
-    expect(result.error).toMatch(/No Unsplash API key/);
+    expect(result.error).toMatch(/Unsplash not configured/);
     expect(result.status).toBe(400);
   });
 
@@ -441,7 +441,7 @@ describe('searchPlaceImage', () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id);
     const place = createPlace(testDb, trip.id, { name: 'Eiffel Tower' }) as any;
-    testDb.prepare('UPDATE users SET unsplash_api_key = ? WHERE id = ?').run('test-unsplash-key', user.id);
+    testDb.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('unsplash_api_key', ?)").run('test-unsplash-key');
 
     const mockPhotos = [
       { id: 'photo1', urls: { regular: 'https://img.example.com/1', thumb: 'https://img.example.com/t1' }, description: 'Tower', user: { name: 'Photographer' }, links: { html: 'https://unsplash.com/1' } },

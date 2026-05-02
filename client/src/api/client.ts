@@ -203,7 +203,10 @@ export const placesApi = {
   get: (tripId: number | string, id: number | string) => apiClient.get(`/trips/${tripId}/places/${id}`).then(r => r.data),
   update: (tripId: number | string, id: number | string, data: Record<string, unknown>) => apiClient.put(`/trips/${tripId}/places/${id}`, data).then(r => r.data),
   delete: (tripId: number | string, id: number | string) => apiClient.delete(`/trips/${tripId}/places/${id}`).then(r => r.data),
-  searchImage: (tripId: number | string, id: number | string) => apiClient.get(`/trips/${tripId}/places/${id}/image`).then(r => r.data),
+  searchImage: (tripId: number | string, id: number | string, q?: string) => apiClient.get(`/trips/${tripId}/places/${id}/image${q ? `?q=${encodeURIComponent(q)}` : ''}`).then(r => r.data),
+  setImage: (tripId: number | string, id: number | string, imageUrl: string) => apiClient.post(`/trips/${tripId}/places/${id}/image`, { image_url: imageUrl }).then(r => r.data),
+  uploadPhoto: (tripId: number | string, id: number | string, formData: FormData) => apiClient.post(`/trips/${tripId}/places/${id}/photo`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  deletePhoto: (tripId: number | string, id: number | string) => apiClient.delete(`/trips/${tripId}/places/${id}/photo`).then(r => r.data),
   importGpx: (tripId: number | string, file: File, opts?: { waypoints?: boolean; routes?: boolean; tracks?: boolean }) => {
     const fd = new FormData()
     fd.append('file', file)

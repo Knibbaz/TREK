@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams } from 'react-router-dom'
 import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet'
+import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import { useTranslation, SUPPORTED_LANGUAGES } from '../i18n'
 import { useSettingsStore } from '../store/settingsStore'
@@ -9,12 +10,21 @@ import { shareApi } from '../api/client'
 import { getCategoryIcon } from '../components/shared/categoryIcons'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle, Copy } from 'lucide-react'
+import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle, Copy, Phone } from 'lucide-react'
 import { useAuthStore } from '../store/authStore'
-import { isDayInAccommodationRange } from '../utils/dayOrder'
 
 const TRANSPORT_TYPES = new Set(['flight', 'train', 'bus', 'car', 'cruise'])
 const TRANSPORT_ICONS = { flight: Plane, train: Train, bus: Bus, car: Car, cruise: Ship }
+
+function clusterIconCreateFunction(cluster: any) {
+  const count = cluster.getChildCount()
+  const size = count < 10 ? 36 : count < 50 ? 42 : 48
+  return L.divIcon({
+    html: `<div class="marker-cluster-custom" style="width:${size}px;height:${size}px;"><span>${count}</span></div>`,
+    className: 'marker-cluster-wrapper',
+    iconSize: L.point(size, size),
+  })
+}
 
 function createMarkerIcon(place: any) {
   const cat = place.category
@@ -50,6 +60,7 @@ export default function SharedTripPage() {
   const [showLangPicker, setShowLangPicker] = useState(false)
   const [cloning, setCloning] = useState(false)
   const [cloneMsg, setCloneMsg] = useState<{ ok: boolean; text: string } | null>(null)
+  const [selectedPlace, setSelectedPlace] = useState<any>(null)
 
   useEffect(() => {
     if (!token) return
@@ -148,6 +159,58 @@ export default function SharedTripPage() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
+        {/* Clone button with info */}
+        {permissions?.allow_clone && (
+          <div style={{ background: 'var(--bg-card, white)', borderRadius: 14, border: '1px solid var(--border-faint, #e5e7eb)', padding: '20px', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 8 }}>{t('share.cloneTitle')}</h3>
+              <p style={{ fontSize: 13, color: '#6b7280', margin: 0, lineHeight: 1.6 }}>
+                {t('share.cloneDescription')}
+              </p>
+            </div>
+
+            {cloneMsg && (
+              <div style={{ marginBottom: 12, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
+                {cloneMsg.text}
+              </div>
+            )}
+
+            {user ? (
+              <button onClick={async () => {
+                if (cloning || !token) return
+                setCloning(true)
+                setCloneMsg(null)
+                try {
+                  const d = await shareApi.cloneTrip(token)
+                  setCloneMsg({ ok: true, text: t('share.cloneSuccess') })
+                  setTimeout(() => { window.location.href = `/trips/${d.tripId}` }, 1200)
+                } catch {
+                  setCloneMsg({ ok: false, text: t('share.cloneError') })
+                } finally {
+                  setCloning(false)
+                }
+              }} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
+                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
+                background: 'var(--accent, #111827)', color: 'white',
+                fontSize: 13, fontWeight: 600, cursor: cloning ? 'default' : 'pointer',
+                fontFamily: 'inherit', opacity: cloning ? 0.6 : 1, transition: 'all 0.15s',
+              }}>
+                <Copy size={14} /> {cloning ? '...' : t('share.cloneButton')}
+              </button>
+            ) : (
+              <a href="/login" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
+                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
+                background: 'var(--accent, #111827)', color: 'white',
+                fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: 'inherit',
+              }}>
+                <Copy size={14} /> {t('share.cloneLoginRequired')}
+              </a>
+            )}
+          </div>
+        )}
+        
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 20, overflowX: 'auto', padding: '2px 0' }}>
           {[
@@ -176,16 +239,114 @@ export default function SharedTripPage() {
           <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
             <FitBoundsToPlaces places={mapPlaces} />
-            {mapPlaces.map((p: any) => (
-              <Marker key={p.id} position={[p.lat, p.lng]} icon={createMarkerIcon(p)}>
-                <Tooltip>{p.name}</Tooltip>
-              </Marker>
-            ))}
+            <MarkerClusterGroup
+              chunkedLoading
+              chunkInterval={30}
+              chunkDelay={0}
+              maxClusterRadius={30}
+              disableClusteringAtZoom={11}
+              spiderfyOnMaxZoom
+              showCoverageOnHover={false}
+              zoomToBoundsOnClick
+              animate={false}
+              iconCreateFunction={clusterIconCreateFunction}
+            >
+              {mapPlaces.map((p: any) => (
+                <Marker key={p.id} position={[p.lat, p.lng]} icon={createMarkerIcon(p)} eventHandlers={{ click: () => setSelectedPlace(p) }}>
+                  <Tooltip direction="top" offset={[0, -10]} permanent={false}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>{p.name}</div>
+                    {p.address && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{p.address}</div>}
+                    {p.category?.name && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{p.category.name}</div>}
+                  </Tooltip>
+                </Marker>
+              ))}
+            </MarkerClusterGroup>
           </MapContainer>
         </div>
         )}
 
-        {/* Day Plan */}
+        {/* Place Detail Modal */}
+        {selectedPlace && (
+          <div onClick={() => setSelectedPlace(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+            <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, overflow: 'hidden', maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+              {/* Image */}
+              {selectedPlace.image_url && (
+                <div style={{ width: '100%', height: 240, background: '#f3f4f6', backgroundImage: `url(${selectedPlace.image_url})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+              )}
+              
+              {/* Content */}
+              <div style={{ padding: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <h2 style={{ fontSize: 18, fontWeight: 700, color: '#111827', margin: 0 }}>{selectedPlace.name}</h2>
+                    {selectedPlace.category && (
+                      <div style={{ fontSize: 12, color: '#6b7280', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <span style={{ width: 12, height: 12, borderRadius: '50%', background: selectedPlace.category.color || '#6366f1' }} />
+                        {selectedPlace.category.name}
+                      </div>
+                    )}
+                  </div>
+                  <button onClick={() => setSelectedPlace(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#6b7280', padding: 0 }}>×</button>
+                </div>
+
+                {/* Description */}
+                {selectedPlace.description && (
+                  <p style={{ fontSize: 13, color: '#374151', lineHeight: 1.6, marginBottom: 12, marginTop: 0 }}>{selectedPlace.description}</p>
+                )}
+
+                {/* Address */}
+                {selectedPlace.address && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', gap: 8 }}>
+                    <MapPin size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                    {selectedPlace.address}
+                  </div>
+                )}
+
+                {/* Time */}
+                {selectedPlace.place_time && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', gap: 8 }}>
+                    <Clock size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                    {new Date(`2000-01-01T${selectedPlace.place_time}`).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                    {selectedPlace.end_time && ` - ${new Date(`2000-01-01T${selectedPlace.end_time}`).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}`}
+                  </div>
+                )}
+
+                {/* Price */}
+                {selectedPlace.price && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', gap: 8 }}>
+                    <Wallet size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                    {selectedPlace.price} {selectedPlace.place_currency || trip?.currency || 'EUR'}
+                  </div>
+                )}
+
+                {/* Website */}
+                {selectedPlace.website && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', gap: 8 }}>
+                    <FileText size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                    <a href={selectedPlace.website} target="_blank" rel="noopener noreferrer" style={{ color: '#3b82f6', textDecoration: 'none' }}>{selectedPlace.website}</a>
+                  </div>
+                )}
+
+                {/* Phone */}
+                {selectedPlace.phone && (
+                  <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 12, display: 'flex', gap: 8 }}>
+                    <Phone size={16} style={{ flexShrink: 0, marginTop: 2 }} />
+                    {selectedPlace.phone}
+                  </div>
+                )}
+
+                {/* Tags */}
+                {selectedPlace.tags && selectedPlace.tags.length > 0 && (
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid #e5e7eb' }}>
+                    {selectedPlace.tags.map((tag: any) => (
+                      <span key={tag} style={{ fontSize: 11, padding: '4px 8px', borderRadius: 6, background: '#f3f4f6', color: '#6b7280' }}>{tag}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
         {permissions?.share_plan !== false && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {sortedDays.map((day: any, di: number) => {
@@ -388,50 +549,6 @@ export default function SharedTripPage() {
                 )
               })}
             </div>
-          </div>
-        )}
-
-        {/* Clone button */}
-        {permissions?.allow_clone && (
-          <div style={{ margin: '24px 0 0', textAlign: 'center' }}>
-            {cloneMsg && (
-              <div style={{ marginBottom: 10, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
-                {cloneMsg.text}
-              </div>
-            )}
-            {user ? (
-              <button onClick={async () => {
-                if (cloning || !token) return
-                setCloning(true)
-                setCloneMsg(null)
-                try {
-                  const d = await shareApi.cloneTrip(token)
-                  setCloneMsg({ ok: true, text: t('share.cloneSuccess') })
-                  setTimeout(() => { window.location.href = `/trips/${d.tripId}` }, 1200)
-                } catch {
-                  setCloneMsg({ ok: false, text: t('share.cloneError') })
-                } finally {
-                  setCloning(false)
-                }
-              }} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
-                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
-                background: 'var(--bg-card, white)', color: 'var(--text-primary, #111827)',
-                fontSize: 13, fontWeight: 600, cursor: cloning ? 'default' : 'pointer',
-                fontFamily: 'inherit', opacity: cloning ? 0.6 : 1, transition: 'all 0.15s',
-              }}>
-                <Copy size={14} /> {cloning ? '...' : t('share.cloneButton')}
-              </button>
-            ) : (
-              <a href="/login" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
-                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
-                background: 'var(--bg-card, white)', color: '#6b7280',
-                fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: 'inherit',
-              }}>
-                <Copy size={14} /> {t('share.cloneLoginRequired')}
-              </a>
-            )}
           </div>
         )}
 

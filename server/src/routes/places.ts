@@ -1,5 +1,8 @@
 import express, { Request, Response } from 'express';
 import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { requireTripAccess } from '../middleware/tripAccess';
 import { broadcast } from '../websocket';
@@ -24,6 +27,33 @@ import {
 import { onPlaceCreated, onPlaceUpdated, onPlaceDeleted } from '../services/journeyService';
 
 const uploadMulter = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
+
+// Photo upload for places
+const MAX_PHOTO_SIZE = 10 * 1024 * 1024; // 10 MB
+const placePhotosDir = path.join(__dirname, '../../uploads/place-photos');
+const photoStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => {
+    if (!fs.existsSync(placePhotosDir)) fs.mkdirSync(placePhotosDir, { recursive: true });
+    cb(null, placePhotosDir);
+  },
+  filename: (_req, file, cb) => {
+    const ext = path.extname(file.originalname);
+    cb(null, `${uuidv4()}${ext}`);
+  },
+});
+const uploadPhoto = multer({
+  storage: photoStorage,
+  limits: { fileSize: MAX_PHOTO_SIZE },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+    if (file.mimetype.startsWith('image/') && !file.mimetype.includes('svg') && allowedExts.includes(ext)) {
+      cb(null, true);
+    } else {
+      cb(new Error('Only jpg, png, gif, webp images allowed'));
+    }
+  },
+});
 
 const router = express.Router({ mergeParams: true });
 
@@ -191,9 +221,10 @@ router.get('/:id', authenticate, requireTripAccess, (req: Request, res: Response
 router.get('/:id/image', authenticate, requireTripAccess, async (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const { tripId, id } = req.params;
+  const manualQuery = typeof req.query.q === 'string' ? req.query.q : undefined;
 
   try {
-    const result = await searchPlaceImage(tripId, id, authReq.user.id);
+    const result = await searchPlaceImage(tripId, id, authReq.user.id, manualQuery);
 
     if ('error' in result) {
       return res.status(result.status).json({ error: result.error });
@@ -204,6 +235,37 @@ router.get('/:id/image', authenticate, requireTripAccess, async (req: Request, r
     console.error('Unsplash error:', err);
     res.status(500).json({ error: 'Error searching for image' });
   }
+});
+
+// Set Unsplash image as place photo
+router.post('/:id/image', authenticate, requireTripAccess, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  if (!checkPermission('place_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
+    return res.status(403).json({ error: 'No permission' });
+
+  const { tripId, id } = req.params;
+  const { image_url } = req.body;
+
+  if (!image_url || typeof image_url !== 'string') {
+    return res.status(400).json({ error: 'image_url is required' });
+  }
+
+  const place = getPlace(tripId, id);
+  if (!place) {
+    return res.status(404).json({ error: 'Place not found' });
+  }
+
+  // Delete old uploaded photo if exists
+  if (place.image_url && place.image_url.startsWith('/uploads/place-photos/')) {
+    const oldPath = path.join(__dirname, '../..', place.image_url);
+    try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch {}
+  }
+
+  const updated = updatePlace(tripId, id, { image_url });
+  
+  res.json({ place: updated });
+  broadcast(tripId, 'place:updated', { place: updated }, req.headers['x-socket-id'] as string);
+  try { onPlaceUpdated(Number(id)); } catch {}
 });
 
 router.put('/:id', authenticate, requireTripAccess, validateStringLengths({ name: 200, description: 2000, address: 500, notes: 2000 }), (req: Request, res: Response) => {
@@ -221,6 +283,60 @@ router.put('/:id', authenticate, requireTripAccess, validateStringLengths({ name
   res.json({ place });
   broadcast(tripId, 'place:updated', { place }, req.headers['x-socket-id'] as string);
   try { onPlaceUpdated(place.id); } catch {}
+});
+
+// ── Place photo upload ────────────────────────────────────────────────────
+router.post('/:id/photo', authenticate, requireTripAccess, uploadPhoto.single('photo'), (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  if (!checkPermission('place_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
+    return res.status(403).json({ error: 'No permission' });
+
+  const { tripId, id } = req.params;
+  const place = getPlace(tripId, id);
+  if (!place) {
+    return res.status(404).json({ error: 'Place not found' });
+  }
+  if (!req.file) {
+    return res.status(400).json({ error: 'No image uploaded' });
+  }
+
+  // Delete old photo if exists
+  if (place.image_url && place.image_url.startsWith('/uploads/place-photos/')) {
+    const oldPath = path.join(__dirname, '../..', place.image_url);
+    try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch {}
+  }
+
+  const photoUrl = `/uploads/place-photos/${req.file.filename}`;
+  const updated = updatePlace(tripId, id, { image_url: photoUrl });
+  
+  res.json({ place: updated });
+  broadcast(tripId, 'place:updated', { place: updated }, req.headers['x-socket-id'] as string);
+  try { onPlaceUpdated(Number(id)); } catch {}
+});
+
+// ── Place photo delete ────────────────────────────────────────────────────
+router.delete('/:id/photo', authenticate, requireTripAccess, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  if (!checkPermission('place_edit', authReq.user.role, authReq.trip!.user_id, authReq.user.id, authReq.trip!.user_id !== authReq.user.id))
+    return res.status(403).json({ error: 'No permission' });
+
+  const { tripId, id } = req.params;
+  const place = getPlace(tripId, id);
+  if (!place) {
+    return res.status(404).json({ error: 'Place not found' });
+  }
+
+  // Delete old photo file if exists
+  if (place.image_url && place.image_url.startsWith('/uploads/place-photos/')) {
+    const oldPath = path.join(__dirname, '../..', place.image_url);
+    try { if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath); } catch {}
+  }
+
+  const updated = updatePlace(tripId, id, { image_url: null });
+  
+  res.json({ place: updated });
+  broadcast(tripId, 'place:updated', { place: updated }, req.headers['x-socket-id'] as string);
+  try { onPlaceUpdated(Number(id)); } catch {}
 });
 
 // Bulk delete (must be before /:id)

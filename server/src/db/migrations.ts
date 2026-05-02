@@ -2588,6 +2588,12 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_trip_collab_token ON trip_collab_tokens(token);
       `);
     },
+    () => {
+      // Add share_description permission flag to share_tokens.
+      // Controls whether the trip description is visible on the public share link. Default off.
+      try { db.exec('ALTER TABLE share_tokens ADD COLUMN share_description INTEGER DEFAULT 0'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
     // Migration: Swap inverted start_day_id/end_day_id pairs in day_accommodations caused
     // by the old Math.min/Math.max picker bug (pre-8e05ba7) which used raw IDs
     // instead of positional order on trips with non-monotonic day ID layouts.

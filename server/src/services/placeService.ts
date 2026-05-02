@@ -805,16 +805,16 @@ export async function importNaverList(
 // Search place image (Unsplash)
 // ---------------------------------------------------------------------------
 
-export async function searchPlaceImage(tripId: string, placeId: string, _userId: number) {
+export async function searchPlaceImage(tripId: string, placeId: string, _userId: number, manualQuery?: string) {
   const place = db.prepare('SELECT * FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId) as Place | undefined;
   if (!place) return { error: 'Place not found', status: 404 };
 
   const apiKey = getUnsplashApiKeyRaw();
   if (!apiKey) return { error: 'Unsplash not configured', status: 400 };
 
-  const query = encodeURIComponent(place.name + (place.address ? ' ' + place.address : ''));
+  const query = encodeURIComponent(manualQuery || (place.name + (place.address ? ' ' + place.address : '')));
   const response = await fetch(
-    `https://api.unsplash.com/search/photos?query=${query}&per_page=5&client_id=${apiKey}`,
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=12&client_id=${apiKey}`,
   );
   const data = await response.json() as UnsplashSearchResponse;
 

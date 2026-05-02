@@ -114,6 +114,7 @@ export function getSharedTripData(token: string): Record<string, any> | null {
         COALESCE(da.assignment_time, p.place_time) as place_time,
         COALESCE(da.assignment_end_time, p.end_time) as end_time,
         p.duration_minutes, p.notes as place_notes, p.image_url, p.transport_mode,
+        p.website, p.phone,
         c.name as category_name, c.color as category_color, c.icon as category_icon
       FROM day_assignments da
       JOIN places p ON da.place_id = p.id
@@ -135,6 +136,7 @@ export function getSharedTripData(token: string): Record<string, any> | null {
           lat: a.lat, lng: a.lng, address: a.address, category_id: a.category_id,
           price: a.price, place_time: a.place_time, end_time: a.end_time,
           image_url: a.image_url, transport_mode: a.transport_mode,
+          website: a.website, phone: a.phone,
           category: a.category_id ? { id: a.category_id, name: a.category_name, color: a.category_color, icon: a.category_icon } : null,
           tags: tagsByPlace[a.place_id] || [],
         }
