@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import apiClient, { adminApi, authApi, notificationsApi } from '../api/client'
+import apiClient, { adminApi, authApi, notificationsApi, exploreApi } from '../api/client'
 import DevNotificationsPanel from '../components/Admin/DevNotificationsPanel'
 import DefaultUserSettingsTab from '../components/Admin/DefaultUserSettingsTab'
 import { useAuthStore } from '../store/authStore'
@@ -20,7 +20,7 @@ import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
-import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug } from 'lucide-react'
+import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 
@@ -28,12 +28,29 @@ interface AdminUser {
   id: number
   username: string
   email: string
-  role: 'admin' | 'user'
+  role: 'admin' | 'user' | 'creator'
+  creator_auto_approved?: number
   created_at: string
   last_login?: string | null
   online?: boolean
   oidc_issuer?: string | null
   avatar_url?: string | null
+}
+
+interface ExploreSubmission {
+  id: number
+  trip_id: number
+  status: 'pending' | 'approved' | 'rejected'
+  price: number
+  title: string
+  description: string | null
+  start_date: string | null
+  end_date: string | null
+  submitter_name: string
+  submitter_email: string
+  creator_auto_approved: number
+  community_enabled: number
+  created_at: string
 }
 
 interface AdminStats {
@@ -187,6 +204,7 @@ export default function AdminPage(): React.ReactElement {
   const devMode = useAuthStore(s => s.devMode)
   const TABS: PageSidebarTab[] = [
     { id: 'users', label: t('admin.tabs.users'), icon: Users },
+    { id: 'explore', label: 'Explore', icon: Compass },
     { id: 'config', label: t('admin.tabs.config'), icon: SlidersHorizontal },
     { id: 'defaults', label: t('admin.tabs.defaults'), icon: UserCog },
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
@@ -204,9 +222,52 @@ export default function AdminPage(): React.ReactElement {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
-  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string }>({ username: '', email: '', role: 'user', password: '' })
+  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; creator_auto_approved: boolean }>({ username: '', email: '', role: 'user', password: '', creator_auto_approved: false })
   const [showCreateUser, setShowCreateUser] = useState<boolean>(false)
   const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string; send_welcome_email: boolean }>({ username: '', email: '', password: '', role: 'user', send_welcome_email: false })
+
+  // Explore submissions
+  const [submissions, setSubmissions] = useState<ExploreSubmission[]>([])
+  const [submissionsLoading, setSubmissionsLoading] = useState(false)
+  const [submissionFilter, setSubmissionFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
+  const [approvingId, setApprovingId] = useState<number | null>(null)
+  const [autoApproveMap, setAutoApproveMap] = useState<Record<number, boolean>>({})
+
+  const loadSubmissions = async () => {
+    setSubmissionsLoading(true)
+    try {
+      const data = await exploreApi.getSubmissions(submissionFilter)
+      setSubmissions(data.submissions || [])
+    } catch {}
+    setSubmissionsLoading(false)
+  }
+
+  useEffect(() => {
+    if (activeTab === 'explore') loadSubmissions()
+  }, [activeTab, submissionFilter])
+
+  const handleApprove = async (s: ExploreSubmission) => {
+    setApprovingId(s.id)
+    try {
+      await exploreApi.approveSubmission(s.id, { auto_approve: autoApproveMap[s.id] ?? false })
+      await loadSubmissions()
+      toast.success(t('admin.explore.approveSuccess', { title: s.title }))
+    } catch {
+      toast.error(t('admin.explore.approveError'))
+    }
+    setApprovingId(null)
+  }
+
+  const handleReject = async (s: ExploreSubmission) => {
+    if (!window.confirm(t('admin.explore.rejectConfirm', { title: s.title }))) return
+    try {
+      await exploreApi.rejectSubmission(s.id)
+      await loadSubmissions()
+      toast.success(t('admin.explore.rejectSuccess'))
+    } catch {
+      toast.error(t('admin.explore.rejectError'))
+    }
+  }
 
   // Bag tracking
   const [bagTrackingEnabled, setBagTrackingEnabled] = useState<boolean>(false)
@@ -500,15 +561,16 @@ export default function AdminPage(): React.ReactElement {
 
   const handleEditUser = (user) => {
     setEditingUser(user)
-    setEditForm({ username: user.username, email: user.email, role: user.role, password: '' })
+    setEditForm({ username: user.username, email: user.email, role: user.role, password: '', creator_auto_approved: !!(user.creator_auto_approved) })
   }
 
   const handleSaveUser = async () => {
     try {
-      const payload: { username?: string; email?: string; role: string; password?: string } = {
+      const payload: { username?: string; email?: string; role: string; password?: string; creator_auto_approved?: boolean } = {
         username: editForm.username.trim() || undefined,
         email: editForm.email.trim() || undefined,
         role: editForm.role,
+        creator_auto_approved: editForm.role === 'creator' ? editForm.creator_auto_approved : undefined,
       }
       if (editForm.password.trim()) {
         if (editForm.password.trim().length < 8) {
@@ -517,7 +579,7 @@ export default function AdminPage(): React.ReactElement {
         }
         payload.password = editForm.password.trim()
       }
-      const data = await adminApi.updateUser(editingUser.id, payload)
+      const data = await adminApi.updateUser(editingUser.id, payload as any)
       setUsers(prev => prev.map(u => u.id === editingUser.id ? data.user : u))
       setEditingUser(null)
       toast.success(t('admin.toast.userUpdated'))
@@ -702,11 +764,16 @@ export default function AdminPage(): React.ReactElement {
                             <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
                               u.role === 'admin'
                                 ? 'bg-slate-900 text-white'
+                                : u.role === 'creator'
+                                ? 'bg-indigo-100 text-indigo-700'
                                 : 'bg-slate-100 text-slate-600'
                             }`}>
                               {u.role === 'admin' && <Shield className="w-3 h-3" />}
-                              {u.role === 'admin' ? t('settings.roleAdmin') : t('settings.roleUser')}
+                              {u.role === 'admin' ? t('settings.roleAdmin') : u.role === 'creator' ? t('settings.roleCreator') : t('settings.roleUser')}
                             </span>
+                            {u.role === 'creator' && u.creator_auto_approved ? (
+                              <span className="ml-1 text-xs text-green-600 font-medium">{t('admin.explore.autoApprovedBadge')}</span>
+                            ) : null}
                           </td>
                           <td className="px-5 py-3 text-sm text-slate-500">
                             {new Date(u.created_at).toLocaleDateString(locale, { timeZone: serverTimezone })}
@@ -846,6 +913,109 @@ export default function AdminPage(): React.ReactElement {
               </div>
             </div>
           </Modal>
+
+          {activeTab === 'explore' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.explore.title')}</h2>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {(['pending', 'approved', 'rejected'] as const).map(f => (
+                    <button
+                      key={f}
+                      onClick={() => setSubmissionFilter(f)}
+                      style={{
+                        padding: '5px 12px', borderRadius: 8, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                        background: submissionFilter === f ? 'var(--accent)' : 'var(--bg-secondary)',
+                        color: submissionFilter === f ? 'var(--accent-text)' : 'var(--text-muted)',
+                      }}
+                    >
+                      {f === 'pending' ? t('admin.explore.filterPending') : f === 'approved' ? t('admin.explore.filterApproved') : t('admin.explore.filterRejected')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {submissionsLoading ? (
+                <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-faint)' }}>{t('admin.explore.loading')}</div>
+              ) : submissions.length === 0 ? (
+                <div style={{ padding: '40px 0', textAlign: 'center', color: 'var(--text-faint)', fontSize: 13 }}>
+                  {submissionFilter === 'pending' ? t('admin.explore.emptyPending') : submissionFilter === 'approved' ? t('admin.explore.emptyApproved') : t('admin.explore.emptyRejected')}
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  {submissions.map(s => (
+                    <div key={s.id} style={{
+                      padding: 16, borderRadius: 12,
+                      border: '1px solid var(--border-primary)',
+                      background: 'var(--bg-card)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+                            <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)' }}>{s.title}</span>
+                            <span style={{
+                              fontSize: 10.5, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
+                              background: s.status === 'pending' ? 'rgba(245,158,11,0.15)' : s.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                              color: s.status === 'pending' ? '#d97706' : s.status === 'approved' ? '#059669' : '#dc2626',
+                            }}>
+                              {s.status === 'pending' ? t('explore.statusPending') : s.status === 'approved' ? t('explore.statusApproved') : t('explore.statusRejected')}
+                            </span>
+                          </div>
+                          <div style={{ fontSize: 12, color: 'var(--text-faint)', marginBottom: 2 }}>
+                            {t('admin.explore.submittedBy')} <strong>{s.submitter_name}</strong> ({s.submitter_email})
+                            {s.creator_auto_approved ? <span style={{ marginLeft: 6, fontSize: 10.5, color: '#059669', fontWeight: 600 }}>{t('admin.explore.autoApprovedBadge')}</span> : null}
+                          </div>
+                          {s.description && (
+                            <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.description}</p>
+                          )}
+                          <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: 'var(--text-faint)' }}>
+                            <span>{s.price === 0 ? t('admin.explore.free') : `€${s.price}`}</span>
+                            {s.community_enabled ? <span>{t('admin.explore.communityOn')}</span> : null}
+                            <span>{t('admin.explore.submittedOn')}: {new Date(s.created_at).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+
+                        {s.status === 'pending' && (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0 }}>
+                            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-muted)', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                              <input
+                                type="checkbox"
+                                checked={autoApproveMap[s.id] ?? false}
+                                onChange={e => setAutoApproveMap(m => ({ ...m, [s.id]: e.target.checked }))}
+                              />
+                              {t('admin.explore.autoApproveToggle')}
+                            </label>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button
+                                onClick={() => handleApprove(s)}
+                                disabled={approvingId === s.id}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: 'none',
+                                  background: 'rgba(16,185,129,0.12)', color: '#059669', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                                  opacity: approvingId === s.id ? 0.6 : 1,
+                                }}
+                              >
+                                <CheckCircle size={13} /> {t('admin.explore.approve')}
+                              </button>
+                              <button
+                                onClick={() => handleReject(s)}
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 5, padding: '6px 12px', borderRadius: 8, border: 'none',
+                                  background: 'rgba(239,68,68,0.1)', color: '#dc2626', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                                }}
+                              >
+                                <XCircle size={13} /> {t('admin.explore.reject')}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
           {activeTab === 'config' && (
             <div className="space-y-6">
@@ -1867,6 +2037,7 @@ export default function AdminPage(): React.ReactElement {
               onChange={value => setCreateForm(f => ({ ...f, role: value }))}
               options={[
                 { value: 'user', label: t('settings.roleUser') },
+                { value: 'creator', label: t('settings.roleCreator') },
                 { value: 'admin', label: t('settings.roleAdmin') },
               ]}
             />
@@ -1934,10 +2105,23 @@ export default function AdminPage(): React.ReactElement {
                 onChange={value => setEditForm(f => ({ ...f, role: value }))}
                 options={[
                   { value: 'user', label: t('settings.roleUser') },
+                  { value: 'creator', label: t('settings.roleCreator') },
                   { value: 'admin', label: t('settings.roleAdmin') },
                 ]}
               />
             </div>
+            {editForm.role === 'creator' && (
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                  <input
+                    type="checkbox"
+                    checked={editForm.creator_auto_approved}
+                    onChange={e => setEditForm(f => ({ ...f, creator_auto_approved: e.target.checked }))}
+                  />
+                  {t('admin.creatorAutoApprove')}
+                </label>
+              </div>
+            )}
           </div>
         )}
       </Modal>

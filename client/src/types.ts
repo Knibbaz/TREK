@@ -4,7 +4,7 @@ export interface User {
   id: number
   username: string
   email: string
-  role: 'admin' | 'user'
+  role: 'admin' | 'user' | 'creator'
   avatar_url: string | null
   maps_api_key: string | null
   created_at: string

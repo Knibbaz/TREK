@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
-import { Compass, Calendar, ShoppingBag, X, MapPin, ChevronDown, ChevronUp, Users } from 'lucide-react'
+import { Compass, Calendar, ShoppingBag, X, MapPin, ChevronDown, ChevronUp, Users, Upload, Clock, CheckCircle, XCircle } from 'lucide-react'
 import { useTranslation } from '../i18n'
-import { exploreApi } from '../api/client'
+import { exploreApi, tripsApi } from '../api/client'
 import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
+import { useAuthStore } from '../store/authStore'
 
 interface ExploreTrip {
   id: number
@@ -510,9 +511,27 @@ function SkeletonCard(): React.ReactElement {
   )
 }
 
+interface MySubmission {
+  id: number
+  trip_id: number
+  status: 'pending' | 'approved' | 'rejected'
+  price: number
+  title: string
+  updated_at: string
+}
+
+interface SubmitFormState {
+  tripId: number | null
+  price: string
+  description: string
+  communityEnabled: boolean
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function ExplorePage(): React.ReactElement {
   const { t, language } = useTranslation()
+  const user = useAuthStore(s => s.user)
+  const isCreator = user?.role === 'creator' || user?.role === 'admin'
   const [trips, setTrips] = useState<ExploreTrip[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTrip, setSelectedTrip] = useState<ExploreTrip | null>(null)
@@ -520,6 +539,11 @@ export default function ExplorePage(): React.ReactElement {
   const [loadingDetail, setLoadingDetail] = useState(false)
   const [purchasing, setPurchasing] = useState(false)
   const [exploreFilter, setExploreFilter] = useState<'all' | 'curated' | 'community'>('all')
+  const [mySubmissions, setMySubmissions] = useState<MySubmission[]>([])
+  const [showSubmitModal, setShowSubmitModal] = useState(false)
+  const [myTrips, setMyTrips] = useState<Array<{ id: number; title: string }>>([])
+  const [submitForm, setSubmitForm] = useState<SubmitFormState>({ tripId: null, price: '0', description: '', communityEnabled: false })
+  const [submitting, setSubmitting] = useState(false)
   const toast = useToast()
 
   const filteredTrips = trips.filter(trip => {
@@ -530,7 +554,59 @@ export default function ExplorePage(): React.ReactElement {
 
   useEffect(() => {
     loadTrips()
+    if (isCreator) loadMySubmissions()
   }, [])
+
+  const loadMySubmissions = async () => {
+    try {
+      const data = await exploreApi.getMySubmissions()
+      setMySubmissions(data.submissions || [])
+    } catch {}
+  }
+
+  const openSubmitModal = async () => {
+    try {
+      const data = await tripsApi.list({ is_archived: false })
+      const submittedTripIds = new Set(mySubmissions.filter(s => s.status === 'pending' || s.status === 'approved').map(s => s.trip_id))
+      const available = (data.trips || []).filter((trip: any) => !submittedTripIds.has(trip.id))
+      setMyTrips(available)
+      setSubmitForm({ tripId: available[0]?.id ?? null, price: '0', description: '', communityEnabled: false })
+      setShowSubmitModal(true)
+    } catch {
+      toast.error(t('explore.loadTripsError'))
+    }
+  }
+
+  const handleSubmit = async () => {
+    if (!submitForm.tripId) return
+    try {
+      setSubmitting(true)
+      const descriptions = submitForm.description ? { nl: submitForm.description, en: submitForm.description } : undefined
+      const result = await exploreApi.submitTrip(submitForm.tripId, {
+        price: Number(submitForm.price) || 0,
+        descriptions,
+        community_enabled: submitForm.communityEnabled,
+      })
+      setShowSubmitModal(false)
+      await loadMySubmissions()
+      toast.success(result.auto_approved ? t('explore.autoApproveSuccess') : t('explore.submitSuccess'))
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || t('explore.submitError'))
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const handleWithdraw = async (submissionId: number) => {
+    if (!window.confirm(t('explore.withdrawConfirm'))) return
+    try {
+      await exploreApi.withdrawSubmission(submissionId)
+      await loadMySubmissions()
+      toast.success(t('explore.withdrawSuccess'))
+    } catch {
+      toast.error(t('explore.withdrawError'))
+    }
+  }
 
   const loadTrips = async () => {
     try {
@@ -603,6 +679,64 @@ export default function ExplorePage(): React.ReactElement {
           </p>
         </div>
 
+        {/* Creator: submit + submissions */}
+        {isCreator && (
+          <div style={{ marginBottom: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{t('explore.mySubmissions')}</span>
+              <button
+                onClick={openSubmitModal}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '7px 14px', borderRadius: 10, border: 'none',
+                  background: 'var(--accent)', color: 'var(--accent-text)',
+                  cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit',
+                }}
+              >
+                <Upload size={13} /> {t('explore.submitTrip')}
+              </button>
+            </div>
+            {mySubmissions.length > 0 ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {mySubmissions.map(s => (
+                  <div key={s.id} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                    padding: '10px 14px', borderRadius: 10,
+                    border: `1px solid ${s.status === 'pending' ? 'rgba(245,158,11,0.3)' : s.status === 'approved' ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}`,
+                    background: s.status === 'pending' ? 'rgba(245,158,11,0.06)' : s.status === 'approved' ? 'rgba(16,185,129,0.06)' : 'rgba(239,68,68,0.06)',
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      {s.status === 'pending' && <Clock size={14} style={{ color: '#d97706' }} />}
+                      {s.status === 'approved' && <CheckCircle size={14} style={{ color: '#059669' }} />}
+                      {s.status === 'rejected' && <XCircle size={14} style={{ color: '#dc2626' }} />}
+                      <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{s.title}</span>
+                      <span style={{
+                        fontSize: 10.5, fontWeight: 700, padding: '1px 7px', borderRadius: 99,
+                        background: s.status === 'pending' ? 'rgba(245,158,11,0.15)' : s.status === 'approved' ? 'rgba(16,185,129,0.15)' : 'rgba(239,68,68,0.15)',
+                        color: s.status === 'pending' ? '#d97706' : s.status === 'approved' ? '#059669' : '#dc2626',
+                      }}>
+                        {s.status === 'pending' ? t('explore.statusPending') : s.status === 'approved' ? t('explore.statusApproved') : t('explore.statusRejected')}
+                      </span>
+                    </div>
+                    {s.status === 'pending' && (
+                      <button
+                        onClick={() => handleWithdraw(s.id)}
+                        style={{ fontSize: 11, color: 'var(--text-faint)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px' }}
+                      >
+                        {t('explore.withdraw')}
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p style={{ fontSize: 12, color: 'var(--text-faint)', margin: 0 }}>
+                {t('explore.noSubmissions')}
+              </p>
+            )}
+          </div>
+        )}
+
         {/* Filter pills */}
         <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
           {(['all', 'curated', 'community'] as const).map(f => (
@@ -670,6 +804,87 @@ export default function ExplorePage(): React.ReactElement {
           t={t}
           language={language}
         />
+      )}
+
+      {/* Submit modal */}
+      {showSubmitModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}
+          onClick={() => setShowSubmitModal(false)}>
+          <div style={{ background: 'var(--bg-primary)', borderRadius: 16, width: '100%', maxWidth: 440, padding: 24, boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}
+            onClick={e => e.stopPropagation()}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+              <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>{t('explore.submitModal.title')}</h2>
+              <button onClick={() => setShowSubmitModal(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', padding: 4 }}>
+                <X size={18} />
+              </button>
+            </div>
+
+            {myTrips.length === 0 ? (
+              <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('explore.submitModal.noTrips')}</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>{t('explore.submitModal.trip')}</label>
+                  <select
+                    value={submitForm.tripId ?? ''}
+                    onChange={e => setSubmitForm(f => ({ ...f, tripId: Number(e.target.value) }))}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                  >
+                    {myTrips.map(trip => (
+                      <option key={trip.id} value={trip.id}>{trip.title}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>{t('explore.submitModal.price')}</label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={submitForm.price}
+                    onChange={e => setSubmitForm(f => ({ ...f, price: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>{t('explore.submitModal.description')}</label>
+                  <textarea
+                    value={submitForm.description}
+                    onChange={e => setSubmitForm(f => ({ ...f, description: e.target.value }))}
+                    rows={3}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                  />
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                  <input
+                    type="checkbox"
+                    checked={submitForm.communityEnabled}
+                    onChange={e => setSubmitForm(f => ({ ...f, communityEnabled: e.target.checked }))}
+                  />
+                  <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>{t('explore.submitModal.communityEnabled')}</span>
+                </label>
+
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
+                  <button
+                    onClick={() => setShowSubmitModal(false)}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 13, fontFamily: 'inherit' }}
+                  >
+                    {t('explore.submitModal.cancel')}
+                  </button>
+                  <button
+                    onClick={handleSubmit}
+                    disabled={submitting || !submitForm.tripId}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: submitting ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit', opacity: submitting ? 0.7 : 1 }}
+                  >
+                    {submitting ? t('explore.submitModal.submitting') : t('explore.submitModal.submit')}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       )}
     </div>
   )

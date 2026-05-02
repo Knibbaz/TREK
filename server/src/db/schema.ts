@@ -641,6 +641,16 @@ function createTables(db: Database.Database): void {
       UNIQUE(user_id, country_code)
     );
     CREATE INDEX IF NOT EXISTS idx_user_volunteering_user ON user_volunteering(user_id);
+
+    /* Add trip requirements table */
+    CREATE TABLE IF NOT EXISTS trip_requirements (
+      id TEXT PRIMARY KEY,
+      min_places INTEGER DEFAULT 5,
+      min_days INTEGER DEFAULT 3,
+      min_category_percentage INTEGER DEFAULT 80,
+      require_header_photo BOOLEAN DEFAULT TRUE,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 

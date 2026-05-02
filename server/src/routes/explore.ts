@@ -28,6 +28,10 @@ function isAdmin(userId: number): boolean {
   return user?.role === 'admin';
 }
 
+function getUser(userId: number): { role: string; creator_auto_approved: number } | undefined {
+  return db.prepare('SELECT role, creator_auto_approved FROM users WHERE id = ?').get(userId) as { role: string; creator_auto_approved: number } | undefined;
+}
+
 // ── List published explore trips ───────────────────────────────────────────
 router.get('/trips', (req: Request, res: Response) => {
   try {
@@ -408,6 +412,182 @@ router.post('/trips/:sourceTripId/community-places', (req: Request, res: Respons
   } catch (err: unknown) {
     console.error('Error contributing community place:', err);
     res.status(500).json({ error: 'Failed to contribute community place' });
+  }
+});
+
+// ── Creator: submit trip for Explore ──────────────────────────────────────
+router.post('/trips/:id/submit', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params;
+    const { price, descriptions, community_enabled } = req.body;
+
+    const actor = getUser(authReq.user.id);
+    if (!actor || (actor.role !== 'creator' && actor.role !== 'admin')) {
+      return res.status(403).json({ error: 'Only creators can submit trips for Explore' });
+    }
+
+    const trip = db.prepare('SELECT id, user_id FROM trips WHERE id = ?').get(id) as { id: number; user_id: number } | undefined;
+    if (!trip) return res.status(404).json({ error: 'Trip not found' });
+    if (trip.user_id !== authReq.user.id && !isAdmin(authReq.user.id)) {
+      return res.status(403).json({ error: 'You can only submit your own trips' });
+    }
+
+    const existing = db.prepare('SELECT id, status FROM explore_published WHERE trip_id = ?').get(id) as { id: number; status: string } | undefined;
+    if (existing && (existing.status === 'approved' || existing.status === 'pending')) {
+      return res.status(409).json({ error: existing.status === 'approved' ? 'Trip is already published' : 'Trip already has a pending submission' });
+    }
+
+    const descriptionsJson = descriptions ? JSON.stringify(descriptions) : '{}';
+    const communityFlag = community_enabled ? 1 : 0;
+    const autoApproved = actor.creator_auto_approved === 1 || isAdmin(authReq.user.id);
+    const status = autoApproved ? 'approved' : 'pending';
+    const isPublished = autoApproved ? 1 : 0;
+
+    db.prepare(`
+      INSERT INTO explore_published (trip_id, price, is_published, version, descriptions, community_enabled, status, submitted_by, last_published_at, created_at, updated_at)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, datetime('now'), datetime('now'))
+      ON CONFLICT(trip_id) DO UPDATE SET
+        price = excluded.price,
+        is_published = excluded.is_published,
+        descriptions = excluded.descriptions,
+        community_enabled = excluded.community_enabled,
+        status = excluded.status,
+        submitted_by = excluded.submitted_by,
+        last_published_at = excluded.last_published_at,
+        updated_at = datetime('now')
+    `).run(id, price || 0, isPublished, descriptionsJson, communityFlag, status, authReq.user.id);
+
+    res.json({ success: true, status, auto_approved: autoApproved });
+  } catch (err: unknown) {
+    console.error('Error submitting trip:', err);
+    res.status(500).json({ error: 'Failed to submit trip' });
+  }
+});
+
+// ── Creator: get own submissions ───────────────────────────────────────────
+router.get('/my-submissions', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+
+    const submissions = db.prepare(`
+      SELECT ep.id, ep.trip_id, ep.status, ep.price, ep.is_published, ep.version,
+             ep.community_enabled, ep.submitted_by, ep.created_at, ep.updated_at,
+             t.title, t.description, t.cover_image, t.start_date, t.end_date
+      FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      WHERE ep.submitted_by = ?
+      ORDER BY ep.updated_at DESC
+    `).all(authReq.user.id) as any[];
+
+    res.json({ submissions });
+  } catch (err: unknown) {
+    console.error('Error fetching submissions:', err);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// ── Creator: withdraw pending submission ───────────────────────────────────
+router.delete('/submissions/:id', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params;
+
+    const submission = db.prepare('SELECT id, submitted_by, status FROM explore_published WHERE id = ?').get(id) as { id: number; submitted_by: number | null; status: string } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    if (submission.submitted_by !== authReq.user.id && !isAdmin(authReq.user.id)) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+    if (submission.status !== 'pending' && !isAdmin(authReq.user.id)) {
+      return res.status(400).json({ error: 'Only pending submissions can be withdrawn' });
+    }
+
+    db.prepare('DELETE FROM explore_published WHERE id = ?').run(id);
+    res.json({ success: true });
+  } catch (err: unknown) {
+    console.error('Error withdrawing submission:', err);
+    res.status(500).json({ error: 'Failed to withdraw submission' });
+  }
+});
+
+// ── Admin: list all submissions (pending / approved / rejected) ────────────
+router.get('/submissions', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const status = req.query.status as string | undefined; // 'pending' | 'approved' | 'rejected' | undefined = all
+    const whereClause = status ? 'WHERE ep.status = ?' : "WHERE ep.submitted_by IS NOT NULL";
+
+    const submissions = db.prepare(`
+      SELECT ep.id, ep.trip_id, ep.status, ep.price, ep.is_published, ep.version,
+             ep.descriptions, ep.community_enabled, ep.submitted_by, ep.created_at, ep.updated_at,
+             t.title, t.description, t.cover_image, t.start_date, t.end_date,
+             u.username as submitter_name, u.email as submitter_email,
+             u.creator_auto_approved
+      FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      JOIN users u ON u.id = ep.submitted_by
+      ${whereClause}
+      ORDER BY ep.created_at DESC
+    `).all(...(status ? [status] : [])) as any[];
+
+    res.json({ submissions });
+  } catch (err: unknown) {
+    console.error('Error fetching submissions:', err);
+    res.status(500).json({ error: 'Failed to fetch submissions' });
+  }
+});
+
+// ── Admin: approve submission ──────────────────────────────────────────────
+router.post('/submissions/:id/approve', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+    const { auto_approve, price, descriptions, community_enabled } = req.body;
+
+    const submission = db.prepare('SELECT id, trip_id, submitted_by FROM explore_published WHERE id = ? AND status = ?').get(id, 'pending') as { id: number; trip_id: number; submitted_by: number } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Pending submission not found' });
+
+    const updates: string[] = ['is_published = 1', "status = 'approved'", "last_published_at = datetime('now')", "updated_at = datetime('now')"];
+    const params: (string | number)[] = [];
+
+    if (price !== undefined) { updates.push('price = ?'); params.push(price); }
+    if (descriptions !== undefined) { updates.push('descriptions = ?'); params.push(JSON.stringify(descriptions)); }
+    if (community_enabled !== undefined) { updates.push('community_enabled = ?'); params.push(community_enabled ? 1 : 0); }
+
+    db.prepare(`UPDATE explore_published SET ${updates.join(', ')} WHERE id = ?`).run(...params, id);
+
+    if (auto_approve && submission.submitted_by) {
+      db.prepare('UPDATE users SET creator_auto_approved = 1 WHERE id = ?').run(submission.submitted_by);
+    }
+
+    res.json({ success: true });
+  } catch (err: unknown) {
+    console.error('Error approving submission:', err);
+    res.status(500).json({ error: 'Failed to approve submission' });
+  }
+});
+
+// ── Admin: reject submission ───────────────────────────────────────────────
+router.post('/submissions/:id/reject', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+
+    const submission = db.prepare('SELECT id FROM explore_published WHERE id = ? AND status = ?').get(id, 'pending') as { id: number } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Pending submission not found' });
+
+    db.prepare("UPDATE explore_published SET status = 'rejected', is_published = 0, updated_at = datetime('now') WHERE id = ?").run(id);
+    res.json({ success: true });
+  } catch (err: unknown) {
+    console.error('Error rejecting submission:', err);
+    res.status(500).json({ error: 'Failed to reject submission' });
   }
 });
 

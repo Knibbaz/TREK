@@ -54,8 +54,8 @@ export const isDocker = (() => {
 
 export function listUsers() {
   const users = db.prepare(
-    'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
-  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null })[];
+    'SELECT id, username, email, role, creator_auto_approved, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
+  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null; creator_auto_approved?: number })[];
   let onlineUserIds = new Set<number>();
   try {
     const { getOnlineUserIds } = require('../websocket');
@@ -83,7 +83,7 @@ export function createUser(data: { username: string; email: string; password: st
   const pwCheck = validatePassword(password);
   if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
 
-  if (data.role && !['user', 'admin'].includes(data.role)) {
+  if (data.role && !['user', 'admin', 'creator'].includes(data.role)) {
     return { error: 'Invalid role', status: 400 };
   }
 
@@ -111,13 +111,13 @@ export function createUser(data: { username: string; email: string; password: st
   };
 }
 
-export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string }) {
-  const { username, email, role, password } = data;
+export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string; creator_auto_approved?: boolean }) {
+  const { username, email, role, password, creator_auto_approved } = data;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
 
   if (!user) return { error: 'User not found', status: 404 };
 
-  if (role && !['user', 'admin'].includes(role)) {
+  if (role && !['user', 'admin', 'creator'].includes(role)) {
     return { error: 'Invalid role', status: 400 };
   }
 
@@ -142,12 +142,16 @@ export function updateUser(id: string, data: { username?: string; email?: string
       email = COALESCE(?, email),
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
+      creator_auto_approved = CASE WHEN ? IS NOT NULL THEN ? ELSE creator_auto_approved END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(username || null, email || null, role || null, passwordHash, id);
+  `).run(username || null, email || null, role || null, passwordHash,
+    creator_auto_approved !== undefined ? 1 : null,
+    creator_auto_approved !== undefined ? (creator_auto_approved ? 1 : 0) : null,
+    id);
 
   const updated = db.prepare(
-    'SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, username, email, role, creator_auto_approved, created_at, updated_at FROM users WHERE id = ?'
   ).get(id);
 
   const changed: string[] = [];
@@ -155,6 +159,7 @@ export function updateUser(id: string, data: { username?: string; email?: string
   if (email) changed.push('email');
   if (role) changed.push('role');
   if (password) changed.push('password');
+  if (creator_auto_approved !== undefined) changed.push('creator_auto_approved');
 
   return {
     user: updated,
