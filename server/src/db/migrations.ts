@@ -2520,6 +2520,74 @@ function runMigrations(db: Database.Database): void {
       CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON group_poll_votes(poll_id);
       CREATE INDEX IF NOT EXISTS idx_poll_votes_user ON group_poll_votes(user_id);
     `),
+    () => {
+      try { db.exec('ALTER TABLE users ADD COLUMN creator_auto_approved INTEGER DEFAULT 0'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_poll_guest_tokens (
+          id TEXT PRIMARY KEY,
+          poll_id TEXT NOT NULL REFERENCES group_polls(id) ON DELETE CASCADE,
+          token TEXT UNIQUE NOT NULL,
+          guest_name TEXT,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_poll_guest_tokens_poll ON group_poll_guest_tokens(poll_id);
+        CREATE INDEX IF NOT EXISTS idx_poll_guest_tokens_token ON group_poll_guest_tokens(token);
+      `);
+    },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS world_map_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          country_code TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          category TEXT NOT NULL DEFAULT 'place',
+          lat REAL,
+          lng REAL,
+          added_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          added_by_username TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_world_map_country ON world_map_entries(country_code);
+      `);
+      try {
+        db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .run('worldmap', 'World Map', 'Collaborative world map — everyone adds places per country', 'global', 'Globe2', 1, 15);
+      } catch (err: any) {
+        console.warn('[migrations] Non-fatal migration step failed:', err);
+      }
+    },
+    () => {
+      // Add share_plan permission flag to share_tokens.
+      // Existing tokens get share_plan=1 to preserve backward compatibility.
+      try { db.exec('ALTER TABLE share_tokens ADD COLUMN share_plan INTEGER DEFAULT 1'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // allow_clone: owner controls whether viewers can clone the trip. Default off.
+      try { db.exec('ALTER TABLE share_tokens ADD COLUMN allow_clone INTEGER DEFAULT 0'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // Collaboration invite links: allow existing users to join as collaborator via link.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS trip_collab_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          role TEXT NOT NULL DEFAULT 'editor',
+          max_uses INTEGER,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          visible_to_members INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_collab_token_trip ON trip_collab_tokens(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_trip_collab_token ON trip_collab_tokens(token);
+      `);
+    },
   ];
 
   if (currentVersion < migrations.length) {

@@ -64,7 +64,7 @@ apiClient.interceptors.request.use(
 
 export function isAuthPublicPath(pathname: string): boolean {
   const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password']
-  const publicPrefixes = ['/shared/', '/public/']
+  const publicPrefixes = ['/shared/', '/public/', '/invite/']
   return publicPaths.includes(pathname) || publicPrefixes.some((p) => pathname.startsWith(p))
 }
 
@@ -569,6 +569,13 @@ export const shareApi = {
   createLink: (tripId: number | string, perms?: Record<string, boolean>) => apiClient.post(`/trips/${tripId}/share-link`, perms || {}).then(r => r.data),
   deleteLink: (tripId: number | string) => apiClient.delete(`/trips/${tripId}/share-link`).then(r => r.data),
   getSharedTrip: (token: string) => apiClient.get(`/shared/${token}`).then(r => r.data),
+  cloneTrip: (token: string) => apiClient.post(`/shared/${token}/clone`).then(r => r.data),
+  getCollabInvite: (tripId: number | string) => apiClient.get(`/trips/${tripId}/collab-invite`).then(r => r.data),
+  createCollabInvite: (tripId: number | string) => apiClient.post(`/trips/${tripId}/collab-invite`).then(r => r.data),
+  revokeCollabInvite: (tripId: number | string) => apiClient.delete(`/trips/${tripId}/collab-invite`).then(r => r.data),
+  updateCollabInvite: (tripId: number | string, data: { visible_to_members: boolean }) => apiClient.patch(`/trips/${tripId}/collab-invite`, data).then(r => r.data),
+  previewCollabInvite: (token: string) => apiClient.get(`/invite/trip/${token}`).then(r => r.data),
+  joinTripViaInvite: (token: string) => apiClient.post(`/invite/trip/${token}/join`).then(r => r.data),
 }
 
 export const notificationsApi = {
@@ -642,6 +649,14 @@ export const groupsApi = {
     apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/vote`, { option_id: optionId }).then(r => r.data),
   closePoll: (tripId: number | string, pollId: string, status: 'closed' | 'decided', decidedOptionId?: string) =>
     apiClient.patch(`/addons/groups/polls/${tripId}/${pollId}`, { status, decided_option_id: decidedOptionId }).then(r => r.data),
+  submitRankedVote: (tripId: number | string, pollId: string, rankings: Array<{ option_id: string; rank: number }>) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/ranked-vote`, { rankings }).then(r => r.data),
+  swipeVote: (tripId: number | string, pollId: string, optionId: string, swipeValue: string) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/swipe`, { option_id: optionId, swipe_value: swipeValue }).then(r => r.data),
+  getSwipeMatches: (tripId: number | string, pollId: string) =>
+    apiClient.get(`/addons/groups/polls/${tripId}/${pollId}/matches`).then(r => r.data),
+  createGuestLink: (tripId: number | string, pollId: string) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/guest-link`).then(r => r.data),
 }
 
 export const exploreApi = {
@@ -674,6 +689,15 @@ export const exploreApi = {
     apiClient.post(`/addons/explore/submissions/${submissionId}/approve`, data).then(r => r.data),
   rejectSubmission: (submissionId: number | string) =>
     apiClient.post(`/addons/explore/submissions/${submissionId}/reject`).then(r => r.data),
+}
+
+export const worldmapApi = {
+  getCountries: () => apiClient.get('/addons/worldmap/countries').then(r => r.data),
+  getEntries: (country?: string) =>
+    apiClient.get('/addons/worldmap/entries', { params: country ? { country } : undefined }).then(r => r.data),
+  addEntry: (data: { country_code: string; name: string; description?: string; category?: string; lat?: number; lng?: number }) =>
+    apiClient.post('/addons/worldmap/entries', data).then(r => r.data),
+  deleteEntry: (id: number) => apiClient.delete(`/addons/worldmap/entries/${id}`).then(r => r.data),
 }
 
 export const atlasApi = {

@@ -20,7 +20,9 @@ import GroupJoinPage from './pages/GroupJoinPage'
 import GuestAvailabilityPage from './pages/GuestAvailabilityPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
 import ExplorePage from './pages/ExplorePage'
+import WorldMapPage from './pages/WorldMapPage'
 import SharedTripPage from './pages/SharedTripPage'
+import TripInvitePage from './pages/TripInvitePage'
 import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx'
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import { ToastContainer } from './components/shared/Toast'
@@ -111,7 +113,7 @@ export default function App() {
   const { loadAddons } = useAddonStore()
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/shared/') && !location.pathname.startsWith('/public/') && !location.pathname.startsWith('/login')) {
+    if (!location.pathname.startsWith('/shared/') && !location.pathname.startsWith('/public/') && !location.pathname.startsWith('/invite/') && !location.pathname.startsWith('/login')) {
       // If the persist snapshot already has an authenticated user, validate
       // silently so the PWA shell renders immediately without a spinner.
       const alreadyAuthenticated = useAuthStore.getState().isAuthenticated
@@ -176,7 +178,7 @@ export default function App() {
   }, [])
 
   const location = useLocation()
-  const isSharedPage = location.pathname.startsWith('/shared/')
+  const isSharedPage = location.pathname.startsWith('/shared/') || location.pathname.startsWith('/invite/')
 
   useEffect(() => {
     // Shared page always forces light mode
@@ -218,6 +220,7 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shared/:token" element={<SharedTripPage />} />
+        <Route path="/invite/trip/:token" element={<TripInvitePage />} />
         <Route path="/public/journey/:token" element={<JourneyPublicPage />} />
         <Route path="/register" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
@@ -311,6 +314,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ExplorePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/worldmap"
+          element={
+            <ProtectedRoute>
+              <WorldMapPage />
             </ProtectedRoute>
           }
         />

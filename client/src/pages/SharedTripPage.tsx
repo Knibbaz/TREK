@@ -9,7 +9,8 @@ import { shareApi } from '../api/client'
 import { getCategoryIcon } from '../components/shared/categoryIcons'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle } from 'lucide-react'
+import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle, Copy } from 'lucide-react'
+import { useAuthStore } from '../store/authStore'
 
 const TRANSPORT_TYPES = new Set(['flight', 'train', 'bus', 'car', 'cruise'])
 const TRANSPORT_ICONS = { flight: Plane, train: Train, bus: Bus, car: Car, cruise: Ship }
@@ -40,11 +41,14 @@ function FitBoundsToPlaces({ places }: { places: any[] }) {
 export default function SharedTripPage() {
   const { token } = useParams<{ token: string }>()
   const { t, locale } = useTranslation()
+  const { user } = useAuthStore()
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState(false)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [activeTab, setActiveTab] = useState('plan')
   const [showLangPicker, setShowLangPicker] = useState(false)
+  const [cloning, setCloning] = useState(false)
+  const [cloneMsg, setCloneMsg] = useState<{ ok: boolean; text: string } | null>(null)
 
   useEffect(() => {
     if (!token) return
@@ -166,7 +170,8 @@ export default function SharedTripPage() {
 
         {/* Map */}
         {activeTab === 'plan' && (<>
-        <div style={{ borderRadius: 16, overflow: 'hidden', height: 300, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+        {permissions?.share_map !== false && (
+        <div style={{ borderRadius: 16, overflow: 'hidden', height: 480, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
           <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
             <FitBoundsToPlaces places={mapPlaces} />
@@ -177,8 +182,10 @@ export default function SharedTripPage() {
             ))}
           </MapContainer>
         </div>
+        )}
 
         {/* Day Plan */}
+        {permissions?.share_plan !== false && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           {sortedDays.map((day: any, di: number) => {
             const da = assignments[String(day.id)] || []
@@ -265,6 +272,7 @@ export default function SharedTripPage() {
             )
           })}
         </div>
+        )}
         </>)}
 
         {/* Bookings */}
@@ -379,6 +387,50 @@ export default function SharedTripPage() {
                 )
               })}
             </div>
+          </div>
+        )}
+
+        {/* Clone button */}
+        {permissions?.allow_clone && (
+          <div style={{ margin: '24px 0 0', textAlign: 'center' }}>
+            {cloneMsg && (
+              <div style={{ marginBottom: 10, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
+                {cloneMsg.text}
+              </div>
+            )}
+            {user ? (
+              <button onClick={async () => {
+                if (cloning || !token) return
+                setCloning(true)
+                setCloneMsg(null)
+                try {
+                  const d = await shareApi.cloneTrip(token)
+                  setCloneMsg({ ok: true, text: t('share.cloneSuccess') })
+                  setTimeout(() => { window.location.href = `/trips/${d.tripId}` }, 1200)
+                } catch {
+                  setCloneMsg({ ok: false, text: t('share.cloneError') })
+                } finally {
+                  setCloning(false)
+                }
+              }} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
+                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
+                background: 'var(--bg-card, white)', color: 'var(--text-primary, #111827)',
+                fontSize: 13, fontWeight: 600, cursor: cloning ? 'default' : 'pointer',
+                fontFamily: 'inherit', opacity: cloning ? 0.6 : 1, transition: 'all 0.15s',
+              }}>
+                <Copy size={14} /> {cloning ? '...' : t('share.cloneButton')}
+              </button>
+            ) : (
+              <a href="/login" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
+                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
+                background: 'var(--bg-card, white)', color: '#6b7280',
+                fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: 'inherit',
+              }}>
+                <Copy size={14} /> {t('share.cloneLoginRequired')}
+              </a>
+            )}
           </div>
         )}
 

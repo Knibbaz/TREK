@@ -10,7 +10,7 @@ import {
   copyTripById, exportICS, NotFoundError, ValidationError,
 } from '../../services/tripService';
 import {
-  createOrUpdateShareLink, getShareLink, deleteShareLink,
+  createOrUpdateShareLink, getShareLinks, deleteShareLink,
 } from '../../services/shareService';
 import { isAddonEnabled, getCollabFeatures } from '../../services/adminService';
 import { ADDON_IDS } from '../../addons';
@@ -322,7 +322,7 @@ export function registerTripTools(server: McpServer, userId: number, scopes: str
     },
     async ({ tripId }) => {
       if (!canAccessTrip(tripId, userId)) return noAccess();
-      const link = getShareLink(String(tripId));
+      const link = getShareLinks(String(tripId));
       return ok({ link });
     }
   );

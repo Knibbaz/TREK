@@ -4,20 +4,24 @@ import { loadTagsByPlaceIds } from './queryHelpers';
 
 interface SharePermissions {
   share_map?: boolean;
+  share_plan?: boolean;
   share_bookings?: boolean;
   share_packing?: boolean;
   share_budget?: boolean;
   share_collab?: boolean;
+  allow_clone?: boolean;
 }
 
 interface ShareTokenInfo {
   token: string;
   created_at: string;
   share_map: boolean;
+  share_plan: boolean;
   share_bookings: boolean;
   share_packing: boolean;
   share_budget: boolean;
   share_collab: boolean;
+  allow_clone: boolean;
 }
 
 /**
@@ -31,44 +35,45 @@ export function createOrUpdateShareLink(
 ): { token: string; created: boolean } {
   const {
     share_map = true,
+    share_plan = true,
     share_bookings = true,
     share_packing = false,
     share_budget = false,
     share_collab = false,
+    allow_clone = false,
   } = permissions;
 
   const existing = db.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(tripId) as { token: string } | undefined;
   if (existing) {
-    db.prepare('UPDATE share_tokens SET share_map = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ? WHERE trip_id = ?')
-      .run(share_map ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, tripId);
+    db.prepare('UPDATE share_tokens SET share_map = ?, share_plan = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ?, allow_clone = ? WHERE trip_id = ?')
+      .run(share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, tripId);
     return { token: existing.token, created: false };
   }
 
-  // New share links default to a 90-day TTL. Existing tokens that were
-  // created before the expires_at migration keep NULL here and remain
-  // valid indefinitely until the owner rotates them; that preserves
-  // behaviour for anyone who's already sharing a link.
+  // New share links default to a 90-day TTL.
   const token = crypto.randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_bookings, share_packing, share_budget, share_collab, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(tripId, token, createdBy, share_map ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, expiresAt);
+  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(tripId, token, createdBy, share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, expiresAt);
   return { token, created: true };
 }
 
 /**
  * Returns share token info for a trip, or null if no share link exists.
  */
-export function getShareLink(tripId: string): ShareTokenInfo | null {
+export function getShareLinks(tripId: string): ShareTokenInfo | null {
   const row = db.prepare('SELECT * FROM share_tokens WHERE trip_id = ?').get(tripId) as any;
   if (!row) return null;
   return {
     token: row.token,
     created_at: row.created_at,
     share_map: !!row.share_map,
+    share_plan: row.share_plan !== undefined ? !!row.share_plan : true,
     share_bookings: !!row.share_bookings,
     share_packing: !!row.share_packing,
     share_budget: !!row.share_budget,
     share_collab: !!row.share_collab,
+    allow_clone: !!row.allow_clone,
   };
 }
 
@@ -174,10 +179,12 @@ export function getSharedTripData(token: string): Record<string, any> | null {
 
   const permissions = {
     share_map: !!shareRow.share_map,
+    share_plan: shareRow.share_plan !== undefined ? !!shareRow.share_plan : true,
     share_bookings: !!shareRow.share_bookings,
     share_packing: !!shareRow.share_packing,
     share_budget: !!shareRow.share_budget,
     share_collab: !!shareRow.share_collab,
+    allow_clone: !!shareRow.allow_clone,
   };
 
   // Collab messages (only if owner chose to share)
@@ -193,4 +200,74 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     budget: permissions.share_budget ? budget : [],
     collab: collabMessages,
   };
+}
+
+// ── Collaboration invite tokens ────────────────────────────────────────────
+
+/**
+ * Creates or replaces the collab invite token for a trip.
+ * Only one active token per trip (UNIQUE on trip_id).
+ */
+export function createCollabInviteToken(tripId: string, createdBy: number): string {
+  db.prepare('DELETE FROM trip_collab_tokens WHERE trip_id = ?').run(tripId);
+  const token = crypto.randomBytes(24).toString('base64url');
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(); // 30 days
+  db.prepare('INSERT INTO trip_collab_tokens (trip_id, token, created_by, expires_at) VALUES (?, ?, ?, ?)')
+    .run(tripId, token, createdBy, expiresAt);
+  return token;
+}
+
+/**
+ * Returns active collab invite token for a trip, or null if none.
+ */
+export function getCollabInviteToken(tripId: string): { token: string; expires_at: string | null; visible_to_members: boolean } | null {
+  const row = db.prepare(
+    "SELECT token, expires_at, visible_to_members FROM trip_collab_tokens WHERE trip_id = ? AND (expires_at IS NULL OR expires_at > datetime('now'))"
+  ).get(tripId) as { token: string; expires_at: string | null; visible_to_members: number } | undefined;
+  if (!row) return null;
+  return { token: row.token, expires_at: row.expires_at, visible_to_members: !!row.visible_to_members };
+}
+
+/**
+ * Updates visible_to_members flag on the collab invite token.
+ */
+export function setCollabInviteVisibility(tripId: string, visible: boolean): void {
+  db.prepare('UPDATE trip_collab_tokens SET visible_to_members = ? WHERE trip_id = ?').run(visible ? 1 : 0, tripId);
+}
+
+/**
+ * Revokes the collab invite token for a trip.
+ */
+export function revokeCollabInviteToken(tripId: string): void {
+  db.prepare('DELETE FROM trip_collab_tokens WHERE trip_id = ?').run(tripId);
+}
+
+/**
+ * Validates a collab invite token and returns trip info, or null if invalid.
+ */
+export function validateCollabInviteToken(token: string): { tripId: number; tripTitle: string; ownerId: number } | null {
+  const row = db.prepare(`
+    SELECT tct.trip_id, t.title AS trip_title, t.user_id AS owner_id
+    FROM trip_collab_tokens tct
+    JOIN trips t ON t.id = tct.trip_id
+    WHERE tct.token = ? AND (tct.expires_at IS NULL OR tct.expires_at > datetime('now'))
+  `).get(token) as { trip_id: number; trip_title: string; owner_id: number } | undefined;
+  if (!row) return null;
+  return { tripId: row.trip_id, tripTitle: row.trip_title, ownerId: row.owner_id };
+}
+
+/**
+ * Adds a user as collaborator via a collab invite token.
+ * Returns the trip ID on success, or an error string.
+ */
+export function joinTripWithCollabToken(token: string, userId: number): { tripId: number } | { error: string; status: number } {
+  const info = validateCollabInviteToken(token);
+  if (!info) return { error: 'Invalid or expired invite link', status: 404 };
+  if (info.ownerId === userId) return { error: 'You are the owner of this trip', status: 400 };
+
+  const existing = db.prepare('SELECT id FROM trip_members WHERE trip_id = ? AND user_id = ?').get(info.tripId, userId);
+  if (existing) return { tripId: info.tripId }; // already a member — silently succeed
+
+  db.prepare('INSERT INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)').run(info.tripId, userId, info.ownerId);
+  return { tripId: info.tripId };
 }
