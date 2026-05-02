@@ -34,6 +34,7 @@ interface PlacesSidebarProps {
   onCategoryFilterChange?: (categoryIds: Set<string>) => void
   onPlacesFilterChange?: (filter: string) => void
   pushUndo?: (label: string, undoFn: () => Promise<void> | void) => void
+  onScrollTopChange?: (scrollTop: number) => void
 }
 
 interface MemoPlaceRowProps {
@@ -154,7 +155,7 @@ const MemoPlaceRow = React.memo(function MemoPlaceRow({
 
 const PlacesSidebar = React.memo(function PlacesSidebar({
   tripId, places, categories, assignments, selectedDayId, selectedPlaceId,
-  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onBulkDeletePlaces, onBulkDeleteConfirm, days, isMobile, onCategoryFilterChange, onPlacesFilterChange, pushUndo,
+  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onBulkDeletePlaces, onBulkDeleteConfirm, days, isMobile, onCategoryFilterChange, onPlacesFilterChange, pushUndo, onScrollTopChange,
 }: PlacesSidebarProps) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -280,6 +281,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
   const [mobileShowDays, setMobileShowDays] = useState(false)
   const [inlineDayPicker, setInlineDayPicker] = useState<{ place: Place; rect: DOMRect } | null>(null)
   const inlinePickerRef = useRef<HTMLDivElement>(null)
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -660,7 +662,7 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
       )}
 
       {/* List */}
-      <div className="trek-stagger" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
+      <div className="trek-stagger" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} ref={scrollContainerRef} onScroll={(e) => onScrollTopChange?.((e.currentTarget as HTMLElement).scrollTop)}>
         {filtered.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 16px', gap: 8 }}>
             <span style={{ fontSize: 13, color: 'var(--text-faint)' }}>

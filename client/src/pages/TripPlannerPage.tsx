@@ -275,6 +275,8 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const initialFitTripId = useRef<number | null>(null)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState<'left' | 'right' | null>(null)
   const [plannerMode, setPlannerMode] = useState<'edit' | 'view'>('edit')
+  const mobilePlanScrollTopRef = useRef<number>(0)
+  const mobilePlacesScrollTopRef = useRef<number>(0)
   const [deletePlaceId, setDeletePlaceId] = useState<number | null>(null)
   const [deletePlaceIds, setDeletePlaceIds] = useState<number[] | null>(null)
 
