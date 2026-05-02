@@ -73,6 +73,10 @@ beforeEach(() => {
   resetTestDb(testDb);
   loginAttempts.clear();
   mfaAttempts.clear();
+  vi.mocked(mapsService.autocompletePlaces).mockClear();
+  vi.mocked(mapsService.searchPlaces).mockClear();
+  vi.mocked(mapsService.getPlaceDetails).mockClear();
+  vi.mocked(mapsService.reverseGeocode).mockClear();
 });
 
 afterAll(() => {
@@ -355,6 +359,7 @@ describe('Maps autocomplete', () => {
       'test',
       'fr',
       { low: { lat: 48.5, lng: 2.0 }, high: { lat: 49.0, lng: 2.8 } },
+      undefined,
     );
   });
 
