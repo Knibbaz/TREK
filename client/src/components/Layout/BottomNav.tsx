@@ -11,12 +11,12 @@ const BASE_ITEMS: { to: string; label: string; icon: LucideIcon; addonId?: strin
   { to: '/trips', label: 'Trips', icon: Plane },
 ]
 
-const ADDON_NAV: Record<string, { to: string; label: string; icon: LucideIcon }> = {
-  vacay: { to: '/vacay', label: 'Vacay', icon: CalendarDays },
-  atlas: { to: '/atlas', label: 'Atlas', icon: Globe },
-  journey: { to: '/journey', label: 'Journey', icon: Compass },
-  groups: { to: '/groups', label: 'Groups', icon: Users },
-  worldmap: { to: '/worldmap', label: 'World Map', icon: Globe2 },
+const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey: string }> = {
+  vacay:   { icon: CalendarDays, labelKey: 'admin.addons.catalog.vacay.name' },
+  atlas:   { icon: Globe,        labelKey: 'admin.addons.catalog.atlas.name' },
+  journey: { icon: Compass,      labelKey: 'admin.addons.catalog.journey.name' },
+  groups:  { icon: Users,        labelKey: 'admin.addons.catalog.groups.name' },
+  worldmap:{ icon: Globe2,       labelKey: 'admin.addons.catalog.worldmap.name' },
 }
 
 export default function BottomNav() {

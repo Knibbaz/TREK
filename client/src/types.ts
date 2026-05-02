@@ -132,6 +132,7 @@ export interface BudgetItem {
   persons: number
   members: BudgetMember[]
   expense_date: string | null
+  reservation_id?: number | null
 }
 
 export interface BudgetMember {

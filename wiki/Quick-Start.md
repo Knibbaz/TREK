@@ -52,7 +52,7 @@ Open `http://localhost:3000` in your browser.
 On first boot ROUTD automatically seeds an admin account before any user registers. The credentials depend on how you start the container:
 
 - **With `ADMIN_EMAIL` and `ADMIN_PASSWORD` env vars set:** those values are used directly.
-- **Without those env vars:** ROUTD creates the account with email `admin@trek.local`, username `admin`, and a randomly generated password. The credentials are printed to the container log — run `docker logs trek` to retrieve them.
+- **Without those env vars:** ROUTD creates the account with email `admin@routd.local`, username `admin`, and a randomly generated password. The credentials are printed to the container log — run `docker logs routd` to retrieve them.
 
 You will be prompted to change the password on first login.
 

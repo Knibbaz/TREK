@@ -622,7 +622,7 @@ export default function PlaceInspector({
           {/* Notes */}
           {place.notes && (
             <div className="collab-note-md" style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden', fontSize: 12, color: 'var(--text-muted)', lineHeight: '1.5', padding: '8px 12px', wordBreak: 'break-word', overflowWrap: 'anywhere' }} >
-              <Markdown remarkPlugins={[remarkGfm]} components={{ a: props => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
+              <Markdown remarkPlugins={[remarkGfm, remarkBreaks]} components={{ a: props => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
                 {place.notes}
               </Markdown>
             </div>

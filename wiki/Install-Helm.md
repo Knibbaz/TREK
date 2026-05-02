@@ -56,7 +56,7 @@ If `existingSecret` uses a different key name than `ENCRYPTION_KEY`, specify it 
 
 ## Admin Account
 
-`ADMIN_EMAIL` and `ADMIN_PASSWORD` are set via `secretEnv`. They are only used on first boot when no users exist yet. **Both must be set together** — if either is missing, the server ignores both values and instead creates the admin account with email `admin@trek.local` and a random password, which is printed to the server log.
+`ADMIN_EMAIL` and `ADMIN_PASSWORD` are set via `secretEnv`. They are only used on first boot when no users exist yet. **Both must be set together** — if either is missing, the server ignores both values and instead creates the admin account with email `admin@routd.local` and a random password, which is printed to the server log.
 
 ```bash
 helm install trek trek/trek \

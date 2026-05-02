@@ -46,7 +46,7 @@ services:
 #      - OIDC_ADMIN_VALUE=app-trek-admins # Value of the OIDC claim that grants admin role
 #      - OIDC_SCOPE=openid email profile # Fully overrides the default. Add extra scopes as needed (e.g. add groups if using OIDC_ADMIN_CLAIM)
 #      - OIDC_DISCOVERY_URL= # Override the OIDC discovery endpoint for providers with non-standard paths (e.g. Authentik)
-#      - ADMIN_EMAIL=admin@trek.local # Initial admin e-mail — only used on first boot when no users exist
+#      - ADMIN_EMAIL=admin@routd.local # Initial admin e-mail — only used on first boot when no users exist
 #      - ADMIN_PASSWORD=changeme      # Initial admin password — only used on first boot when no users exist
 #      - MCP_RATE_LIMIT=300 # Max MCP API requests per user per minute (default: 300)
 #      - MCP_MAX_SESSION_PER_USER=20 # Max concurrent MCP sessions per user (default: 20)

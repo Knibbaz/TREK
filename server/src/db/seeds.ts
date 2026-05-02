@@ -37,7 +37,7 @@ function seedAdminAccount(db: Database.Database): void {
       email = env_admin_email;
     } else {
       password = crypto.randomBytes(12).toString('base64url');
-      email = 'admin@trek.local';
+      email = 'admin@routd.local';
     }
 
     const hash = bcrypt.hashSync(password, 12);
