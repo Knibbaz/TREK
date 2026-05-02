@@ -57,7 +57,7 @@ export default function SharedTripPage() {
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState(false)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
-  const [activeTab, setActiveTab] = useState('plan')
+  const [activeTab, setActiveTab] = useState<string>('')
   const [showLangPicker, setShowLangPicker] = useState(false)
   const [cloning, setCloning] = useState(false)
   const [cloneMsg, setCloneMsg] = useState<{ ok: boolean; text: string } | null>(null)
@@ -66,7 +66,17 @@ export default function SharedTripPage() {
 
   useEffect(() => {
     if (!token) return
-    shareApi.getSharedTrip(token).then(setData).catch(() => setError(true))
+    shareApi.getSharedTrip(token).then((d) => {
+      setData(d)
+      const perms = d.permissions || {}
+      const hasPlan = d.days?.length > 0 || d.places?.length > 0 || perms.share_map !== false
+      const hasBookings = perms.share_bookings && d.reservations?.length > 0
+      const hasPacking = perms.share_packing && d.packing?.length > 0
+      const hasBudget = perms.share_budget && d.budget?.length > 0
+      const hasCollab = perms.share_collab && d.collab?.length > 0
+      const firstTab = hasPlan ? 'plan' : hasBookings ? 'bookings' : hasPacking ? 'packing' : hasBudget ? 'budget' : hasCollab ? 'collab' : ''
+      setActiveTab(firstTab)
+    }).catch(() => setError(true))
     configApi.getPublicConfig().then(c => setProjectMeta(c.projectMetadata)).catch(() => {})
   }, [token])
 
@@ -162,66 +172,15 @@ export default function SharedTripPage() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
-        {/* Clone button with info */}
-        {permissions?.allow_clone && (
-          <div style={{ background: 'var(--bg-card, white)', borderRadius: 14, border: '1px solid var(--border-faint, #e5e7eb)', padding: '20px', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 8 }}>{t('share.cloneTitle')}</h3>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: 0, lineHeight: 1.6 }}>
-                {t('share.cloneDescription')}
-              </p>
-            </div>
-
-            {cloneMsg && (
-              <div style={{ marginBottom: 12, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
-                {cloneMsg.text}
-              </div>
-            )}
-
-            {user ? (
-              <button onClick={async () => {
-                if (cloning || !token) return
-                setCloning(true)
-                setCloneMsg(null)
-                try {
-                  const d = await shareApi.cloneTrip(token)
-                  setCloneMsg({ ok: true, text: t('share.cloneSuccess') })
-                  setTimeout(() => { window.location.href = `/trips/${d.tripId}` }, 1200)
-                } catch {
-                  setCloneMsg({ ok: false, text: t('share.cloneError') })
-                } finally {
-                  setCloning(false)
-                }
-              }} style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
-                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
-                background: 'var(--accent, #111827)', color: 'white',
-                fontSize: 13, fontWeight: 600, cursor: cloning ? 'default' : 'pointer',
-                fontFamily: 'inherit', opacity: cloning ? 0.6 : 1, transition: 'all 0.15s',
-              }}>
-                <Copy size={14} /> {cloning ? '...' : t('share.cloneButton')}
-              </button>
-            ) : (
-              <a href="/login" style={{
-                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
-                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
-                background: 'var(--accent, #111827)', color: 'white',
-                fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: 'inherit',
-              }}>
-                <Copy size={14} /> {t('share.cloneLoginRequired')}
-              </a>
-            )}
-          </div>
-        )}
-        
         {/* Tabs */}
         {(() => {
+          const hasPlan = sortedDays.length > 0 || places?.length > 0 || permissions?.share_map !== false
           const tabs = [
-            { id: 'plan', label: t('shared.tabPlan'), Icon: Map },
-            ...(permissions?.share_bookings ? [{ id: 'bookings', label: t('shared.tabBookings'), Icon: Ticket }] : []),
-            ...(permissions?.share_packing ? [{ id: 'packing', label: t('shared.tabPacking'), Icon: Luggage }] : []),
-            ...(permissions?.share_budget ? [{ id: 'budget', label: t('shared.tabBudget'), Icon: Wallet }] : []),
-            ...(permissions?.share_collab ? [{ id: 'collab', label: t('shared.tabChat'), Icon: MessageCircle }] : []),
+            ...(hasPlan ? [{ id: 'plan', label: t('shared.tabPlan'), Icon: Map }] : []),
+            ...(permissions?.share_bookings && reservations?.length > 0 ? [{ id: 'bookings', label: t('shared.tabBookings'), Icon: Ticket }] : []),
+            ...(permissions?.share_packing && packing?.length > 0 ? [{ id: 'packing', label: t('shared.tabPacking'), Icon: Luggage }] : []),
+            ...(permissions?.share_budget && budget?.length > 0 ? [{ id: 'budget', label: t('shared.tabBudget'), Icon: Wallet }] : []),
+            ...(permissions?.share_collab && collab?.length > 0 ? [{ id: 'collab', label: t('shared.tabChat'), Icon: MessageCircle }] : []),
           ];
           if (tabs.length <= 1) return null;
           return (
@@ -272,6 +231,58 @@ export default function SharedTripPage() {
             </MarkerClusterGroup>
           </MapContainer>
         </div>
+        )}
+
+        {/* Clone button with info */}
+        {permissions?.allow_clone && (
+          <div style={{ background: 'var(--bg-card, white)', borderRadius: 14, border: '1px solid var(--border-faint, #e5e7eb)', padding: '20px', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
+            <div style={{ marginBottom: 16 }}>
+              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 8 }}>{t('share.cloneTitle')}</h3>
+              <p style={{ fontSize: 13, color: '#6b7280', margin: 0, lineHeight: 1.6 }}>
+                {t('share.cloneDescription')}
+              </p>
+            </div>
+
+            {cloneMsg && (
+              <div style={{ marginBottom: 12, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
+                {cloneMsg.text}
+              </div>
+            )}
+
+            {user ? (
+              <button onClick={async () => {
+                if (cloning || !token) return
+                setCloning(true)
+                setCloneMsg(null)
+                try {
+                  const d = await shareApi.cloneTrip(token)
+                  setCloneMsg({ ok: true, text: t('share.cloneSuccess') })
+                  setTimeout(() => { window.location.href = `/trips/${d.tripId}` }, 1200)
+                } catch {
+                  setCloneMsg({ ok: false, text: t('share.cloneError') })
+                } finally {
+                  setCloning(false)
+                }
+              }} style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
+                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
+                background: 'var(--accent, #111827)', color: 'white',
+                fontSize: 13, fontWeight: 600, cursor: cloning ? 'default' : 'pointer',
+                fontFamily: 'inherit', opacity: cloning ? 0.6 : 1, transition: 'all 0.15s',
+              }}>
+                <Copy size={14} /> {cloning ? '...' : t('share.cloneButton')}
+              </button>
+            ) : (
+              <a href="/login" style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
+                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
+                background: 'var(--accent, #111827)', color: 'white',
+                fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: 'inherit',
+              }}>
+                <Copy size={14} /> {t('share.cloneLoginRequired')}
+              </a>
+            )}
+          </div>
         )}
 
         {/* Place Detail Modal */}
