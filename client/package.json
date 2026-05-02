@@ -1,6 +1,6 @@
 {
   "name": "roam-client",
-  "version": "3.0.10",
+  "version": "3.0.13",
   "private": true,
   "type": "module",
   "scripts": {

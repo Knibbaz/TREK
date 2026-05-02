@@ -27,11 +27,13 @@ export default function BottomNav() {
   const globalAddons = addons.filter(a => a.type === 'global' && a.enabled)
   const [showProfile, setShowProfile] = useState(false)
 
-  const items = [...BASE_ITEMS]
-  for (const addon of globalAddons) {
-    const nav = ADDON_NAV[addon.id]
-    if (nav) items.push(nav)
-  }
+  const items: { to: string; label: string; icon: LucideIcon }[] = [
+    { to: '/trips', label: t('nav.myTrips'), icon: Plane },
+    ...globalAddons.flatMap(addon => {
+      const nav = ADDON_NAV[addon.id]
+      return nav ? [{ to: `/${addon.id}`, label: t(nav.labelKey), icon: nav.icon }] : []
+    }),
+  ]
 
   return (
     <>

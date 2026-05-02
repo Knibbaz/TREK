@@ -129,7 +129,7 @@ router.put('/:id', authenticate, (req: Request, res: Response) => {
     const linked = db.prepare('SELECT id FROM budget_items WHERE trip_id = ? AND reservation_id = ?').get(tripId, id) as { id: number } | undefined;
     if (linked) {
       deleteBudgetItem(linked.id, tripId);
-      broadcast(tripId, 'budget:deleted', { id: linked.id }, req.headers['x-socket-id'] as string);
+      broadcast(tripId, 'budget:deleted', { itemId: linked.id }, req.headers['x-socket-id'] as string);
     }
   }
 
