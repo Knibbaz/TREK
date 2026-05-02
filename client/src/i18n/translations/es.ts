@@ -1204,6 +1204,7 @@ const es: Record<string, string> = {
   'files.toast.deleteError': 'No se pudo eliminar el archivo',
   'files.sourcePlan': 'Plan diario',
   'files.sourceBooking': 'Reserva',
+  'files.sourceTransport': 'Transporte',
   'files.attach': 'Adjuntar',
   'files.pasteHint': 'También puedes pegar imágenes desde el portapapeles (Ctrl+V)',
 
@@ -1691,6 +1692,7 @@ const es: Record<string, string> = {
   'files.assignTitle': 'Asignar archivo',
   'files.assignPlace': 'Lugar',
   'files.assignBooking': 'Reserva',
+  'files.assignTransport': 'Transporte',
   'files.unassigned': 'Sin asignar',
   'files.unlink': 'Eliminar vínculo',
   'files.noteLabel': 'Nota',

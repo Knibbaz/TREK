@@ -12,6 +12,7 @@ import CustomTimePicker from '../shared/CustomTimePicker'
 import { useSettingsStore } from '../../store/settingsStore'
 import { getLocaleForLanguage, useTranslation } from '../../i18n'
 import type { Day, Place, Category, Reservation, AssignmentsMap } from '../../types'
+import { isDayInAccommodationRange } from '../../utils/dayOrder'
 
 const WEATHER_ICON_MAP = {
   Clear: Sun, Clouds: Cloud, Rain: CloudRain, Drizzle: CloudDrizzle,
@@ -99,7 +100,7 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
       .then(data => {
         setAccommodations(data.accommodations || [])
         const allForDay = (data.accommodations || []).filter(a =>
-          days.some(d => d.id >= a.start_day_id && d.id <= a.end_day_id && d.id === day?.id)
+          day ? isDayInAccommodationRange(day, a.start_day_id, a.end_day_id, days) : false
         )
         setDayAccommodations(allForDay)
         setAccommodation(allForDay[0] || null)
@@ -130,7 +131,7 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
       setAccommodations(updated)
       setAccommodation(newAcc)
       setDayAccommodations(updated.filter(a =>
-        days.some(d => d.id >= a.start_day_id && d.id <= a.end_day_id && d.id === day?.id)
+        day ? isDayInAccommodationRange(day, a.start_day_id, a.end_day_id, days) : false
       ))
       setShowHotelPicker(false)
       setHotelForm({ check_in: '', check_in_end: '', check_out: '', confirmation: '', place_id: null })
@@ -154,7 +155,7 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
       const updated = accommodations.filter(a => a.id !== accommodation.id)
       setAccommodations(updated)
       setDayAccommodations(updated.filter(a =>
-        days.some(d => d.id >= a.start_day_id && d.id <= a.end_day_id && d.id === day?.id)
+        day ? isDayInAccommodationRange(day, a.start_day_id, a.end_day_id, days) : false
       ))
       setAccommodation(null)
       onAccommodationChange?.()
@@ -463,7 +464,7 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <CustomSelect
                           value={hotelDayRange.start}
-                          onChange={v => setHotelDayRange(prev => ({ start: v, end: Math.max(v, prev.end) }))}
+                          onChange={v => setHotelDayRange(prev => ({ start: v, end: days.findIndex(d => d.id === v) > days.findIndex(d => d.id === prev.end) ? v : prev.end }))}
                           options={days.map((d, i) => ({
                             value: d.id,
                             label: d.title || t('planner.dayN', { n: i + 1 }),
@@ -478,7 +479,7 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <CustomSelect
                           value={hotelDayRange.end}
-                          onChange={v => setHotelDayRange(prev => ({ start: Math.min(prev.start, v), end: v }))}
+                          onChange={v => setHotelDayRange(prev => ({ start: days.findIndex(d => d.id === v) < days.findIndex(d => d.id === prev.start) ? v : prev.start, end: v }))}
                           options={days.map((d, i) => ({
                             value: d.id,
                             label: d.title || t('planner.dayN', { n: i + 1 }),
@@ -598,9 +599,9 @@ export default function DayDetailPanel({ day, days, places, categories = [], tri
                         const all = d.accommodations || []
                         setAccommodations(all)
                         setDayAccommodations(all.filter(a =>
-                          days.some(dd => dd.id >= a.start_day_id && dd.id <= a.end_day_id && dd.id === day?.id)
+                          day ? isDayInAccommodationRange(day, a.start_day_id, a.end_day_id, days) : false
                         ))
-                        const acc = all.find(a => days.some(dd => dd.id >= a.start_day_id && dd.id <= a.end_day_id && dd.id === day?.id))
+                        const acc = all.find(a => day ? isDayInAccommodationRange(day, a.start_day_id, a.end_day_id, days) : false)
                         setAccommodation(acc || null)
                       })
                       onAccommodationChange?.()

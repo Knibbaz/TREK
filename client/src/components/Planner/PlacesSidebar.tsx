@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
-import { useState, useMemo, useEffect, useRef, useCallback } from 'react'
+import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Search, Plus, X, CalendarDays, Pencil, Trash2, ExternalLink, Navigation, Upload, ChevronDown, Check, MapPin, Eye, Route } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import { getCategoryIcon } from '../shared/categoryIcons'
@@ -35,6 +35,7 @@ interface PlacesSidebarProps {
   onPlacesFilterChange?: (filter: string) => void
   pushUndo?: (label: string, undoFn: () => Promise<void> | void) => void
   onScrollTopChange?: (scrollTop: number) => void
+  initialScrollTop?: number
 }
 
 interface MemoPlaceRowProps {
@@ -155,7 +156,7 @@ const MemoPlaceRow = React.memo(function MemoPlaceRow({
 
 const PlacesSidebar = React.memo(function PlacesSidebar({
   tripId, places, categories, assignments, selectedDayId, selectedPlaceId,
-  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onBulkDeletePlaces, onBulkDeleteConfirm, days, isMobile, onCategoryFilterChange, onPlacesFilterChange, pushUndo, onScrollTopChange,
+  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onBulkDeletePlaces, onBulkDeleteConfirm, days, isMobile, onCategoryFilterChange, onPlacesFilterChange, pushUndo, initialScrollTop, onScrollTopChange,
 }: PlacesSidebarProps) {
   const { t } = useTranslation()
   const toast = useToast()
@@ -170,6 +171,12 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
   const [sidebarDropFile, setSidebarDropFile] = useState<File | null>(null)
   const [sidebarDragOver, setSidebarDragOver] = useState(false)
   const sidebarDragCounter = useRef(0)
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+  useLayoutEffect(() => {
+    if (scrollContainerRef.current && initialScrollTop) {
+      scrollContainerRef.current.scrollTop = initialScrollTop
+    }
+  }, [])
 
   const handleSidebarDragEnter = (e: React.DragEvent) => {
     if (!canEditPlaces) return

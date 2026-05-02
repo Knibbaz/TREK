@@ -188,7 +188,7 @@ function BoundsController({ places, fitKey, paddingOpts, hasDayDetail }: BoundsC
         }
       }
     } catch {}
-  }, [fitKey, places, paddingOpts, map, hasDayDetail])
+  }, [fitKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   return null
 }

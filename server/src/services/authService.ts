@@ -15,6 +15,7 @@ import { decrypt_api_key, maybe_encrypt_api_key, encrypt_api_key } from './apiKe
 import { createEphemeralToken } from './ephemeralTokens';
 import { revokeUserSessions } from '../mcp';
 import { startTripReminders } from '../scheduler';
+import { deleteUserCompletely } from './userCleanupService';
 import { verifyJwtAndLoadUser } from '../middleware/auth';
 import { User } from '../types';
 import { DEMO_EMAIL_PRIMARY, isDemoEmail } from './demo';
@@ -131,7 +132,7 @@ export function resolveAuthToggles(): {
       oidc_login: get('oidc_login') !== 'false',
       oidc_registration: get('oidc_registration') !== 'false',
     };
-    if (process.env.OIDC_ONLY === 'true') {
+    if (process.env.OIDC_ONLY?.toLowerCase() === 'true') {
       result.password_login = false;
       result.password_registration = false;
     }
@@ -139,7 +140,7 @@ export function resolveAuthToggles(): {
   }
 
   // Legacy fallback
-  const oidcOnlyEnabled = process.env.OIDC_ONLY === 'true' || get('oidc_only') === 'true';
+  const oidcOnlyEnabled = process.env.OIDC_ONLY?.toLowerCase() === 'true' || get('oidc_only') === 'true';
   const oidcConfigured = !!(
     (process.env.OIDC_ISSUER || get('oidc_issuer')) &&
     (process.env.OIDC_CLIENT_ID || get('oidc_client_id'))
@@ -253,7 +254,7 @@ export function getPendingMfaSecret(userId: number): string | null {
 
 export function getAppConfig(authenticatedUser: { id: number } | null) {
   const userCount = (db.prepare('SELECT COUNT(*) as count FROM users').get() as { count: number }).count;
-  const isDemo = process.env.DEMO_MODE === 'true';
+  const isDemo = process.env.DEMO_MODE?.toLowerCase() === 'true';
   const toggles = resolveAuthToggles();
   const version: string = process.env.APP_VERSION ?? require('../../package.json').version;
   const hasGoogleKey = !!db.prepare("SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1").get();
@@ -530,7 +531,7 @@ export function deleteAccount(userId: number, userEmail: string, userRole: strin
       return { error: 'Cannot delete the last admin account', status: 400 };
     }
   }
-  db.prepare('DELETE FROM users WHERE id = ?').run(userId);
+  deleteUserCompletely(userId);
   return { success: true };
 }
 
