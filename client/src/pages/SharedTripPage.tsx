@@ -114,7 +114,7 @@ export default function SharedTripPage() {
           <img src="/icons/icon-white.svg" alt="ROUTD" width="26" height="26" />
         </div>
 
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Travel Resource & Exploration Kit</div>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Routes Organized for Unforgettable Travel Days</div>
 
         <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>{trip.title}</h1>
 
@@ -215,25 +215,31 @@ export default function SharedTripPage() {
         )}
         
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20, overflowX: 'auto', padding: '2px 0' }}>
-          {[
+        {(() => {
+          const tabs = [
             { id: 'plan', label: t('shared.tabPlan'), Icon: Map },
             ...(permissions?.share_bookings ? [{ id: 'bookings', label: t('shared.tabBookings'), Icon: Ticket }] : []),
             ...(permissions?.share_packing ? [{ id: 'packing', label: t('shared.tabPacking'), Icon: Luggage }] : []),
             ...(permissions?.share_budget ? [{ id: 'budget', label: t('shared.tabBudget'), Icon: Wallet }] : []),
             ...(permissions?.share_collab ? [{ id: 'collab', label: t('shared.tabChat'), Icon: MessageCircle }] : []),
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-              padding: '8px 18px', borderRadius: 12, border: '1.5px solid', cursor: 'pointer',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.15s', whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: activeTab === tab.id ? '#111827' : 'var(--bg-card, white)',
-              borderColor: activeTab === tab.id ? '#111827' : 'var(--border-faint, #e5e7eb)',
-              color: activeTab === tab.id ? 'white' : '#6b7280',
-              boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
-            }}><tab.Icon size={13} /><span className="hidden sm:inline">{tab.label}</span></button>
-          ))}
-        </div>
+          ];
+          if (tabs.length <= 1) return null;
+          return (
+          <div style={{ display: 'flex', gap: 6, marginBottom: 20, overflowX: 'auto', padding: '2px 0' }}>
+            {tabs.map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                padding: '8px 18px', borderRadius: 12, border: '1.5px solid', cursor: 'pointer',
+                fontSize: 12, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: 6,
+                background: activeTab === tab.id ? '#111827' : 'var(--bg-card, white)',
+                borderColor: activeTab === tab.id ? '#111827' : 'var(--border-faint, #e5e7eb)',
+                color: activeTab === tab.id ? 'white' : '#6b7280',
+                boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+              }}><tab.Icon size={13} /><span className="hidden sm:inline">{tab.label}</span></button>
+            ))}
+          </div>
+          );
+        })()}
 
         {/* Map */}
         {activeTab === 'plan' && (<>
