@@ -419,7 +419,6 @@ export function joinGroupWithToken(userId: number, token: string): { success: bo
 
 // ── Poll listing & details ───────────────────────────────────────────────────
 export function listGroupPolls(tripId: string, userId: number): Record<string, unknown>[] {
-  // Verify user has access to trip (trip member or group member)
   const hasTripAccess = db.prepare(`
     SELECT 1 FROM trips WHERE id = ? AND user_id = ?
     UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
@@ -429,7 +428,7 @@ export function listGroupPolls(tripId: string, userId: number): Record<string, u
   const polls = db.prepare(`
     SELECT p.*, u.username AS creator_name,
       (SELECT COUNT(*) FROM group_poll_votes WHERE poll_id = p.id) AS total_votes,
-      (SELECT COUNT(DISTINCT user_id) FROM group_poll_votes WHERE poll_id = p.id AND user_id IS NOT NULL) AS voter_count
+      (SELECT COUNT(DISTINCT COALESCE(user_id, guest_token)) FROM group_poll_votes WHERE poll_id = p.id) AS voter_count
     FROM group_polls p
     LEFT JOIN users u ON u.id = p.created_by
     WHERE p.trip_id = ?
@@ -437,25 +436,7 @@ export function listGroupPolls(tripId: string, userId: number): Record<string, u
   `).all(tripId) as Record<string, unknown>[];
 
   for (const poll of polls) {
-    const pollId = poll.id as string;
-
-    // Options with vote counts
-    poll.options = db.prepare(`
-      SELECT o.*,
-        COUNT(v.id) AS vote_count,
-        MAX(CASE WHEN v.user_id = ? THEN 1 ELSE 0 END) AS user_voted
-      FROM group_poll_options o
-      LEFT JOIN group_poll_votes v ON v.option_id = o.id AND v.poll_id = o.poll_id
-      WHERE o.poll_id = ?
-      GROUP BY o.id
-      ORDER BY o.sort_order, o.created_at
-    `).all(userId, pollId);
-
-    // User's own vote (option id)
-    const myVote = db.prepare(`
-      SELECT option_id FROM group_poll_votes WHERE poll_id = ? AND user_id = ?
-    `).get(pollId, userId) as { option_id: string } | undefined;
-    poll.my_vote = myVote?.option_id || null;
+    attachPollDetails(poll, userId);
   }
 
   return polls;
@@ -471,30 +452,109 @@ export function getGroupPoll(pollId: string, userId: number): Record<string, unk
 
   if (!poll) return null;
 
-  // Access check
   const hasTripAccess = db.prepare(`
     SELECT 1 FROM trips WHERE id = ? AND user_id = ?
     UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
   `).get(poll.trip_id, userId, poll.trip_id, userId);
   if (!hasTripAccess) return null;
 
-  poll.options = db.prepare(`
+  attachPollDetails(poll, userId);
+  return poll;
+}
+
+// ── Shared helper: attach options + votes to a poll object ───────────────────
+function attachPollDetails(poll: Record<string, unknown>, userId: number): void {
+  const pollId = poll.id as string;
+  const pollType = poll.type as string;
+  const isAnonymous = poll.anonymous as number;
+
+  const options = db.prepare(`
     SELECT o.*,
-      COUNT(v.id) AS vote_count,
-      MAX(CASE WHEN v.user_id = ? THEN 1 ELSE 0 END) AS user_voted
+      COUNT(v.id) AS vote_count
     FROM group_poll_options o
-    LEFT JOIN group_poll_votes v ON v.option_id = o.id
+    LEFT JOIN group_poll_votes v ON v.option_id = o.id AND v.poll_id = o.poll_id
     WHERE o.poll_id = ?
     GROUP BY o.id
     ORDER BY o.sort_order, o.created_at
-  `).all(userId, pollId);
+  `).all(pollId) as Record<string, unknown>[];
 
-  const myVote = db.prepare(`
-    SELECT option_id FROM group_poll_votes WHERE poll_id = ? AND user_id = ?
-  `).get(pollId, userId) as { option_id: string } | undefined;
-  poll.my_vote = myVote?.option_id || null;
+  if (pollType === 'ranked') {
+    // Borda count: for N options, rank 1 = N pts, rank 2 = N-1 pts, etc.
+    const n = options.length;
+    const bordaMap: Record<string, number> = {};
+    const rankVotes = db.prepare(`
+      SELECT option_id, rank FROM group_poll_votes WHERE poll_id = ? AND rank IS NOT NULL
+    `).all(pollId) as Array<{ option_id: string; rank: number }>;
 
-  return poll;
+    for (const v of rankVotes) {
+      const score = Math.max(0, n - v.rank + 1);
+      bordaMap[v.option_id] = (bordaMap[v.option_id] || 0) + score;
+    }
+    for (const o of options) {
+      o.borda_score = bordaMap[o.id as string] || 0;
+    }
+    options.sort((a, b) => (b.borda_score as number) - (a.borda_score as number));
+
+    // User's own ranking
+    const myRanks = db.prepare(`
+      SELECT option_id, rank FROM group_poll_votes WHERE poll_id = ? AND user_id = ? AND rank IS NOT NULL
+      ORDER BY rank
+    `).all(pollId, userId) as Array<{ option_id: string; rank: number }>;
+    poll.my_ranks = myRanks;
+
+  } else if (pollType === 'swipe') {
+    // Swipe: match score = superlike=2, like=1, dislike=0
+    const swipeMap: Record<string, { like: number; superlike: number; dislike: number }> = {};
+    const swipeVotes = db.prepare(`
+      SELECT option_id, swipe_value FROM group_poll_votes WHERE poll_id = ? AND swipe_value IS NOT NULL
+    `).all(pollId) as Array<{ option_id: string; swipe_value: string }>;
+
+    for (const v of swipeVotes) {
+      if (!swipeMap[v.option_id]) swipeMap[v.option_id] = { like: 0, superlike: 0, dislike: 0 };
+      if (v.swipe_value === 'like') swipeMap[v.option_id].like++;
+      else if (v.swipe_value === 'superlike') swipeMap[v.option_id].superlike++;
+      else if (v.swipe_value === 'dislike') swipeMap[v.option_id].dislike++;
+    }
+    for (const o of options) {
+      const s = swipeMap[o.id as string] || { like: 0, superlike: 0, dislike: 0 };
+      o.swipe_stats = s;
+      o.match_score = s.superlike * 2 + s.like;
+    }
+
+    // User's own swipe values
+    const mySwipes = db.prepare(`
+      SELECT option_id, swipe_value FROM group_poll_votes WHERE poll_id = ? AND user_id = ? AND swipe_value IS NOT NULL
+    `).all(pollId, userId) as Array<{ option_id: string; swipe_value: string }>;
+    poll.my_swipes = Object.fromEntries(mySwipes.map(v => [v.option_id, v.swipe_value]));
+
+  } else {
+    // single_choice / multi_choice: user_voted flag
+    for (const o of options) {
+      const voted = db.prepare(
+        'SELECT 1 FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND user_id = ?'
+      ).get(pollId, o.id, userId);
+      o.user_voted = voted ? 1 : 0;
+    }
+  }
+
+  poll.options = options;
+
+  // my_votes: array of voted option_ids (works for all types except ranked/swipe)
+  if (pollType !== 'ranked' && pollType !== 'swipe') {
+    const myVotes = db.prepare(
+      'SELECT option_id FROM group_poll_votes WHERE poll_id = ? AND user_id = ?'
+    ).all(pollId, userId) as Array<{ option_id: string }>;
+    poll.my_votes = myVotes.map(v => v.option_id);
+    // Backward compat: single string
+    poll.my_vote = myVotes[0]?.option_id || null;
+  }
+
+  // If anonymous: strip individual voter info from non-owners
+  if (isAnonymous) {
+    for (const o of options) {
+      delete o.user_voted;
+    }
+  }
 }
 
 // ── Poll option management ───────────────────────────────────────────────────
@@ -648,6 +708,266 @@ export function updateGroupPollStatus(
   db.prepare(`
     UPDATE group_polls SET status = ?, decided_option_id = ?, updated_at = datetime('now') WHERE id = ?
   `).run(status, decidedOptionId || null, pollId);
+
+  return { success: true };
+}
+
+// ── Ranked voting ───────────────────────────────────────────────────────────
+export function castRankedVotes(
+  pollId: string,
+  rankings: Array<{ option_id: string; rank: number }>,
+  userId: number
+): { success: boolean; error?: string } {
+  const poll = db.prepare('SELECT * FROM group_polls WHERE id = ?').get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (poll.type !== 'ranked') return { success: false, error: 'Not a ranked poll' };
+  if (poll.status !== 'open') return { success: false, error: 'Poll is closed' };
+  if (poll.deadline && new Date(poll.deadline as string) < new Date()) {
+    return { success: false, error: 'Poll deadline has passed' };
+  }
+
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return { success: false, error: 'Forbidden' };
+
+  // Verify all option_ids belong to this poll
+  for (const r of rankings) {
+    const opt = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(r.option_id, pollId);
+    if (!opt) return { success: false, error: `Option ${r.option_id} not found` };
+  }
+
+  db.transaction(() => {
+    db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND user_id = ?').run(pollId, userId);
+    const insert = db.prepare(`
+      INSERT INTO group_poll_votes (id, poll_id, option_id, user_id, rank)
+      VALUES (?, ?, ?, ?, ?)
+    `);
+    for (const r of rankings) {
+      const voteId = require('crypto').randomBytes(12).toString('hex');
+      insert.run(voteId, pollId, r.option_id, userId, r.rank);
+    }
+  })();
+
+  return { success: true };
+}
+
+// ── Swipe voting ─────────────────────────────────────────────────────────────
+export function castSwipeVote(
+  pollId: string,
+  optionId: string,
+  swipeValue: 'like' | 'dislike' | 'superlike',
+  userId: number
+): { success: boolean; error?: string } {
+  const poll = db.prepare('SELECT * FROM group_polls WHERE id = ?').get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (poll.type !== 'swipe') return { success: false, error: 'Not a swipe poll' };
+  if (poll.status !== 'open') return { success: false, error: 'Poll is closed' };
+
+  const option = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(optionId, pollId);
+  if (!option) return { success: false, error: 'Option not found' };
+
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return { success: false, error: 'Forbidden' };
+
+  const existing = db.prepare(
+    'SELECT id FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND user_id = ?'
+  ).get(pollId, optionId, userId) as { id: string } | undefined;
+
+  if (existing) {
+    db.prepare('UPDATE group_poll_votes SET swipe_value = ? WHERE id = ?').run(swipeValue, existing.id);
+  } else {
+    const voteId = require('crypto').randomBytes(12).toString('hex');
+    db.prepare(`
+      INSERT INTO group_poll_votes (id, poll_id, option_id, user_id, swipe_value)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(voteId, pollId, optionId, userId, swipeValue);
+  }
+
+  return { success: true };
+}
+
+export function getSwipeMatches(pollId: string, userId: number): Record<string, unknown>[] {
+  const poll = db.prepare('SELECT * FROM group_polls WHERE id = ?').get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return [];
+
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return [];
+
+  const options = db.prepare(`
+    SELECT o.*,
+      SUM(CASE WHEN v.swipe_value = 'superlike' THEN 2 WHEN v.swipe_value = 'like' THEN 1 ELSE 0 END) AS match_score,
+      COUNT(CASE WHEN v.swipe_value IN ('like','superlike') THEN 1 END) AS positive_count,
+      COUNT(CASE WHEN v.swipe_value = 'superlike' THEN 1 END) AS superlike_count
+    FROM group_poll_options o
+    LEFT JOIN group_poll_votes v ON v.option_id = o.id AND v.swipe_value IS NOT NULL
+    WHERE o.poll_id = ?
+    GROUP BY o.id
+    ORDER BY match_score DESC, superlike_count DESC
+  `).all(pollId) as Record<string, unknown>[];
+
+  return options;
+}
+
+// ── Guest voting ──────────────────────────────────────────────────────────────
+export function createGuestPollLink(
+  pollId: string,
+  userId: number
+): { success: boolean; token?: string; error?: string } {
+  const poll = db.prepare(`
+    SELECT p.*, t.user_id AS trip_owner
+    FROM group_polls p JOIN trips t ON t.id = p.trip_id
+    WHERE p.id = ?
+  `).get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (!poll.allow_guest_votes) return { success: false, error: 'Guest votes not allowed on this poll' };
+
+  const hasTripAccess = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+    UNION SELECT 1 FROM trip_members WHERE trip_id = ? AND user_id = ?
+  `).get(poll.trip_id, userId, poll.trip_id, userId);
+  if (!hasTripAccess) return { success: false, error: 'Forbidden' };
+
+  const token = require('crypto').randomBytes(24).toString('base64url');
+  const tokenId = require('crypto').randomBytes(12).toString('hex');
+  const deadline = poll.deadline as string | null;
+  const expiresAt = deadline || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+
+  db.prepare(`
+    INSERT INTO group_poll_guest_tokens (id, poll_id, token, expires_at)
+    VALUES (?, ?, ?, ?)
+  `).run(tokenId, pollId, token, expiresAt);
+
+  return { success: true, token };
+}
+
+export function getGuestPollByToken(token: string): Record<string, unknown> | null {
+  const row = db.prepare(`
+    SELECT gt.*, p.id AS poll_id, p.trip_id, p.title, p.description, p.type, p.status,
+           p.deadline, p.anonymous, p.decided_option_id
+    FROM group_poll_guest_tokens gt
+    JOIN group_polls p ON p.id = gt.poll_id
+    WHERE gt.token = ? AND gt.expires_at > datetime('now')
+  `).get(token) as Record<string, unknown> | undefined;
+  if (!row) return null;
+
+  const options = db.prepare(`
+    SELECT o.*, COUNT(v.id) AS vote_count
+    FROM group_poll_options o
+    LEFT JOIN group_poll_votes v ON v.option_id = o.id
+    WHERE o.poll_id = ?
+    GROUP BY o.id
+    ORDER BY o.sort_order, o.created_at
+  `).all(row.poll_id as string) as Record<string, unknown>[];
+
+  // Guest's own votes for this token
+  const myVotes = db.prepare(`
+    SELECT option_id, swipe_value, rank FROM group_poll_votes
+    WHERE poll_id = ? AND guest_token = ?
+  `).all(row.poll_id as string, token) as Array<{ option_id: string; swipe_value: string | null; rank: number | null }>;
+
+  return {
+    poll: {
+      id: row.poll_id,
+      trip_id: row.trip_id,
+      title: row.title,
+      description: row.description,
+      type: row.type,
+      status: row.status,
+      deadline: row.deadline,
+      decided_option_id: row.decided_option_id,
+      options,
+    },
+    guest_name: row.guest_name,
+    my_votes: myVotes,
+  };
+}
+
+export function castGuestVote(
+  token: string,
+  votes: Array<{ option_id: string; swipe_value?: string; rank?: number }>,
+  guestName: string
+): { success: boolean; error?: string } {
+  const row = db.prepare(`
+    SELECT gt.*, p.type, p.status, p.deadline
+    FROM group_poll_guest_tokens gt
+    JOIN group_polls p ON p.id = gt.poll_id
+    WHERE gt.token = ? AND gt.expires_at > datetime('now')
+  `).get(token) as Record<string, unknown> | undefined;
+
+  if (!row) return { success: false, error: 'Invalid or expired guest link' };
+  if (row.status !== 'open') return { success: false, error: 'Poll is closed' };
+  if (row.deadline && new Date(row.deadline as string) < new Date()) {
+    return { success: false, error: 'Poll deadline has passed' };
+  }
+
+  const pollId = row.poll_id as string;
+  const pollType = row.type as string;
+
+  if (guestName?.trim()) {
+    db.prepare('UPDATE group_poll_guest_tokens SET guest_name = ? WHERE token = ?').run(guestName.trim().slice(0, 80), token);
+  }
+
+  db.transaction(() => {
+    if (pollType === 'ranked') {
+      db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND guest_token = ?').run(pollId, token);
+      const insert = db.prepare(`
+        INSERT INTO group_poll_votes (id, poll_id, option_id, guest_name, guest_token, rank)
+        VALUES (?, ?, ?, ?, ?, ?)
+      `);
+      for (const v of votes) {
+        if (v.rank == null) continue;
+        const opt = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(v.option_id, pollId);
+        if (!opt) continue;
+        insert.run(require('crypto').randomBytes(12).toString('hex'), pollId, v.option_id, guestName, token, v.rank);
+      }
+    } else if (pollType === 'swipe') {
+      for (const v of votes) {
+        if (!v.swipe_value || !['like', 'dislike', 'superlike'].includes(v.swipe_value)) continue;
+        const opt = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(v.option_id, pollId);
+        if (!opt) continue;
+        const existing = db.prepare(
+          'SELECT id FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND guest_token = ?'
+        ).get(pollId, v.option_id, token) as { id: string } | undefined;
+        if (existing) {
+          db.prepare('UPDATE group_poll_votes SET swipe_value = ? WHERE id = ?').run(v.swipe_value, existing.id);
+        } else {
+          db.prepare(`
+            INSERT INTO group_poll_votes (id, poll_id, option_id, guest_name, guest_token, swipe_value)
+            VALUES (?, ?, ?, ?, ?, ?)
+          `).run(require('crypto').randomBytes(12).toString('hex'), pollId, v.option_id, guestName, token, v.swipe_value);
+        }
+      }
+    } else {
+      // single_choice: clear existing, pick one
+      // multi_choice: toggle
+      if (pollType === 'single_choice') {
+        db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND guest_token = ?').run(pollId, token);
+      }
+      for (const v of votes) {
+        const opt = db.prepare('SELECT id FROM group_poll_options WHERE id = ? AND poll_id = ?').get(v.option_id, pollId);
+        if (!opt) continue;
+        const existing = db.prepare(
+          'SELECT id FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND guest_token = ?'
+        ).get(pollId, v.option_id, token);
+        if (existing) {
+          db.prepare('DELETE FROM group_poll_votes WHERE poll_id = ? AND option_id = ? AND guest_token = ?').run(pollId, v.option_id, token);
+        } else {
+          db.prepare(`
+            INSERT INTO group_poll_votes (id, poll_id, option_id, guest_name, guest_token)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(require('crypto').randomBytes(12).toString('hex'), pollId, v.option_id, guestName, token);
+        }
+      }
+    }
+  })();
 
   return { success: true };
 }

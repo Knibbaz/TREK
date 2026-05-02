@@ -4,6 +4,28 @@ import { AuthRequest } from '../types';
 import { db } from '../db/database';
 import * as svc from '../services/groupsService';
 import { broadcastToGroup, broadcast } from '../websocket';
+import { NextFunction } from 'express';
+
+// Simple in-process rate limiter for guest endpoints (10 req/min per IP)
+const guestAttempts = new Map<string, { count: number; first: number }>();
+setInterval(() => {
+  const now = Date.now();
+  for (const [k, r] of guestAttempts) { if (now - r.first >= 60_000) guestAttempts.delete(k); }
+}, 5 * 60_000);
+function guestRateLimit(req: Request, res: Response, next: NextFunction) {
+  const key = req.ip || 'unknown';
+  const now = Date.now();
+  const record = guestAttempts.get(key);
+  if (record && record.count >= 10 && now - record.first < 60_000) {
+    return res.status(429).json({ error: 'Too many requests' });
+  }
+  if (!record || now - record.first >= 60_000) {
+    guestAttempts.set(key, { count: 1, first: now });
+  } else {
+    record.count++;
+  }
+  next();
+}
 
 const router = express.Router();
 
@@ -288,6 +310,74 @@ router.patch('/polls/:tripId/:pollId', (req: Request, res: Response) => {
   broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, poll },
     req.headers['x-socket-id'] as string);
   res.json({ success: true, poll });
+});
+
+// ── Ranked vote ──────────────────────────────────────────────────────────────
+router.post('/polls/:tripId/:pollId/ranked-vote', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { rankings } = req.body;
+  if (!Array.isArray(rankings) || rankings.length === 0) {
+    return res.status(400).json({ error: 'rankings array required' });
+  }
+  const result = svc.castRankedVotes(req.params.pollId, rankings, userId);
+  if (!result.success) return res.status(400).json({ error: result.error });
+
+  const poll = svc.getGroupPoll(req.params.pollId, userId);
+  broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, poll },
+    req.headers['x-socket-id'] as string);
+  res.json({ success: true });
+});
+
+// ── Swipe vote ───────────────────────────────────────────────────────────────
+router.post('/polls/:tripId/:pollId/swipe', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { option_id, swipe_value } = req.body;
+  if (!option_id || !swipe_value) return res.status(400).json({ error: 'option_id and swipe_value required' });
+  if (!['like', 'dislike', 'superlike'].includes(swipe_value)) {
+    return res.status(400).json({ error: 'swipe_value must be like, dislike, or superlike' });
+  }
+  const result = svc.castSwipeVote(req.params.pollId, option_id, swipe_value, userId);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  res.json({ success: true });
+});
+
+// ── Swipe matches ─────────────────────────────────────────────────────────────
+router.get('/polls/:tripId/:pollId/matches', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const matches = svc.getSwipeMatches(req.params.pollId, userId);
+  res.json({ matches });
+});
+
+// ── Generate guest link ──────────────────────────────────────────────────────
+router.post('/polls/:tripId/:pollId/guest-link', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const result = svc.createGuestPollLink(req.params.pollId, userId);
+  if (!result.success) return res.status(400).json({ error: result.error });
+  res.json({ token: result.token });
+});
+
+// ── Guest poll endpoints (no auth) ───────────────────────────────────────────
+router.get('/guest/poll/:token', guestRateLimit, (req: Request, res: Response) => {
+  const data = svc.getGuestPollByToken(req.params.token);
+  if (!data) return res.status(404).json({ error: 'Invalid or expired guest link' });
+  res.json(data);
+});
+
+router.post('/guest/poll/:token/vote', guestRateLimit, (req: Request, res: Response) => {
+  const { votes, guest_name } = req.body;
+  if (!Array.isArray(votes) || votes.length === 0) return res.status(400).json({ error: 'votes array required' });
+  if (!guest_name?.trim()) return res.status(400).json({ error: 'guest_name required' });
+
+  const result = svc.castGuestVote(req.params.token, votes, guest_name);
+  if (!result.success) return res.status(400).json({ error: result.error });
+
+  // Get poll info to broadcast update
+  const data = svc.getGuestPollByToken(req.params.token);
+  if (data?.poll) {
+    const p = data.poll as Record<string, unknown>;
+    broadcast(String(p.trip_id), 'groups:poll:updated', { tripId: p.trip_id, pollId: p.id }, undefined);
+  }
+  res.json({ success: true });
 });
 
 export default router;

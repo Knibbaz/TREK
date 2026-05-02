@@ -466,7 +466,7 @@ export default function GroupsPage(): React.ReactElement {
                 <button
                   onClick={() => setShowDeleteConfirm(true)}
                   className="px-3 py-2 rounded-lg text-sm font-medium transition-colors"
-                  style={{ background: 'var(--bg-danger)', color: 'white' }}
+                  style={{ background: '#ef4444', color: 'white' }}
                 >
                   <Trash2 size={14} className="inline mr-1" />
                   {t('common.delete') || 'Delete'}
@@ -977,7 +977,7 @@ export default function GroupsPage(): React.ReactElement {
             <button
               onClick={handleDeleteGroup}
               className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-              style={{ background: 'var(--text-danger)' }}
+              style={{ background: '#ef4444' }}
             >
               {t('common.delete') || 'Delete'}
             </button>
@@ -1007,7 +1007,7 @@ export default function GroupsPage(): React.ReactElement {
             <button
               onClick={handleLeaveGroup}
               className="px-4 py-2 rounded-lg text-sm font-medium text-white"
-              style={{ background: 'var(--text-danger)' }}
+              style={{ background: '#ef4444' }}
             >
               {t('groups.leave') || 'Leave'}
             </button>
