@@ -1,6 +1,6 @@
 # Environment Variables
 
-Complete reference for all environment variables TREK reads.
+Complete reference for all environment variables ROUTD reads.
 
 ## How to Set Variables
 
@@ -89,7 +89,7 @@ SMTP settings can be configured via the Admin panel or overridden with environme
 | `SMTP_PORT` | SMTP server port. Port `465` enables implicit TLS (`secure: true`); all other ports use STARTTLS or plain. | — |
 | `SMTP_USER` | SMTP authentication username | — |
 | `SMTP_PASS` | SMTP authentication password | — |
-| `SMTP_FROM` | Sender address for outbound emails (e.g. `TREK <noreply@example.com>`) | — |
+| `SMTP_FROM` | Sender address for outbound emails (e.g. `ROUTD <noreply@example.com>`) | — |
 | `SMTP_SKIP_TLS_VERIFY` | Set `true` to disable TLS certificate validation. Useful for self-signed certs on internal SMTP relays — not recommended in production. | `false` |
 
 `SMTP_HOST`, `SMTP_PORT`, and `SMTP_FROM` are all required for email delivery to work. `SMTP_USER` and `SMTP_PASS` are optional (for unauthenticated relays).

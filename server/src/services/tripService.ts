@@ -456,8 +456,8 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
     return d.replace(/[-:]/g, '');
   };
 
-  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TREK//Travel Planner//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
-  ics += `X-WR-CALNAME:${esc(trip.title || 'TREK Trip')}\r\n`;
+  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ROUTD//Travel Planner//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
+  ics += `X-WR-CALNAME:${esc(trip.title || 'ROUTD Trip')}\r\n`;
 
   // Trip as all-day event
   if (trip.start_date && trip.end_date) {

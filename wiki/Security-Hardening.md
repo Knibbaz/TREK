@@ -1,17 +1,17 @@
 # Security Hardening
 
-A production TREK deployment checklist. All items reference actual TREK configuration options.
+A production ROUTD deployment checklist. All items reference actual ROUTD configuration options.
 
 ## Encryption & Secrets
 
 - [ ] Set a strong `ENCRYPTION_KEY` (generate with `openssl rand -hex 32`). See [Encryption-Key-Rotation](Encryption-Key-Rotation).
 - [ ] Back up `ENCRYPTION_KEY` separately from the database backup ZIP — losing it makes all stored API keys and secrets unreadable. Stored secrets use AES-256-GCM encryption derived from this key.
 - [ ] Rotate `ENCRYPTION_KEY` if it may have been exposed. See [Encryption-Key-Rotation](Encryption-Key-Rotation).
-- [ ] Do **not** set `JWT_SECRET` via environment variable. TREK auto-generates it on first start, persists it to `data/.jwt_secret`, and manages rotation through the Admin Panel. Setting it via env var would override any rotation performed through the UI on next restart.
+- [ ] Do **not** set `JWT_SECRET` via environment variable. ROUTD auto-generates it on first start, persists it to `data/.jwt_secret`, and manages rotation through the Admin Panel. Setting it via env var would override any rotation performed through the UI on next restart.
 
 ## HTTPS & Network
 
-- [ ] Run TREK behind a TLS-terminating reverse proxy (nginx, Caddy, Traefik). See [Reverse-Proxy](Reverse-Proxy).
+- [ ] Run ROUTD behind a TLS-terminating reverse proxy (nginx, Caddy, Traefik). See [Reverse-Proxy](Reverse-Proxy).
 - [ ] Set `TRUST_PROXY=1` so client IPs are captured correctly in the audit log. In `NODE_ENV=production` this defaults to `1` automatically, but set it explicitly if you use a non-standard proxy hop count.
 - [ ] Set `FORCE_HTTPS=true` to enable HSTS (`max-age=31536000`), redirect HTTP to HTTPS, and add `upgrade-insecure-requests` to the CSP. Requires `TRUST_PROXY` — omitting it causes a redirect loop.
 - [ ] Keep `ALLOW_INTERNAL_NETWORK=false` unless Immich or Synology is on your LAN. See [Internal-Network-Access](Internal-Network-Access). Note: loopback (`127.x`, `::1`) and link-local (`169.254.x`) addresses are always blocked regardless of this setting.
@@ -25,14 +25,14 @@ A production TREK deployment checklist. All items reference actual TREK configur
 
 ## Session Security
 
-TREK stores sessions as JWTs in an httpOnly `trek_session` cookie (SameSite=Lax, 24-hour expiry). The `secure` flag is set automatically when `NODE_ENV=production` or `FORCE_HTTPS=true`. Tokens are also accepted via `Authorization: Bearer` header for MCP and API clients.
+ROUTD stores sessions as JWTs in an httpOnly `trek_session` cookie (SameSite=Lax, 24-hour expiry). The `secure` flag is set automatically when `NODE_ENV=production` or `FORCE_HTTPS=true`. Tokens are also accepted via `Authorization: Bearer` header for MCP and API clients.
 
 - [ ] Ensure `FORCE_HTTPS=true` (or `NODE_ENV=production`) so the `trek_session` cookie carries the `secure` flag and is never sent over plain HTTP.
 - [ ] Set `COOKIE_SECURE=false` only as a temporary escape hatch for LAN testing without TLS — do not use in production.
 
 ## Password Policy
 
-TREK enforces a minimum password policy on all registrations and password changes:
+ROUTD enforces a minimum password policy on all registrations and password changes:
 
 - Minimum 8 characters
 - Must contain uppercase, lowercase, digit, and special character
@@ -52,7 +52,7 @@ Built-in in-memory rate limits protect authentication endpoints:
 | Password change | 5 attempts | 15 minutes |
 | MCP token creation | 5 attempts | 15 minutes |
 
-These limits are per source IP. If TREK is behind a reverse proxy, set `TRUST_PROXY` so the real client IP is used rather than the proxy's IP.
+These limits are per source IP. If ROUTD is behind a reverse proxy, set `TRUST_PROXY` so the real client IP is used rather than the proxy's IP.
 
 ## Content Security Policy
 
@@ -68,12 +68,12 @@ Helmet applies a strict CSP on all responses. Key directives:
 ## Backups
 
 - [ ] Enable auto-backup with an appropriate retention window. See [Backups](Backups).
-- [ ] Store backups off-site — copy backup ZIPs to a separate location outside the TREK host.
+- [ ] Store backups off-site — copy backup ZIPs to a separate location outside the ROUTD host.
 
 ## Monitoring
 
 - [ ] Review the audit log periodically for unexpected logins or admin changes. See [Audit-Log](Audit-Log).
-- [ ] Check for TREK updates regularly. See [Admin-GitHub-Releases](Admin-GitHub-Releases) and [Updating](Updating).
+- [ ] Check for ROUTD updates regularly. See [Admin-GitHub-Releases](Admin-GitHub-Releases) and [Updating](Updating).
 
 ## See also
 

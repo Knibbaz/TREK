@@ -1,10 +1,10 @@
 # MCP Overview
 
-TREK includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server. MCP is an open standard that lets AI assistants read and modify data in external services through a structured API. When the MCP addon is enabled on your TREK instance, AI clients such as Claude.ai, Claude Desktop, Cursor, VS Code, and others can connect directly to your trips.
+ROUTD includes a built-in [Model Context Protocol](https://modelcontextprotocol.io/) (MCP) server. MCP is an open standard that lets AI assistants read and modify data in external services through a structured API. When the MCP addon is enabled on your ROUTD instance, AI clients such as Claude.ai, Claude Desktop, Cursor, VS Code, and others can connect directly to your trips.
 
 ## What you can do
 
-Once connected, an AI assistant can work with your TREK data in a single conversation:
+Once connected, an AI assistant can work with your ROUTD data in a single conversation:
 
 - Create and update trips, days, and itineraries
 - Search for real-world places and add them to your trip
@@ -21,7 +21,7 @@ Changes made through MCP are broadcast to all connected clients in real-time —
 ## Requirements
 
 - **MCP addon enabled** — an administrator must enable the MCP addon (`mcp`) from the Admin Panel before the `/mcp` endpoint becomes available and the MCP section appears in user settings.
-- **`APP_URL` set** — the `APP_URL` environment variable must be configured to your TREK instance's public URL so that OAuth discovery works correctly. Without it, clients that use OAuth 2.1 cannot complete authentication.
+- **`APP_URL` set** — the `APP_URL` environment variable must be configured to your ROUTD instance's public URL so that OAuth discovery works correctly. Without it, clients that use OAuth 2.1 cannot complete authentication.
 
 ## Rate limits and session limits
 

@@ -1,6 +1,6 @@
 # Admin — GitHub Releases
 
-The **GitHub** tab shows the TREK release history fetched from GitHub and provides links to community resources and support options.
+The **GitHub** tab shows the ROUTD release history fetched from GitHub and provides links to community resources and support options.
 
 <!-- TODO: screenshot: GitHub releases panel with release timeline -->
 
@@ -14,7 +14,7 @@ Six cards at the top of the tab link to external resources:
 |------|------|
 | **Ko-fi** | Support the project financially |
 | **Buy Me a Coffee** | Alternative support link |
-| **Discord** | Join the TREK community |
+| **Discord** | Join the ROUTD community |
 | **Report a Bug** | Open a GitHub issue with the bug report template |
 | **Feature Request** | Open a GitHub Discussion in the feature requests category |
 | **Wiki** | Open the GitHub Wiki |

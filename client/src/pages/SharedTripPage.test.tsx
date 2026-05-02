@@ -356,8 +356,8 @@ describe('SharedTripPage', () => {
     });
   });
 
-  describe('FE-PAGE-SHARED-015: TREK branding footer is rendered', () => {
-    it('renders the Shared via TREK footer', async () => {
+  describe('FE-PAGE-SHARED-015: ROUTD branding footer is rendered', () => {
+    it('renders the Shared via ROUTD footer', async () => {
       renderSharedTrip('test-token');
 
       await waitFor(() => {

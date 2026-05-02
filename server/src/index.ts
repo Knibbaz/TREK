@@ -28,7 +28,7 @@ const server = app.listen(PORT, () => {
   const origins = process.env.ALLOWED_ORIGINS || '(same-origin)';
   const banner = [
     '──────────────────────────────────────',
-    '  ROAM API started',
+    '  ROUTD API started',
     `  Port:        ${PORT}`,
     `  Environment: ${process.env.NODE_ENV || 'development'}`,
     `  Timezone:    ${tz}`,

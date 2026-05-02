@@ -1,6 +1,6 @@
 # MCP Setup
 
-This page explains how to connect an AI assistant to your TREK instance. TREK supports two authentication methods: OAuth 2.1 (recommended) and static API tokens (deprecated).
+This page explains how to connect an AI assistant to your ROUTD instance. ROUTD supports two authentication methods: OAuth 2.1 (recommended) and static API tokens (deprecated).
 
 <!-- TODO: screenshot: OAuth client registration form -->
 
@@ -8,16 +8,16 @@ This page explains how to connect an AI assistant to your TREK instance. TREK su
 
 ## Option A: OAuth 2.1 (recommended)
 
-OAuth 2.1 is the preferred connection method. You grant specific scopes during the consent step and no token management is required afterward — TREK issues short-lived access tokens and automatically rotates refresh tokens.
+OAuth 2.1 is the preferred connection method. You grant specific scopes during the consent step and no token management is required afterward — ROUTD issues short-lived access tokens and automatically rotates refresh tokens.
 
 ### Claude.ai
 
 Claude.ai (web) supports native MCP connections — no JSON config file required:
 
-1. In TREK, go to **Settings → Integrations → MCP → OAuth Clients** and click **Create**.
+1. In ROUTD, go to **Settings → Integrations → MCP → OAuth Clients** and click **Create**.
 2. Select the **Claude.ai** preset. This fills in the redirect URI (`https://claude.ai/api/mcp/auth_callback`) and a default scope set.
 3. Give the client a name, adjust scopes if needed, and save. Copy the client ID and client secret (`trekcs_` prefix) — the secret is shown only once.
-4. In Claude.ai, open the MCP settings and add a new server using your TREK URL (`https://<your-trek-instance>/mcp`). Claude.ai will open your browser to complete the OAuth consent flow.
+4. In Claude.ai, open the MCP settings and add a new server using your ROUTD URL (`https://<your-trek-instance>/mcp`). Claude.ai will open your browser to complete the OAuth consent flow.
 
 ### Claude Desktop
 
@@ -39,7 +39,7 @@ Claude Desktop connects via `mcp-remote`. After creating an OAuth client using t
 }
 ```
 
-When the client starts it opens your browser to the TREK consent screen to complete the OAuth flow.
+When the client starts it opens your browser to the ROUTD consent screen to complete the OAuth flow.
 
 ### Cursor, VS Code, Windsurf, and Zed
 
@@ -61,11 +61,11 @@ Clients that support `mcp-remote` can connect in one of two ways.
 }
 ```
 
-When the client starts, it fetches TREK's OAuth discovery document (`/.well-known/oauth-authorization-server`), registers itself automatically, and opens your browser to the TREK consent screen. You choose scopes there.
+When the client starts, it fetches ROUTD's OAuth discovery document (`/.well-known/oauth-authorization-server`), registers itself automatically, and opens your browser to the ROUTD consent screen. You choose scopes there.
 
 **Option 2 — pre-created OAuth client:**
 
-Create a client in TREK using the appropriate preset (Cursor, VS Code, Windsurf, or Zed — all use `http://localhost` as redirect URI), then pass the credentials via `--static-oauth-client-info`:
+Create a client in ROUTD using the appropriate preset (Cursor, VS Code, Windsurf, or Zed — all use `http://localhost` as redirect URI), then pass the credentials via `--static-oauth-client-info`:
 
 ```json
 {
@@ -99,7 +99,7 @@ Each user can have up to **10 OAuth clients**.
 
 ## Option B: Static API token (deprecated)
 
-> **Deprecated:** Static tokens will stop working in a future version of TREK. Migrate to OAuth 2.1.
+> **Deprecated:** Static tokens will stop working in a future version of ROUTD. Migrate to OAuth 2.1.
 
 Static tokens grant full access to all tools and resources with no scope restrictions. Sessions using a static token will receive deprecation warnings in the AI client on every tool call.
 

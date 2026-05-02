@@ -23,15 +23,15 @@ When a key is present, the autocomplete uses the Google Places API, which can re
 
 ### Without a Google Maps API key
 
-TREK falls back to OpenStreetMap (Nominatim) automatically — no API key needed. A notice appears above the search box explaining that OpenStreetMap is in use and that photos, ratings, and opening hours are unavailable. Results include name, address, and coordinates.
+ROUTD falls back to OpenStreetMap (Nominatim) automatically — no API key needed. A notice appears above the search box explaining that OpenStreetMap is in use and that photos, ratings, and opening hours are unavailable. Results include name, address, and coordinates.
 
 ## Pasting a Google Maps URL
 
-Paste a `maps.app.goo.gl/…`, `goo.gl/maps/…`, or `maps.google.*/…` URL directly into the search box and press the search button. TREK resolves it server-side and populates the name, address, and coordinates.
+Paste a `maps.app.goo.gl/…`, `goo.gl/maps/…`, or `maps.google.*/…` URL directly into the search box and press the search button. ROUTD resolves it server-side and populates the name, address, and coordinates.
 
 ## Entering coordinates manually
 
-Type or paste a `lat, lng` pair (e.g. `48.8566, 2.3522`) into the **Latitude** field. TREK detects the comma-separated pair and fills both coordinate fields at once.
+Type or paste a `lat, lng` pair (e.g. `48.8566, 2.3522`) into the **Latitude** field. ROUTD detects the comma-separated pair and fills both coordinate fields at once.
 
 ## Place fields
 

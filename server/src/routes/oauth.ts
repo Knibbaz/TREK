@@ -100,7 +100,7 @@ oauthPublicRouter.get('/.well-known/oauth-protected-resource', (_req: Request, r
     authorization_servers:    [base],
     bearer_methods_supported: ['header'],
     scopes_supported:         ALL_SCOPES,
-    resource_name:            'TREK MCP',
+    resource_name:            'ROUTD MCP',
   });
 });
 

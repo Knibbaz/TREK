@@ -1,4 +1,4 @@
-// Shared types for the TREK travel planner
+// Shared types for the ROUTD travel planner
 
 export interface User {
   id: number

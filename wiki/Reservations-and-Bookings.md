@@ -10,7 +10,7 @@ Open your trip in the planner and select the **Reservations** tab. The panel lis
 
 ## Reservation types
 
-TREK supports nine reservation types:
+ROUTD supports nine reservation types:
 
 | Type | How to create |
 |------|--------------|

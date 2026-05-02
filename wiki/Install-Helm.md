@@ -1,6 +1,6 @@
 # Install: Helm
 
-Deploy TREK on Kubernetes using the official Helm chart.
+Deploy ROUTD on Kubernetes using the official Helm chart.
 
 ## Add the Chart Repository
 
@@ -15,7 +15,7 @@ helm repo update
 helm install trek trek/trek
 ```
 
-This deploys TREK with default values: a `ClusterIP` service on port 3000, 1 Gi PVCs for data and uploads, and no ingress.
+This deploys ROUTD with default values: a `ClusterIP` service on port 3000, 1 Gi PVCs for data and uploads, and no ingress.
 
 ## Encryption Key
 
@@ -172,7 +172,7 @@ ingress:
         - trek.example.com
 ```
 
-> **Important:** TREK uses WebSockets on `/ws`. Your ingress controller must support WebSocket upgrades. Set `proxy-read-timeout` to at least `86400` and `proxy-body-size` to at least `500m` for backup restores.
+> **Important:** ROUTD uses WebSockets on `/ws`. Your ingress controller must support WebSocket upgrades. Set `proxy-read-timeout` to at least `86400` and `proxy-body-size` to at least `500m` for backup restores.
 
 > **Note:** Keep `env.ALLOWED_ORIGINS` in sync with `ingress.hosts` — the chart does not synchronize these automatically.
 

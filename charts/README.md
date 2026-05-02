@@ -1,9 +1,9 @@
-# TREK Helm Chart
+# ROUTD Helm Chart
 
-This is a minimal Helm chart for deploying the TREK app.
+This is a minimal Helm chart for deploying the ROUTD app.
 
 ## Features
-- Deploys the TREK container
+- Deploys the ROUTD container
 - Exposes port 3000 via Service
 - Optional persistent storage for `/app/data` and `/app/uploads`
 - Configurable environment variables and secrets

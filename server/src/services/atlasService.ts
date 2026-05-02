@@ -11,7 +11,7 @@ async function loadAdmin1Geo(): Promise<any> {
   if (admin1GeoLoading) return admin1GeoLoading;
   admin1GeoLoading = fetch(
     'https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_10m_admin_1_states_provinces.geojson',
-    { headers: { 'User-Agent': 'TREK Travel Planner' } }
+    { headers: { 'User-Agent': 'ROUTD Travel Planner' } }
   ).then(r => r.json()).then(geo => {
     admin1GeoCache = geo;
     admin1GeoLoading = null;
@@ -186,7 +186,7 @@ export async function reverseGeocodeCountry(lat: number, lng: number): Promise<s
   await throttleNominatim();
   try {
     const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json&zoom=3&accept-language=en`, {
-      headers: { 'User-Agent': 'TREK Travel Planner (https://github.com/mauriceboe/TREK)' },
+      headers: { 'User-Agent': 'ROUTD Travel Planner (https://github.com/mauriceboe/TREK)' },
       signal: AbortSignal.timeout(10_000),
     });
     if (!res.ok) return null;

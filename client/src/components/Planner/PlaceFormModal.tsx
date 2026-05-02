@@ -91,11 +91,11 @@ interface PlaceFormModalProps {
   dayAssignments?: Assignment[]
 }
 
-// Helper function to map Google Places API types to TREK categories
+// Helper function to map Google Places API types to ROUTD categories
 function mapGoogleTypesToCategory(googleTypes: string[] = [], existingCategories: Category[]): string | null {
   if (!googleTypes || googleTypes.length === 0) return null
 
-  // Define mapping of Google types to TREK category names
+  // Define mapping of Google types to ROUTD category names
   const typeToCategoryMap: Record<string, string> = {
     // Tourist attractions & landmarks
     'tourist_attraction': 'Landmark',
@@ -210,11 +210,11 @@ function mapGoogleTypesToCategory(googleTypes: string[] = [], existingCategories
   // Create reverse mapping for quick lookup by existing category name
   const existingCategoryMap = new Map(existingCategories.map(cat => [cat.name.toLowerCase(), cat.id]))
   
-  // Try to find a direct match from Google types to existing TREK categories
+  // Try to find a direct match from Google types to existing ROUTD categories
   for (const googleType of googleTypes) {
     const mappedName = typeToCategoryMap[googleType]
     if (mappedName) {
-      // Check if this category already exists in TREK
+      // Check if this category already exists in ROUTD
       const existingId = existingCategoryMap.get(mappedName.toLowerCase())
       if (existingId) {
         return String(existingId)

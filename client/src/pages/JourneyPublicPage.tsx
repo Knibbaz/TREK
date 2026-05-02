@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useParams } from 'react-router-dom'
-import { journeyApi } from '../api/client'
+import { journeyApi, configApi, type ProjectMetadata } from '../api/client'
 import { useTranslation, SUPPORTED_LANGUAGES } from '../i18n'
 import { useSettingsStore } from '../store/settingsStore'
 import {
@@ -109,6 +109,7 @@ export default function JourneyPublicPage() {
   const mapRef = useRef<JourneyMapHandle>(null)
   const [activeEntryId, setActiveEntryId] = useState<string | null>(null)
   const [viewingEntry, setViewingEntry] = useState<PublicEntry | null>(null)
+  const [projectMeta, setProjectMeta] = useState<ProjectMetadata | null>(null)
 
   const handleMarkerClick = useCallback((entryId: string) => {
     setActiveEntryId(entryId)
@@ -123,6 +124,7 @@ export default function JourneyPublicPage() {
       .then(d => setData(d))
       .catch(() => setError(true))
       .finally(() => setLoading(false))
+    configApi.getPublicConfig().then(c => setProjectMeta(c.projectMetadata)).catch(() => {})
   }, [token])
 
   const entries = (data?.entries || []) as PublicEntry[]
@@ -482,7 +484,7 @@ export default function JourneyPublicPage() {
 
         {/* Logo */}
         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', marginBottom: 12, border: '1px solid rgba(255,255,255,0.1)', position: 'relative' }}>
-          <img src="/icons/icon-white.svg" alt="TREK" width={26} height={26} />
+          <img src="/icons/icon-white.svg" alt="ROUTD" width={26} height={26} />
         </div>
 
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12, position: 'relative' }}>{t('journey.public.tagline')}</div>
@@ -602,11 +604,13 @@ export default function JourneyPublicPage() {
       {/* Powered by */}
       <div className="flex flex-col items-center py-8 gap-2">
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, background: 'white', border: '1px solid #e5e7eb', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-          <img src="/icons/icon.svg" alt="TREK" width={18} height={18} style={{ borderRadius: 4 }} />
-          <span style={{ fontSize: 11, color: '#9ca3af' }}>{t('journey.public.sharedVia')} <strong style={{ color: '#6b7280' }}>TREK</strong></span>
+          <img src="/icons/icon.svg" alt="ROUTD" width={18} height={18} style={{ borderRadius: 4 }} />
+          <span style={{ fontSize: 11, color: '#9ca3af' }}>{t('journey.public.sharedVia')} <strong style={{ color: '#6b7280' }}>ROUTD</strong></span>
         </div>
         <div style={{ fontSize: 10, color: '#d1d5db' }}>
-          Modified by <a href="https://github.com/Knibbaz/TREK" style={{ color: '#9ca3af', textDecoration: 'none' }}>Bas</a> · Original project by <a href="https://github.com/mauriceboe/TREK" style={{ color: '#9ca3af', textDecoration: 'none' }}>Maurice</a>
+          Modified with <span style={{ color: '#ef4444' }}>♥</span> by <a href={projectMeta?.modifiedBy.url || 'https://github.com/Knibbaz/TREK'} style={{ color: '#9ca3af', textDecoration: 'none' }}>{projectMeta?.modifiedBy.name || 'Bas'}</a>
+          {' · '}
+          Original project by with even more <span style={{ color: '#ef4444' }}>♥</span> <a href={projectMeta?.originalBy.url || 'https://github.com/mauriceboe/TREK'} style={{ color: '#9ca3af', textDecoration: 'none' }}>created by {projectMeta?.originalBy.name || 'Maurice'}</a>
         </div>
       </div>
 

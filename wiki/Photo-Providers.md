@@ -1,6 +1,6 @@
 # Photo Providers
 
-TREK can browse your personal photo library on Immich or Synology Photos and attach selected photos to trips. TREK never copies the original files — it stores only a reference (provider name + asset ID) and proxies all image streams through its own server, so your provider credentials are never sent to the browser.
+ROUTD can browse your personal photo library on Immich or Synology Photos and attach selected photos to trips. ROUTD never copies the original files — it stores only a reference (provider name + asset ID) and proxies all image streams through its own server, so your provider credentials are never sent to the browser.
 
 > **Admin:** Enable at least one photo provider (Immich or Synology Photos) in **Admin → Addons** — photo provider toggles appear as sub-items under the **Journey** addon. Once a provider is on, a Photo Providers section appears in each user's **Settings → Integrations**. If your provider runs on a local or private network, the server must be configured to allow internal network access. See [Admin-Addons](Admin-Addons) and [Internal-Network-Access](Internal-Network-Access).
 
@@ -29,9 +29,9 @@ Go to **Settings → Integrations → Photo Providers**. Each enabled provider s
 |-------|----------|-------|
 | Server URL | Yes | Full URL of your Immich instance, e.g. `https://immich.example.com` |
 | API Key | Yes | Stored encrypted; never returned to the browser after saving |
-| Auto-upload to Immich | No | Checkbox; when enabled, photos you upload in TREK are also pushed to your Immich library |
+| Auto-upload to Immich | No | Checkbox; when enabled, photos you upload in ROUTD are also pushed to your Immich library |
 
-Enter the full URL of your Immich instance and an Immich API key. The API key is stored encrypted on the TREK server and is never returned to the browser after it is saved.
+Enter the full URL of your Immich instance and an Immich API key. The API key is stored encrypted on the ROUTD server and is never returned to the browser after it is saved.
 
 ### Synology Photos
 
@@ -55,7 +55,7 @@ For Synology, a successful test stores a session token so the OTP code is not re
 
 ## Multiple providers
 
-You can configure both Immich and Synology simultaneously. TREK queries photos from all enabled providers when loading trip photos.
+You can configure both Immich and Synology simultaneously. ROUTD queries photos from all enabled providers when loading trip photos.
 
 ---
 

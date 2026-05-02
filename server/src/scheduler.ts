@@ -282,7 +282,7 @@ function startTodoReminders(): void {
   }, { timezone: tz });
 }
 
-// Version check: daily at 9 AM — notify admins if a new TREK release is available
+// Version check: daily at 9 AM — notify admins if a new ROUTD release is available
 let versionCheckTask: ScheduledTask | null = null;
 
 function startVersionCheck(): void {

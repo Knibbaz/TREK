@@ -2,11 +2,11 @@
 
 ## "Access token required" when changing password on first login
 
-**Cause:** The session cookie has the `Secure` flag set, which means the browser will only send it over HTTPS. When accessing TREK over plain HTTP (e.g. `http://192.168.1.x:3000`), the browser silently drops the cookie and the server sees no session — returning "Access token required".
+**Cause:** The session cookie has the `Secure` flag set, which means the browser will only send it over HTTPS. When accessing ROUTD over plain HTTP (e.g. `http://192.168.1.x:3000`), the browser silently drops the cookie and the server sees no session — returning "Access token required".
 
 **Fix:** Choose one of the following options:
 
-**Option 1 — Use HTTPS.** Access TREK via HTTPS with a valid SSL certificate.
+**Option 1 — Use HTTPS.** Access ROUTD via HTTPS with a valid SSL certificate.
 
 **Option 2 — Disable the Secure flag.** Set `COOKIE_SECURE=false` in your Docker environment to allow the session cookie to be sent over plain HTTP:
 
@@ -39,7 +39,7 @@ Without these headers, the WebSocket handshake fails and real-time sync will not
 
 **Cause:** `FORCE_HTTPS=true` is set but your reverse proxy is not forwarding the `X-Forwarded-Proto: https` header, so every request looks like plain HTTP and gets redirected indefinitely.
 
-**Fix:** Ensure your proxy passes the `X-Forwarded-Proto` header to TREK. Also set `TRUST_PROXY=1` so that Express uses the forwarded IP for rate limiting and audit logs:
+**Fix:** Ensure your proxy passes the `X-Forwarded-Proto` header to ROUTD. Also set `TRUST_PROXY=1` so that Express uses the forwarded IP for rate limiting and audit logs:
 
 ```yaml
 environment:
@@ -49,7 +49,7 @@ environment:
 
 > **Note:** The `/api/health` endpoint is always exempt from the HTTPS redirect so that Docker health checks continue to work over plain HTTP.
 
-If you are accessing TREK directly on `http://<host>:3000` with no proxy, remove `FORCE_HTTPS` entirely. See [Environment Variables](Environment-Variables).
+If you are accessing ROUTD directly on `http://<host>:3000` with no proxy, remove `FORCE_HTTPS` entirely. See [Environment Variables](Environment-Variables).
 
 ---
 
@@ -83,7 +83,7 @@ If you no longer have access to backup codes and cannot log in, an admin must di
 
 **Cause:** Your reverse proxy has a default body size limit (commonly 1 MB or 10 MB) that is smaller than the backup ZIP. Backup archives include the full uploads directory and can be large.
 
-**Fix:** Raise the body size limit in your proxy config. TREK's own backup upload cap is 500 MB. For nginx:
+**Fix:** Raise the body size limit in your proxy config. ROUTD's own backup upload cap is 500 MB. For nginx:
 
 ```nginx
 client_max_body_size 500m;
@@ -95,7 +95,7 @@ Add this to the `location /` block (or the specific backup route). See [Reverse 
 
 ## "Cannot find module" on startup
 
-**Likely cause:** A Docker volume mount is missing or the `/app/data` and `/app/uploads` directories are not writable by the container process. TREK automatically creates all required subdirectories on startup (`data/logs`, `data/backups`, `data/tmp`, `uploads/files`, `uploads/covers`, `uploads/avatars`, `uploads/photos`) — if this fails because the volume is read-only or owned by the wrong user, startup will abort.
+**Likely cause:** A Docker volume mount is missing or the `/app/data` and `/app/uploads` directories are not writable by the container process. ROUTD automatically creates all required subdirectories on startup (`data/logs`, `data/backups`, `data/tmp`, `uploads/files`, `uploads/covers`, `uploads/avatars`, `uploads/photos`) — if this fails because the volume is read-only or owned by the wrong user, startup will abort.
 
 **Fix:** Check your Docker volume configuration. Both `./data:/app/data` and `./uploads:/app/uploads` must be mounted and writable. Run `docker inspect <container> --format '{{json .Mounts}}'` to verify the mounts are present and point to valid host paths. If the host directories are owned by root, the container's `chown` step (which runs as root before dropping to `node`) should correct permissions automatically — but if your host filesystem is read-only or permissions are locked down, grant write access manually:
 
@@ -107,7 +107,7 @@ sudo chown -R 1000:1000 ./data ./uploads
 
 ## Encryption key regenerated on restart — stored secrets stop working
 
-**Cause:** On every startup, TREK resolves its encryption key in this order: (1) `ENCRYPTION_KEY` env var, (2) `data/.encryption_key` file, (3) legacy `data/.jwt_secret` fallback, (4) auto-generate a fresh key. If neither the env var nor the `data/` volume is persisted — for example after recreating a container without a volume mount — a new random key is generated and all stored secrets (SMTP password, OIDC client secret, API keys, MFA TOTP seeds) become unrecoverable.
+**Cause:** On every startup, ROUTD resolves its encryption key in this order: (1) `ENCRYPTION_KEY` env var, (2) `data/.encryption_key` file, (3) legacy `data/.jwt_secret` fallback, (4) auto-generate a fresh key. If neither the env var nor the `data/` volume is persisted — for example after recreating a container without a volume mount — a new random key is generated and all stored secrets (SMTP password, OIDC client secret, API keys, MFA TOTP seeds) become unrecoverable.
 
 **Fix:** Ensure `./data:/app/data` is mounted as a persistent volume so `data/.encryption_key` survives restarts. Alternatively, pin the key explicitly:
 
@@ -122,7 +122,7 @@ See [Encryption Key Rotation](Encryption-Key-Rotation) for how to retrieve or ro
 
 ## OIDC login returns "APP_URL is not configured"
 
-**Cause:** When OIDC is enabled, TREK needs to know its own public URL to build the redirect URI. It resolves this from (1) `APP_URL` env var, (2) the first entry in `ALLOWED_ORIGINS`, (3) `http://localhost:<PORT>` as a last resort. If none of these are set and the request is not coming from localhost, TREK returns a 500 error.
+**Cause:** When OIDC is enabled, ROUTD needs to know its own public URL to build the redirect URI. It resolves this from (1) `APP_URL` env var, (2) the first entry in `ALLOWED_ORIGINS`, (3) `http://localhost:<PORT>` as a last resort. If none of these are set and the request is not coming from localhost, ROUTD returns a 500 error.
 
 **Fix:** Set `APP_URL` to the public URL of your instance:
 
@@ -135,7 +135,7 @@ environment:
 
 ## OIDC login fails with issuer mismatch
 
-**Cause:** TREK validates that the `issuer` field in the provider's discovery document exactly matches the configured `OIDC_ISSUER`. A trailing-slash difference (e.g. `https://auth.example.com` vs `https://auth.example.com/`) is enough to fail.
+**Cause:** ROUTD validates that the `issuer` field in the provider's discovery document exactly matches the configured `OIDC_ISSUER`. A trailing-slash difference (e.g. `https://auth.example.com` vs `https://auth.example.com/`) is enough to fail.
 
 **Fix:** Check the exact issuer value your provider advertises and match it:
 
@@ -149,7 +149,7 @@ Set `OIDC_ISSUER` to that exact string.
 
 ## OIDC login fails when provider is on a private/internal network
 
-**Cause:** TREK's SSRF guard blocks outbound requests to private IP ranges by default. If your OIDC provider (e.g. Keycloak, Authentik) is running on an internal address, the discovery document fetch will be blocked with: `Requests to private/internal network addresses are not allowed.`
+**Cause:** ROUTD's SSRF guard blocks outbound requests to private IP ranges by default. If your OIDC provider (e.g. Keycloak, Authentik) is running on an internal address, the discovery document fetch will be blocked with: `Requests to private/internal network addresses are not allowed.`
 
 **Fix:**
 
@@ -177,7 +177,7 @@ environment:
    docker exec <container> nc -zv <SMTP_HOST> <SMTP_PORT>
    ```
 
-> **Note:** If no SMTP is configured at all, TREK prints the reset link directly to the server logs (`===== PASSWORD RESET LINK =====`). This is useful for initial setup or self-hosted installs without email.
+> **Note:** If no SMTP is configured at all, ROUTD prints the reset link directly to the server logs (`===== PASSWORD RESET LINK =====`). This is useful for initial setup or self-hosted installs without email.
 
 ---
 
@@ -192,7 +192,7 @@ environment:
   - ALLOWED_ORIGINS=https://trek.example.com,https://other.example.com
 ```
 
-If `ALLOWED_ORIGINS` is not set, TREK allows all origins (development default). See [Environment Variables](Environment-Variables).
+If `ALLOWED_ORIGINS` is not set, ROUTD allows all origins (development default). See [Environment Variables](Environment-Variables).
 
 ---
 
@@ -214,18 +214,18 @@ If `ALLOWED_ORIGINS` is not set, TREK allows all origins (development default). 
 
 ## Clipboard features not working (copy link, share, etc.)
 
-**Cause:** The browser Clipboard API (`navigator.clipboard`) is only available in a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). When accessing TREK over plain HTTP on a non-localhost address, the API is unavailable and clipboard operations silently fail or show an error.
+**Cause:** The browser Clipboard API (`navigator.clipboard`) is only available in a [secure context](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts). When accessing ROUTD over plain HTTP on a non-localhost address, the API is unavailable and clipboard operations silently fail or show an error.
 
 **Fix:** The only supported options are:
 
-- Access TREK over HTTPS with a valid SSL certificate.
-- Access TREK directly from `http://localhost:<port>` — browsers treat `localhost` as a secure context for the Clipboard API (unlike the session cookie, which always requires HTTPS regardless of hostname).
+- Access ROUTD over HTTPS with a valid SSL certificate.
+- Access ROUTD directly from `http://localhost:<port>` — browsers treat `localhost` as a secure context for the Clipboard API (unlike the session cookie, which always requires HTTPS regardless of hostname).
 
 ---
 
 ## MCP OAuth flow does not initiate / "Connect" redirects but authentication never starts
 
-**Cause:** TREK builds the OAuth 2.1 redirect URI from `APP_URL`. If `APP_URL` is not set, the authorization URL is constructed from a localhost fallback that external clients (Claude.ai, Claude Desktop) cannot reach, so the OAuth handshake never completes.
+**Cause:** ROUTD builds the OAuth 2.1 redirect URI from `APP_URL`. If `APP_URL` is not set, the authorization URL is constructed from a localhost fallback that external clients (Claude.ai, Claude Desktop) cannot reach, so the OAuth handshake never completes.
 
 **Fix:** Set `APP_URL` to the public URL of your instance:
 
@@ -234,7 +234,7 @@ environment:
   - APP_URL=https://trek.example.com
 ```
 
-Restart the container after adding the variable. Once set, clicking **Connect** in the MCP client should redirect to your TREK instance and complete the OAuth flow normally.
+Restart the container after adding the variable. Once set, clicking **Connect** in the MCP client should redirect to your ROUTD instance and complete the OAuth flow normally.
 
 > **Note:** `APP_URL` is required for any MCP OAuth integration. Without it, the authorization endpoint resolves to `http://localhost:<PORT>`, which is unreachable from external MCP clients.
 

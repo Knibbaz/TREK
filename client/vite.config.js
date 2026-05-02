@@ -68,9 +68,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'ROAM \u2014 Travel Planner',
-        short_name: 'ROAM',
-        description: 'Routes Organized Among Mates',
+        name: 'ROUTD \u2014 Travel Planner',
+        short_name: 'ROUTD',
+        description: 'Routes Organized for Unforgettable Travel Days',
         theme_color: '#111827',
         background_color: '#0f172a',
         display: 'standalone',

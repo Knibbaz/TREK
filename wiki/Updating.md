@@ -1,6 +1,6 @@
 # Updating
 
-How to update TREK to a newer version without losing data.
+How to update ROUTD to a newer version without losing data.
 
 ## Before You Update
 
@@ -16,7 +16,7 @@ This pulls the latest image and recreates the container with your existing volum
 
 ## Docker Run
 
-If you started TREK with `docker run`, pull the new image and replace the container:
+If you started ROUTD with `docker run`, pull the new image and replace the container:
 
 ```bash
 docker pull mauriceboe/trek
@@ -36,23 +36,23 @@ docker run -d --name trek -p 3000:3000 \
 
 ## Database Migrations
 
-TREK runs any pending database migrations automatically at startup. No manual migration steps are required after pulling a new image.
+ROUTD runs any pending database migrations automatically at startup. No manual migration steps are required after pulling a new image.
 
 ## Encryption Key Note
 
-If you are upgrading from a version that predates the dedicated `ENCRYPTION_KEY` (i.e. you have no `ENCRYPTION_KEY` environment variable set), TREK automatically falls back to `./data/.jwt_secret` on startup and immediately promotes it to `./data/.encryption_key`. No manual steps are required — the transition is handled at first boot after the upgrade.
+If you are upgrading from a version that predates the dedicated `ENCRYPTION_KEY` (i.e. you have no `ENCRYPTION_KEY` environment variable set), ROUTD automatically falls back to `./data/.jwt_secret` on startup and immediately promotes it to `./data/.encryption_key`. No manual steps are required — the transition is handled at first boot after the upgrade.
 
 If you want to rotate to a new key at any point (not required for a normal update), see [Encryption-Key-Rotation](Encryption-Key-Rotation) for the full procedure.
 
 ## Proxmox VE (LXC)
 
-If you installed TREK via the [Proxmox VE Community Scripts](https://community-scripts.org/scripts/trek), run the following command inside the **LXC container** and select **Update** when prompted:
+If you installed ROUTD via the [Proxmox VE Community Scripts](https://community-scripts.org/scripts/trek), run the following command inside the **LXC container** and select **Update** when prompted:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/community-scripts/ProxmoxVE/main/ct/trek.sh)"
 ```
 
-> **Tip:** Always check the [community-scripts TREK page](https://community-scripts.org/scripts/trek) to confirm the latest command before running.
+> **Tip:** Always check the [community-scripts ROUTD page](https://community-scripts.org/scripts/trek) to confirm the latest command before running.
 
 The script stops the service, backs up your data and uploads, applies the new release, restores the backup, and restarts. No manual steps required.
 
@@ -65,7 +65,7 @@ journalctl -u trek -n 50
 
 ## Unraid
 
-In the Unraid Docker tab, click the TREK container and select **Update**. Unraid will pull the latest image and restart with the same volumes.
+In the Unraid Docker tab, click the ROUTD container and select **Update**. Unraid will pull the latest image and restart with the same volumes.
 
 ## Next Steps
 
