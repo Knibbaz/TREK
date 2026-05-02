@@ -2284,7 +2284,7 @@ const nl: Record<string, string> = {
   'journey.public.notFound': 'Niet gevonden',
   'journey.public.notFoundMessage': 'Dit reisverslag bestaat niet of de link is verlopen.',
   'journey.public.readOnly': 'Alleen-lezen · Openbaar reisverslag',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Gedeeld via',
   'journey.public.madeWith': 'Gemaakt met',
   'journey.pdf.journeyBook': 'Reisboek',

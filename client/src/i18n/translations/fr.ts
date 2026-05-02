@@ -2183,7 +2183,7 @@ const fr: Record<string, string> = {
   'journey.public.notFound': 'Introuvable',
   'journey.public.notFoundMessage': 'Ce journal n\'existe pas ou le lien a expiré.',
   'journey.public.readOnly': 'Lecture seule · Journal public',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Partagé via',
   'journey.public.madeWith': 'Créé avec',
   'journey.pdf.journeyBook': 'Carnet de voyage',

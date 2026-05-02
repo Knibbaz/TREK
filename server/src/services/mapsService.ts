@@ -102,7 +102,9 @@ export function getMapsKey(userId: number): string | null {
   const user_key = decrypt_api_key(user?.maps_api_key);
   if (user_key) return user_key;
   const admin = db.prepare("SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1").get() as { maps_api_key: string } | undefined;
-  return decrypt_api_key(admin?.maps_api_key) || null;
+  const admin_key = decrypt_api_key(admin?.maps_api_key);
+  if (admin_key) return admin_key;
+  return process.env.GOOGLE_PLACES_API_KEY || null;
 }
 
 // ── Nominatim search ─────────────────────────────────────────────────────────

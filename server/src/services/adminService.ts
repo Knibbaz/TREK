@@ -783,6 +783,8 @@ export function rotateJwtSecret(): { error?: string; status?: number } {
 // ── Unsplash API key (admin-managed) ──────────────────────────────────────
 
 export function getUnsplashApiKeyRaw(): string | null {
+  const envKey = process.env.UNSPLASH_API_KEY;
+  if (envKey) return envKey;
   const row = db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined;
   if (!row?.value) return null;
   return decrypt_api_key(row.value) || null;

@@ -2187,7 +2187,7 @@ const cs: Record<string, string | { name: string; category: string }[]> = {
   'journey.public.notFound': 'Nenalezeno',
   'journey.public.notFoundMessage': 'Tento cestovní deník neexistuje nebo odkaz vypršel.',
   'journey.public.readOnly': 'Pouze ke čtení · Veřejný cestovní deník',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Sdíleno přes',
   'journey.public.madeWith': 'Vytvořeno pomocí',
   'journey.pdf.journeyBook': 'Cestovní kniha',

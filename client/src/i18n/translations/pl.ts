@@ -2176,7 +2176,7 @@ const pl: Record<string, string | { name: string; category: string }[]> = {
   'journey.public.notFound': 'Nie znaleziono',
   'journey.public.notFoundMessage': 'Ten dziennik podróży nie istnieje lub link wygasł.',
   'journey.public.readOnly': 'Tylko do odczytu · Publiczny dziennik podróży',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Udostępnione przez',
   'journey.public.madeWith': 'Stworzone z',
   'journey.pdf.journeyBook': 'Książka podróży',

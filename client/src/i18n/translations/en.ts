@@ -2337,7 +2337,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'journey.public.notFound': 'Not Found',
   'journey.public.notFoundMessage': 'This journey doesn\'t exist or the link has expired.',
   'journey.public.readOnly': 'Read-only · Public Journey',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Shared via',
   'journey.public.madeWith': 'Made with',
 

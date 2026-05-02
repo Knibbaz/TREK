@@ -2194,7 +2194,7 @@ const de: Record<string, string | { name: string; category: string }[]> = {
   'journey.public.notFound': 'Nicht gefunden',
   'journey.public.notFoundMessage': 'Diese Journey existiert nicht oder der Link ist abgelaufen.',
   'journey.public.readOnly': 'Nur lesen · Öffentliche Journey',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Geteilt über',
   'journey.public.madeWith': 'Erstellt mit',
   'journey.pdf.journeyBook': 'Reisebuch',
