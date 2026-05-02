@@ -2130,7 +2130,7 @@ function runMigrations(db: Database.Database): void {
         'ON journey_entries(journey_id, entry_date, sort_order)'
       );
     },
-    // Migration 76: Vacay hours + comp-time support
+    // Migration 124: Vacay hours + comp-time support
     () => {
       // Rebuild vacay_entries to add hours/type columns and update UNIQUE constraint
       db.exec(`
@@ -2156,7 +2156,7 @@ function runMigrations(db: Database.Database): void {
       // Backfill carried_over_hours from carried_over (integer days) * 8 hours/day
       db.exec("UPDATE vacay_user_years SET carried_over_hours = carried_over * 8");
     },
-    // Migration 77: Explore versioning + user trip tracking + multilingual descriptions
+    // Migration 125: Explore versioning + user trip tracking + multilingual descriptions
     () => {
       try { db.exec("ALTER TABLE explore_published ADD COLUMN version INTEGER NOT NULL DEFAULT 1"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE explore_published ADD COLUMN descriptions TEXT NOT NULL DEFAULT '{}'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
@@ -2175,17 +2175,17 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
       `);
     },
-    // Migration 78: Community places — source tracking on places + community flag on explore_published
+    // Migration 126: Community places — source tracking on places + community flag on explore_published
     () => {
       try { db.exec("ALTER TABLE explore_published ADD COLUMN community_enabled INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE places ADD COLUMN source TEXT DEFAULT 'admin'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE places ADD COLUMN contributed_by INTEGER REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration 79: Import source tracking for places (GPX, Google Maps lists, KML)
+    // Migration 127: Import source tracking for places (GPX, Google Maps lists, KML)
     () => {
       try { db.exec("ALTER TABLE places ADD COLUMN import_source TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration 80: Migrate default category icons from emoji to lucide icon names
+    // Migration 128: Migrate default category icons from emoji to lucide icon names
     () => {
       const iconMap: Record<string, string> = {
         '🏨': 'BedDouble',
@@ -2204,7 +2204,7 @@ function runMigrations(db: Database.Database): void {
         update.run(lucide, emoji);
       }
     },
-    // Migration 81: Add price_type column to places
+    // Migration 129: Add price_type column to places
     () => {
       try { db.exec("ALTER TABLE places ADD COLUMN price_type TEXT DEFAULT 'total'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
@@ -2470,6 +2470,7 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_date_avail_guests_token ON date_availability_guests(guest_token_id);
       `);
     },
+    // Migration 141: Group polls (single-choice, ranked, swipe)
     () => db.exec(`
       -- Group polls (only 1 open per trip)
       CREATE TABLE IF NOT EXISTS group_polls (
@@ -2520,11 +2521,13 @@ function runMigrations(db: Database.Database): void {
       CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON group_poll_votes(poll_id);
       CREATE INDEX IF NOT EXISTS idx_poll_votes_user ON group_poll_votes(user_id);
     `),
+    // Migration 142: Creator auto-approval + explore published status + submitted_by
     () => {
       try { db.exec('ALTER TABLE users ADD COLUMN creator_auto_approved INTEGER DEFAULT 0'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE explore_published ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec('ALTER TABLE explore_published ADD COLUMN submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
+    // Migration 143: Group poll guest tokens
     () => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS group_poll_guest_tokens (
@@ -2539,6 +2542,7 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_poll_guest_tokens_token ON group_poll_guest_tokens(token);
       `);
     },
+    // Migration 144: World map entries + worldmap addon registration
     () => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS world_map_entries (
@@ -2562,6 +2566,7 @@ function runMigrations(db: Database.Database): void {
         console.warn('[migrations] Non-fatal migration step failed:', err);
       }
     },
+    // Migration 145: Share plan / allow_clone permissions + trip collaboration tokens
     () => {
       // Add share_plan permission flag to share_tokens.
       // Existing tokens get share_plan=1 to preserve backward compatibility.
@@ -2588,22 +2593,27 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_trip_collab_token ON trip_collab_tokens(token);
       `);
     },
+    // Migration 146: Share description permission flag on share_tokens
     () => {
       // Add share_description permission flag to share_tokens.
       // Controls whether the trip description is visible on the public share link. Default off.
       try { db.exec('ALTER TABLE share_tokens ADD COLUMN share_description INTEGER DEFAULT 0'); }
       catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration: Swap inverted start_day_id/end_day_id pairs in day_accommodations caused
+    // Migration 147: Swap inverted start_day_id/end_day_id pairs in day_accommodations caused
     // by the old Math.min/Math.max picker bug (pre-8e05ba7) which used raw IDs
     // instead of positional order on trips with non-monotonic day ID layouts.
+    // Idempotent: the WHERE clause only matches rows that still need swapping.
     () => {
-      db.exec(`
+      const result = db.prepare(`
         UPDATE day_accommodations
         SET start_day_id = end_day_id, end_day_id = start_day_id
         WHERE (SELECT day_number FROM days WHERE id = start_day_id)
             > (SELECT day_number FROM days WHERE id = end_day_id)
-      `);
+      `).run();
+      if (result.changes > 0) {
+        console.log(`[migrations] Fixed ${result.changes} inverted day_accommodation pairs`);
+      }
     },
   ];
 
