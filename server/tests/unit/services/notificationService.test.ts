@@ -25,6 +25,10 @@ vi.mock('../../../src/config', () => ({
   JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
+  PROJECT_METADATA: {
+    modifiedBy: { name: 'Bas', url: 'https://github.com/Knibbaz/TREK' },
+    originalBy: { name: 'Maurice', url: 'https://github.com/mauriceboe/TREK' },
+  },
 }));
 vi.mock('../../../src/services/apiKeyCrypto', () => ({
   decrypt_api_key: (v: string | null) => v,

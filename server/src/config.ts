@@ -110,3 +110,9 @@ if (!SUPPORTED_LANG_CODES.includes(rawDefaultLang)) {
   console.warn(`DEFAULT_LANGUAGE="${rawDefaultLang}" is not supported. Falling back to "en". Supported: ${SUPPORTED_LANG_CODES.join(', ')}`);
 }
 export const DEFAULT_LANGUAGE = SUPPORTED_LANG_CODES.includes(rawDefaultLang) ? rawDefaultLang : 'en';
+
+// Project metadata for email footers and public config
+export const PROJECT_METADATA = {
+  modifiedBy: { name: 'Bas', url: 'https://github.com/Knibbaz/TREK' },
+  originalBy: { name: 'Maurice', url: 'https://github.com/mauriceboe/TREK' },
+};

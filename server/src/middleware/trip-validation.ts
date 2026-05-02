@@ -1,5 +1,5 @@
 /* Trip publication validation middleware */
-import { db } from '../utils';
+import { db } from '../db/database';
 
 export const validateTripRequirements = (req, res, next) => {
   const requirements = db.prepare(`SELECT * FROM trip_requirements`).get();
