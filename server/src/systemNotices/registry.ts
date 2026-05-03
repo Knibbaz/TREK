@@ -15,51 +15,35 @@ import type { SystemNotice } from './types.js';
 export const SYSTEM_NOTICES: SystemNotice[] = [
   // ── 3.0.0 upgrade notices (shown as a multipage modal to pre-3.0 users) ─────
 
-  {
-    // Page 1 — breaking change first (warn → sorts before the two info notices)
-    id: 'v3-photos',
-    display: 'modal',
-    severity: 'warn',
-    icon: 'ImageOff',
-    titleKey: 'system_notice.v3_photos.title',
-    bodyKey:  'system_notice.v3_photos.body',
-    dismissible: true,
-    conditions: [{ kind: 'existingUserBeforeVersion', version: '3.0.0' }],
-    publishedAt: '2026-04-16T00:00:00Z',
-    priority: 90,
-    minVersion: '3.0.0',
-    maxVersion: '4.0.0',
-  },
-
-  {
-    // Page 2 — flagship feature (only when Journey addon is enabled)
-    id: 'v3-journey',
-    display: 'modal',
-    severity: 'info',
-    icon: 'BookOpen',
-    titleKey: 'system_notice.v3_journey.title',
-    bodyKey:  'system_notice.v3_journey.body',
-    highlights: [
-      { labelKey: 'system_notice.v3_journey.highlight_timeline', iconName: 'CalendarDays' },
-      { labelKey: 'system_notice.v3_journey.highlight_photos',   iconName: 'Images' },
-      { labelKey: 'system_notice.v3_journey.highlight_share',    iconName: 'Globe' },
-      { labelKey: 'system_notice.v3_journey.highlight_export',   iconName: 'FileText' },
-    ],
-    cta: {
-      kind: 'nav',
-      labelKey: 'system_notice.v3_journey.cta_label',
-      href: '/journey',
-    },
-    dismissible: true,
-    conditions: [
-      { kind: 'existingUserBeforeVersion', version: '3.0.0' },
-      { kind: 'addonEnabled', addonId: 'journey' },
-    ],
-    publishedAt: '2026-04-16T00:00:00Z',
-    priority: 80,
-    minVersion: '3.0.0',
-    maxVersion: '4.0.0',
-  },
+  // {
+  //   // Page 2 — flagship feature (only when Journey addon is enabled)
+  //   id: 'v3-journey',
+  //   display: 'modal',
+  //   severity: 'info',
+  //   icon: 'BookOpen',
+  //   titleKey: 'system_notice.v3_journey.title',
+  //   bodyKey:  'system_notice.v3_journey.body',
+  //   highlights: [
+  //     { labelKey: 'system_notice.v3_journey.highlight_timeline', iconName: 'CalendarDays' },
+  //     { labelKey: 'system_notice.v3_journey.highlight_photos',   iconName: 'Images' },
+  //     { labelKey: 'system_notice.v3_journey.highlight_share',    iconName: 'Globe' },
+  //     { labelKey: 'system_notice.v3_journey.highlight_export',   iconName: 'FileText' },
+  //   ],
+  //   cta: {
+  //     kind: 'nav',
+  //     labelKey: 'system_notice.v3_journey.cta_label',
+  //     href: '/journey',
+  //   },
+  //   dismissible: true,
+  //   conditions: [
+  //     { kind: 'existingUserBeforeVersion', version: '3.0.0' },
+  //     { kind: 'addonEnabled', addonId: 'journey' },
+  //   ],
+  //   publishedAt: '2026-04-16T00:00:00Z',
+  //   priority: 80,
+  //   minVersion: '3.0.0',
+  //   maxVersion: '4.0.0',
+  // },
 
   {
     // Page 3 — MCP OAuth 2.1 upgrade (only when MCP addon is enabled)
@@ -86,46 +70,29 @@ export const SYSTEM_NOTICES: SystemNotice[] = [
     maxVersion: '4.0.0',
   },
 
-  {
-    // Page 4 — other highlights
-    id: 'v3-features',
-    display: 'modal',
-    severity: 'info',
-    icon: 'Sparkles',
-    titleKey: 'system_notice.v3_features.title',
-    bodyKey:  'system_notice.v3_features.body',
-    highlights: [
-      { labelKey: 'system_notice.v3_features.highlight_dashboard', iconName: 'LayoutDashboard' },
-      { labelKey: 'system_notice.v3_features.highlight_offline',   iconName: 'WifiOff' },
-      { labelKey: 'system_notice.v3_features.highlight_search',    iconName: 'Search' },
-      { labelKey: 'system_notice.v3_features.highlight_import',    iconName: 'FileInput' },
-    ],
-    dismissible: true,
-    conditions: [{ kind: 'existingUserBeforeVersion', version: '3.0.0' }],
-    publishedAt: '2026-04-16T00:00:00Z',
-    priority: 70,
-    minVersion: '3.0.0',
-    maxVersion: '4.0.0',
-  },
-
-  {
-    // Page 1 — personal thank-you from the creator (shown first)
-    id: 'v3-thankyou',
-    display: 'modal',
-    severity: 'info',
-    icon: 'Heart',
-    titleKey: 'system_notice.v3_thankyou.title',
-    bodyKey:  'system_notice.v3_thankyou.body',
-    dismissible: true,
-    conditions: [{ kind: 'existingUserBeforeVersion', version: '3.0.0' }],
-    publishedAt: '2026-04-16T00:00:00Z',
-    priority: 95,
-    minVersion: '3.0.0',
-    maxVersion: '4.0.0',
-  },
+  // {
+  //   // Page 4 — other highlights
+  //   id: 'v3-features',
+  //   display: 'modal',
+  //   severity: 'info',
+  //   icon: 'Sparkles',
+  //   titleKey: 'system_notice.v3_features.title',
+  //   bodyKey:  'system_notice.v3_features.body',
+  //   highlights: [
+  //     { labelKey: 'system_notice.v3_features.highlight_dashboard', iconName: 'LayoutDashboard' },
+  //     { labelKey: 'system_notice.v3_features.highlight_offline',   iconName: 'WifiOff' },
+  //     { labelKey: 'system_notice.v3_features.highlight_search',    iconName: 'Search' },
+  //     { labelKey: 'system_notice.v3_features.highlight_import',    iconName: 'FileInput' },
+  //   ],
+  //   dismissible: true,
+  //   conditions: [{ kind: 'existingUserBeforeVersion', version: '3.0.0' }],
+  //   publishedAt: '2026-04-16T00:00:00Z',
+  //   priority: 70,
+  //   minVersion: '3.0.0',
+  //   maxVersion: '4.0.0',
+  // },
 
   // ── Group join welcome ─────────────────────────────────────────────────────
-
   {
     id: 'group-welcome-v1',
     display: 'modal',

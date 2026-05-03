@@ -289,7 +289,6 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
   const [mobileShowDays, setMobileShowDays] = useState(false)
   const [inlineDayPicker, setInlineDayPicker] = useState<{ place: Place; rect: DOMRect } | null>(null)
   const inlinePickerRef = useRef<HTMLDivElement>(null)
-  const scrollContainerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {

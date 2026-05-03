@@ -24,6 +24,7 @@ const hu: Record<string, string | { name: string; category: string }[]> = {
   'common.search': 'Keresés',
   'common.confirm': 'Megerősítés',
   'common.ok': 'OK',
+  'common.notNow': 'Most nem',
   'common.yes': 'Igen',
   'common.no': 'Nem',
   'common.or': 'vagy',
