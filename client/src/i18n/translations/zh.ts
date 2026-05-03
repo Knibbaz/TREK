@@ -242,6 +242,7 @@ const zh: Record<string, string> = {
   'shared.expiredHint': '此共享旅行链接已失效。',
   'shared.readOnly': '只读共享视图',
   'shared.tabPlan': '计划',
+  'shared.tabMap': '地图',
   'shared.tabBookings': '预订',
   'shared.tabPacking': '行李',
   'shared.tabBudget': '预算',

@@ -256,6 +256,7 @@ const ar: Record<string, string | { name: string; category: string }[]> = {
   'shared.expiredHint': 'رابط الرحلة المشترك لم يعد نشطًا.',
   'shared.readOnly': 'عرض للقراءة فقط',
   'shared.tabPlan': 'الخطة',
+  'shared.tabMap': 'خريطة',
   'shared.tabBookings': 'الحجوزات',
   'shared.tabPacking': 'قائمة التعبئة',
   'shared.tabBudget': 'الميزانية',

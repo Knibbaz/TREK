@@ -390,6 +390,7 @@ const hu: Record<string, string | { name: string; category: string }[]> = {
   'shared.expiredHint': 'Ez a megosztott utazási link már nem aktív.',
   'shared.readOnly': 'Csak olvasható megosztott nézet',
   'shared.tabPlan': 'Terv',
+  'shared.tabMap': 'Térkép',
   'shared.tabBookings': 'Foglalások',
   'shared.tabPacking': 'Csomagolás',
   'shared.tabBudget': 'Költségvetés',

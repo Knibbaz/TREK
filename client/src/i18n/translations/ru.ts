@@ -242,6 +242,7 @@ const ru: Record<string, string> = {
   'shared.expiredHint': 'Эта ссылка на поездку больше не активна.',
   'shared.readOnly': 'Режим только для чтения',
   'shared.tabPlan': 'План',
+  'shared.tabMap': 'Карта',
   'shared.tabBookings': 'Бронирования',
   'shared.tabPacking': 'Багаж',
   'shared.tabBudget': 'Бюджет',

@@ -433,10 +433,6 @@ const SPLIT_COLORS = [
   { solid: '#a855f7', gradient: 'linear-gradient(135deg, #a855f7, #d946ef)' },
 ]
 
-export function splitColorFor(userId: number, order: number) {
-  return SPLIT_COLORS[order % SPLIT_COLORS.length]
-}
-
 function colorForUserId(userId: number) {
   return SPLIT_COLORS[((userId | 0) - 1 + SPLIT_COLORS.length * 1000) % SPLIT_COLORS.length]
 }

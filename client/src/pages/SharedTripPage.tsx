@@ -236,16 +236,17 @@ export default function SharedTripPage() {
 
         {/* Clone button with info */}
         {permissions?.allow_clone && (
-          <div style={{ background: 'var(--bg-card, white)', borderRadius: 14, border: '1px solid var(--border-faint, #e5e7eb)', padding: '20px', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <div style={{ marginBottom: 16 }}>
-              <h3 style={{ fontSize: 14, fontWeight: 600, color: '#111827', marginBottom: 8 }}>{t('share.cloneTitle')}</h3>
-              <p style={{ fontSize: 13, color: '#6b7280', margin: 0, lineHeight: 1.6 }}>
-                {t('share.cloneDescription')}
-              </p>
+          <div style={{ background: 'var(--bg-card, white)', borderRadius: 14, border: '1px solid var(--border-faint, #e5e7eb)', padding: '28px 24px', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.04)', textAlign: 'center' }}>
+            <div style={{ width: 44, height: 44, borderRadius: 12, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+              <Copy size={20} color="#6b7280" />
             </div>
+            <h3 style={{ fontSize: 15, fontWeight: 700, color: '#111827', margin: '0 0 6px' }}>{t('share.cloneTitle')}</h3>
+            <p style={{ fontSize: 13, color: '#6b7280', margin: '0 auto 18px', lineHeight: 1.6, maxWidth: 460 }}>
+              {t('share.cloneDescription')}
+            </p>
 
             {cloneMsg && (
-              <div style={{ marginBottom: 12, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
+              <div style={{ marginBottom: 14, fontSize: 12, color: cloneMsg.ok ? '#16a34a' : '#ef4444', fontWeight: 500 }}>
                 {cloneMsg.text}
               </div>
             )}
@@ -266,8 +267,8 @@ export default function SharedTripPage() {
                 }
               }} style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
-                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
-                background: 'var(--accent, #111827)', color: 'white',
+                borderRadius: 10, border: 'none',
+                background: '#111827', color: 'white',
                 fontSize: 13, fontWeight: 600, cursor: cloning ? 'default' : 'pointer',
                 fontFamily: 'inherit', opacity: cloning ? 0.6 : 1, transition: 'all 0.15s',
               }}>
@@ -276,9 +277,10 @@ export default function SharedTripPage() {
             ) : (
               <a href="/login" style={{
                 display: 'inline-flex', alignItems: 'center', gap: 8, padding: '10px 24px',
-                borderRadius: 10, border: '1.5px solid var(--border-primary, #e5e7eb)',
-                background: 'var(--accent, #111827)', color: 'white',
-                fontSize: 13, fontWeight: 500, textDecoration: 'none', fontFamily: 'inherit',
+                borderRadius: 10, border: 'none',
+                background: '#111827', color: 'white',
+                fontSize: 13, fontWeight: 600, textDecoration: 'none', fontFamily: 'inherit',
+                transition: 'all 0.15s',
               }}>
                 <Copy size={14} /> {t('share.cloneLoginRequired')}
               </a>

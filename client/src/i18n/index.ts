@@ -1,9 +1,8 @@
+export { TranslationProvider, useTranslation } from './TranslationContext'
 export {
-  TranslationProvider,
-  useTranslation,
   getLocaleForLanguage,
   getIntlLanguage,
   isRtlLanguage,
   detectBrowserLanguage,
-  SUPPORTED_LANGUAGES,
-} from './TranslationContext'
+} from './helpers'
+export { SUPPORTED_LANGUAGES } from './supportedLanguages'

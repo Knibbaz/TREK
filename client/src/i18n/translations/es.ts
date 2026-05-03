@@ -252,6 +252,7 @@ const es: Record<string, string> = {
   'shared.expiredHint': 'Este enlace de viaje compartido ya no está activo.',
   'shared.readOnly': 'Vista de solo lectura',
   'shared.tabPlan': 'Plan',
+  'shared.tabMap': 'Mapa',
   'shared.tabBookings': 'Reservas',
   'shared.tabPacking': 'Equipaje',
   'shared.tabBudget': 'Presupuesto',

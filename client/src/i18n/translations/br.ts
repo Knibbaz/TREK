@@ -242,6 +242,7 @@ const br: Record<string, string | { name: string; category: string }[]> = {
   'shared.expiredHint': 'Este link de viagem compartilhado não está mais ativo.',
   'shared.readOnly': 'Visualização somente leitura',
   'shared.tabPlan': 'Plano',
+  'shared.tabMap': 'Mapa',
   'shared.tabBookings': 'Reservas',
   'shared.tabPacking': 'Bagagem',
   'shared.tabBudget': 'Orçamento',

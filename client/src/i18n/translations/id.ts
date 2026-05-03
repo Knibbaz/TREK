@@ -304,6 +304,7 @@ const id: Record<string, string | { name: string; category: string }[]> = {
   'shared.expiredHint': 'Tautan perjalanan bersama ini tidak lagi aktif.',
   'shared.readOnly': 'Tampilan bersama — hanya baca',
   'shared.tabPlan': 'Rencana',
+  'shared.tabMap': 'Peta',
   'shared.tabBookings': 'Pemesanan',
   'shared.tabPacking': 'Bawaan',
   'shared.tabBudget': 'Anggaran',
@@ -2205,7 +2206,7 @@ const id: Record<string, string | { name: string; category: string }[]> = {
   'journey.public.notFound': 'Tidak Ditemukan',
   'journey.public.notFoundMessage': 'Journey ini tidak ada atau tautan telah kedaluwarsa.',
   'journey.public.readOnly': 'Hanya baca · Journey Publik',
-  'journey.public.tagline': 'Travel Resource & Exploration Kit',
+  'journey.public.tagline': 'Routes Organized for Unforgettable Travel Days',
   'journey.public.sharedVia': 'Dibagikan melalui',
   'journey.public.madeWith': 'Dibuat dengan',
 
