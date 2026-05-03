@@ -66,7 +66,18 @@ export default function SharedTripPage() {
 
   useEffect(() => {
     if (!token) return
-    shareApi.getSharedTrip(token).then(setData).catch(() => setError(true))
+    shareApi.getSharedTrip(token).then((d) => {
+      setData(d)
+      const perms = d.permissions || {}
+      const hasPlanTab = perms.share_plan !== false
+      const hasMapTab = perms.share_plan === false && perms.share_map !== false
+      const hasBookings = perms.share_bookings && d.reservations?.length > 0
+      const hasPacking = perms.share_packing && d.packing?.length > 0
+      const hasBudget = perms.share_budget && d.budget?.length > 0
+      const hasCollab = perms.share_collab && d.collab?.length > 0
+      const firstTab = hasPlanTab ? 'plan' : hasMapTab ? 'map' : hasBookings ? 'bookings' : hasPacking ? 'packing' : hasBudget ? 'budget' : hasCollab ? 'collab' : ''
+      setActiveTab(firstTab)
+    }).catch(() => setError(true))
     configApi.getPublicConfig().then(c => setProjectMeta(c.projectMetadata)).catch(() => {})
   }, [token])
 
@@ -114,7 +125,7 @@ export default function SharedTripPage() {
           <img src="/icons/icon-white.svg" alt="ROUTD" width="26" height="26" />
         </div>
 
-        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Travel Resource & Exploration Kit</div>
+        <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Routes Organized for Unforgettable Travel Days</div>
 
         <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>{trip.title}</h1>
 
@@ -162,6 +173,67 @@ export default function SharedTripPage() {
       </div>
 
       <div style={{ maxWidth: 900, margin: '0 auto', padding: '20px 16px' }}>
+        {/* Tabs — only show when there are multiple tabs */}
+        {(() => {
+          const availableTabs = [
+            ...(permissions?.share_plan !== false ? [{ id: 'plan', label: t('shared.tabPlan'), Icon: Map }] : []),
+            ...(permissions?.share_plan === false && permissions?.share_map !== false ? [{ id: 'map', label: t('shared.tabMap'), Icon: MapPin }] : []),
+            ...(permissions?.share_bookings ? [{ id: 'bookings', label: t('shared.tabBookings'), Icon: Ticket }] : []),
+            ...(permissions?.share_packing ? [{ id: 'packing', label: t('shared.tabPacking'), Icon: Luggage }] : []),
+            ...(permissions?.share_budget ? [{ id: 'budget', label: t('shared.tabBudget'), Icon: Wallet }] : []),
+            ...(permissions?.share_collab ? [{ id: 'collab', label: t('shared.tabChat'), Icon: MessageCircle }] : []),
+          ]
+          if (availableTabs.length <= 1) return null
+          return (
+            <div style={{ display: 'flex', gap: 6, marginBottom: 20, overflowX: 'auto', padding: '2px 0' }}>
+              {availableTabs.map(tab => (
+                <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
+                  padding: '8px 18px', borderRadius: 12, border: '1.5px solid', cursor: 'pointer',
+                  fontSize: 12, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.15s', whiteSpace: 'nowrap',
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  background: activeTab === tab.id ? '#111827' : 'var(--bg-card, white)',
+                  borderColor: activeTab === tab.id ? '#111827' : 'var(--border-faint, #e5e7eb)',
+                  color: activeTab === tab.id ? 'white' : '#6b7280',
+                  boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
+                }}><tab.Icon size={13} /><span className="hidden sm:inline">{tab.label}</span></button>
+              ))}
+            </div>
+          )
+        })()}
+
+        {/* Map */}
+        {(activeTab === 'plan' || activeTab === 'map') && (<>
+        {permissions?.share_map !== false && (
+        <div style={{ borderRadius: 16, overflow: 'hidden', height: 480, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+          <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
+            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
+            <FitBoundsToPlaces places={mapPlaces} />
+            <MarkerClusterGroup
+              chunkedLoading
+              chunkInterval={30}
+              chunkDelay={0}
+              maxClusterRadius={30}
+              disableClusteringAtZoom={11}
+              spiderfyOnMaxZoom
+              showCoverageOnHover={false}
+              zoomToBoundsOnClick
+              animate={false}
+              iconCreateFunction={clusterIconCreateFunction}
+            >
+              {mapPlaces.map((p: any) => (
+                <Marker key={p.id} position={[p.lat, p.lng]} icon={createMarkerIcon(p)} eventHandlers={{ click: () => setSelectedPlace(p) }}>
+                  <Tooltip direction="top" offset={[0, -10]} permanent={false}>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>{p.name}</div>
+                    {p.address && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{p.address}</div>}
+                    {p.category?.name && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{p.category.name}</div>}
+                  </Tooltip>
+                </Marker>
+              ))}
+            </MarkerClusterGroup>
+          </MapContainer>
+        </div>
+        )}
+
         {/* Clone button with info */}
         {permissions?.allow_clone && (
           <div style={{ background: 'var(--bg-card, white)', borderRadius: 14, border: '1px solid var(--border-faint, #e5e7eb)', padding: '20px', marginBottom: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
@@ -212,60 +284,6 @@ export default function SharedTripPage() {
               </a>
             )}
           </div>
-        )}
-        
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 20, overflowX: 'auto', padding: '2px 0' }}>
-          {[
-            { id: 'plan', label: t('shared.tabPlan'), Icon: Map },
-            ...(permissions?.share_bookings ? [{ id: 'bookings', label: t('shared.tabBookings'), Icon: Ticket }] : []),
-            ...(permissions?.share_packing ? [{ id: 'packing', label: t('shared.tabPacking'), Icon: Luggage }] : []),
-            ...(permissions?.share_budget ? [{ id: 'budget', label: t('shared.tabBudget'), Icon: Wallet }] : []),
-            ...(permissions?.share_collab ? [{ id: 'collab', label: t('shared.tabChat'), Icon: MessageCircle }] : []),
-          ].map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)} style={{
-              padding: '8px 18px', borderRadius: 12, border: '1.5px solid', cursor: 'pointer',
-              fontSize: 12, fontWeight: 600, fontFamily: 'inherit', transition: 'all 0.15s', whiteSpace: 'nowrap',
-              display: 'flex', alignItems: 'center', gap: 6,
-              background: activeTab === tab.id ? '#111827' : 'var(--bg-card, white)',
-              borderColor: activeTab === tab.id ? '#111827' : 'var(--border-faint, #e5e7eb)',
-              color: activeTab === tab.id ? 'white' : '#6b7280',
-              boxShadow: activeTab === tab.id ? '0 2px 8px rgba(0,0,0,0.15)' : '0 1px 3px rgba(0,0,0,0.04)',
-            }}><tab.Icon size={13} /><span className="hidden sm:inline">{tab.label}</span></button>
-          ))}
-        </div>
-
-        {/* Map */}
-        {activeTab === 'plan' && (<>
-        {permissions?.share_map !== false && (
-        <div style={{ borderRadius: 16, overflow: 'hidden', height: 480, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
-          <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
-            <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
-            <FitBoundsToPlaces places={mapPlaces} />
-            <MarkerClusterGroup
-              chunkedLoading
-              chunkInterval={30}
-              chunkDelay={0}
-              maxClusterRadius={30}
-              disableClusteringAtZoom={11}
-              spiderfyOnMaxZoom
-              showCoverageOnHover={false}
-              zoomToBoundsOnClick
-              animate={false}
-              iconCreateFunction={clusterIconCreateFunction}
-            >
-              {mapPlaces.map((p: any) => (
-                <Marker key={p.id} position={[p.lat, p.lng]} icon={createMarkerIcon(p)} eventHandlers={{ click: () => setSelectedPlace(p) }}>
-                  <Tooltip direction="top" offset={[0, -10]} permanent={false}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>{p.name}</div>
-                    {p.address && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{p.address}</div>}
-                    {p.category?.name && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{p.category.name}</div>}
-                  </Tooltip>
-                </Marker>
-              ))}
-            </MarkerClusterGroup>
-          </MapContainer>
-        </div>
         )}
 
         {/* Place Detail Modal */}
