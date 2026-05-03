@@ -116,3 +116,8 @@ export const PROJECT_METADATA = {
   modifiedBy: { name: 'Bas', url: 'https://github.com/Knibbaz/TREK' },
   originalBy: { name: 'Maurice', url: 'https://github.com/mauriceboe/TREK' },
 };
+
+// API keys from env — seeded into DB on first start so they survive restarts
+// even if the env var is later removed. The DB value takes precedence after seeding.
+export const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || '';
+export const UNSPLASH_API_KEY = process.env.UNSPLASH_API_KEY || '';

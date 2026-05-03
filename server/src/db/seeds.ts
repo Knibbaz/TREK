@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
+import { GOOGLE_PLACES_API_KEY, UNSPLASH_API_KEY } from '../config';
+import { maybe_encrypt_api_key } from '../services/apiKeyCrypto';
 
 // Seeds run at startup before the DB admin panel can be used, so only env vars
 // are checked here. The granular password_login/password_registration DB toggles
@@ -142,10 +144,36 @@ function seedAddons(db: Database.Database): void {
   }
 }
 
+function seedApiKeys(db: Database.Database): void {
+  try {
+    if (GOOGLE_PLACES_API_KEY) {
+      const admin = db.prepare("SELECT id, maps_api_key FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1").get() as { id: number; maps_api_key: string | null } | undefined;
+      if (admin) {
+        const existing = admin.maps_api_key ? (() => { try { const { decrypt_api_key } = require('../services/apiKeyCrypto'); return decrypt_api_key(admin.maps_api_key); } catch { return null; } })() : null;
+        if (!existing) {
+          db.prepare('UPDATE users SET maps_api_key = ? WHERE id = ?').run(maybe_encrypt_api_key(GOOGLE_PLACES_API_KEY), admin.id);
+          console.log('Seeded GOOGLE_PLACES_API_KEY from env to admin account');
+        }
+      }
+    }
+
+    if (UNSPLASH_API_KEY) {
+      const existing = db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined;
+      if (!existing?.value) {
+        db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('unsplash_api_key', ?)").run(maybe_encrypt_api_key(UNSPLASH_API_KEY));
+        console.log('Seeded UNSPLASH_API_KEY from env to app_settings');
+      }
+    }
+  } catch (err: unknown) {
+    console.error('Error seeding API keys from env:', err instanceof Error ? err.message : err);
+  }
+}
+
 function runSeeds(db: Database.Database): void {
   seedAdminAccount(db);
   seedCategories(db);
   seedAddons(db);
+  seedApiKeys(db);
 }
 
 export { runSeeds };
