@@ -3,6 +3,8 @@ import { groupsApi } from '../../api/client'
 import { useTranslation } from '../../i18n'
 import { X, ThumbsDown, ThumbsUp, Star, Trophy } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { motion, AnimatePresence } from 'framer-motion'
+import Confetti from 'react-confetti'
 
 interface PollOption {
   id: string
@@ -47,6 +49,8 @@ export default function SwipePoll({ poll, tripId, onClose }: Props): React.React
   const [matches, setMatches] = useState<PollOption[]>([])
   const [loadingMatches, setLoadingMatches] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [showConfetti, setShowConfetti] = useState(false)
+  const confettiRef = useRef<HTMLDivElement>(null)
 
   // Drag state
   const cardRef = useRef<HTMLDivElement>(null)
@@ -58,7 +62,12 @@ export default function SwipePoll({ poll, tripId, onClose }: Props): React.React
   const isLastCard = currentIdx >= allOptions.length - 1
 
   useEffect(() => {
-    if (done) loadMatches()
+    if (done) {
+      setShowConfetti(true)
+      loadMatches()
+      const timer = setTimeout(() => setShowConfetti(false), 4000)
+      return () => clearTimeout(timer)
+    }
   }, [done])
 
   const loadMatches = async () => {
@@ -169,7 +178,22 @@ export default function SwipePoll({ poll, tripId, onClose }: Props): React.React
 
         {/* Done: show matches */}
         {done ? (
-          <div className="w-full max-w-sm">
+          <>
+            {showConfetti && confettiRef.current && (
+              <Confetti
+                width={confettiRef.current.offsetWidth}
+                height={confettiRef.current.offsetHeight}
+                numberOfPieces={150}
+                recycle={false}
+              />
+            )}
+            <motion.div
+              ref={confettiRef}
+              initial={{ opacity: 0, scale: 0.8 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', stiffness: 100, damping: 15 }}
+              className="w-full max-w-sm"
+            >
             <div className="text-center mb-6">
               <div className="text-4xl mb-2">🎉</div>
               <p className="font-bold text-lg" style={{ color: 'var(--text-primary)' }}>
@@ -220,7 +244,8 @@ export default function SwipePoll({ poll, tripId, onClose }: Props): React.React
             >
               {t('common.close') || 'Sluiten'}
             </button>
-          </div>
+            </motion.div>
+          </>
         ) : currentOption ? (
           <>
             {/* Hint overlays */}
@@ -241,13 +266,16 @@ export default function SwipePoll({ poll, tripId, onClose }: Props): React.React
               )}
 
               {/* Active card */}
-              <div
+              <motion.div
                 ref={cardRef}
                 onPointerDown={onPointerDown}
                 onPointerMove={onPointerMove}
                 onPointerUp={onPointerUp}
                 onPointerCancel={onPointerUp}
                 className="absolute inset-0 rounded-3xl border shadow-xl flex flex-col overflow-hidden select-none cursor-grab active:cursor-grabbing"
+                initial={{ opacity: 1, scale: 1 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8, transition: { duration: 0.3 } }}
                 style={{
                   background: 'var(--bg-card)',
                   borderColor: dragHint === 'like' ? '#22c55e' : dragHint === 'dislike' ? '#ef4444' : dragHint === 'superlike' ? '#f59e0b' : 'var(--border-primary)',
@@ -294,7 +322,7 @@ export default function SwipePoll({ poll, tripId, onClose }: Props): React.React
                     👎 NOPE
                   </div>
                 )}
-              </div>
+              </motion.div>
             </div>
 
             {/* Action buttons */}
