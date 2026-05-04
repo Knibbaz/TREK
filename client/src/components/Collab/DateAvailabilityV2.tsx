@@ -303,7 +303,7 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
   }
 
   return (
-    <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-primary)' }}>
+    <div className="rounded-xl border" style={{ borderColor: 'var(--border-primary)', overflowY: 'hidden' }}>
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border-secondary)' }}>
         {DAY_LABELS.map((l, i) => (
@@ -964,20 +964,22 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
       )}
 
       {/* Grid */}
-      <div style={{ padding: '4px 16px 12px' }}>
-        <MonthGrid
-          year={viewMonth.getFullYear()}
-          month={viewMonth.getMonth()}
-          proposal={proposal}
-          myStatus={myStatus}
-          myNotes={myNotes}
-          onToggle={toggleDate}
-          onNoteOpen={handleNoteOpen}
-          publicHolidays={publicHolidays}
-          viewMode={viewMode}
-          highlightRange={highlightRange || confirmedRange}
-          readOnly={isConfirmed}
-        />
+      <div style={{ padding: '4px 16px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ minWidth: '100%' }}>
+          <MonthGrid
+            year={viewMonth.getFullYear()}
+            month={viewMonth.getMonth()}
+            proposal={proposal}
+            myStatus={myStatus}
+            myNotes={myNotes}
+            onToggle={toggleDate}
+            onNoteOpen={handleNoteOpen}
+            publicHolidays={publicHolidays}
+            viewMode={viewMode}
+            highlightRange={highlightRange || confirmedRange}
+            readOnly={isConfirmed}
+          />
+        </div>
       </div>
 
       {/* Legend */}
