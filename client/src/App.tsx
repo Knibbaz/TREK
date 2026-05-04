@@ -1,4 +1,5 @@
 import React, { useEffect, ReactNode } from 'react'
+import ErrorBoundary from './components/shared/ErrorBoundary'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useSettingsStore } from './store/settingsStore'
@@ -18,6 +19,7 @@ import JourneyDetailPage from './pages/JourneyDetailPage'
 import GroupsPage from './pages/GroupsPage'
 import GroupJoinPage from './pages/GroupJoinPage'
 import GuestAvailabilityPage from './pages/GuestAvailabilityPage'
+import GuestPollPage from './pages/GuestPollPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
 import ExplorePage from './pages/ExplorePage'
 import WorldMapPage from './pages/WorldMapPage'
@@ -213,6 +215,7 @@ export default function App() {
 
   return (
     <TranslationProvider>
+      <ErrorBoundary>
       {!isAuthPage && <SystemNoticeHost />}
       <ToastContainer />
       <OfflineBanner />
@@ -227,6 +230,7 @@ export default function App() {
         <Route path="/reset-password" element={<ResetPasswordPage />} />
         <Route path="/join-group/:token" element={<GroupJoinPage />} />
         <Route path="/guest/availability/:token" element={<GuestAvailabilityPage />} />
+        <Route path="/guest/poll/:token" element={<GuestPollPage />} />
         {/* OAuth 2.1 consent page — intentionally outside ProtectedRoute */}
         <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
         <Route
@@ -335,6 +339,7 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </TranslationProvider>
   )
 }
