@@ -182,6 +182,12 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 
   res.status(201).json({ proposal: result });
   broadcast(String(groupId), 'dateProposal:created', { proposal: result }, req.headers['x-socket-id'] as string);
+
+  // Send notifications to all group members
+  import('../services/notificationService').then(({ send }) => {
+    const groupInfo = db.prepare('SELECT name FROM groups WHERE id = ?').get(groupId) as { name: string } | undefined;
+    send({ event: 'date_proposal_created', actorId: authReq.user.id, scope: 'group', targetId: Number(groupId), params: { group: groupInfo?.name || 'Group', proposal: (proposal.title as string), actor: authReq.user.email, groupId: String(groupId) } }).catch(() => {});
+  });
 });
 
 // ── DELETE /groups/:groupId/date-proposals/:proposalId ────────────────────────

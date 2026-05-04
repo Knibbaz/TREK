@@ -108,6 +108,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Packing: ${p.category}`, body: `${p.actor} assigned you to the "${p.category}" packing category in "${p.trip}".` }),
     version_available: p => ({ title: 'New ROUTD version available', body: `ROUTD ${p.version} is now available. Visit the admin panel to update.` }),
     synology_session_cleared: () => ({ title: 'Synology session cleared', body: 'Your Synology account or URL changed. You have been logged out of Synology Photos.' }),
+    date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
     date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal + '', body: 'The availability poll "' + p.proposal + '" in group "' + p.group + '" closes on ' + p.deadline + '. Please fill in your availability before then.' }),
   },
   de: {
@@ -121,6 +122,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Packliste: ${p.category}`, body: `${p.actor} hat dich der Kategorie "${p.category}" in der Packliste von "${p.trip}" zugewiesen.` }),
     version_available: p => ({ title: 'Neue ROUTD-Version verfügbar', body: `ROUTD ${p.version} ist jetzt verfügbar. Besuche das Admin-Panel zum Aktualisieren.` }),
     synology_session_cleared: () => ({ title: 'Synology-Sitzung beendet', body: 'Dein Synology-Konto oder die URL hat sich geändert. Du wurdest von Synology Photos abgemeldet.' }),
+    date_proposal_created: p => ({ title: 'Verfügbarkeitsumfrage: ' + p.proposal, body: `${p.actor} hat eine Verfügbarkeitsumfrage "${p.proposal}" in der Gruppe "${p.group}" erstellt. Bitte trage deine Verfügbarkeit ein.` }),
     date_proposal_deadline: p => ({ title: 'Verfuegbarkeit: Frist laeuft ab - ' + p.proposal + '', body: 'Die Umfrage "' + p.proposal + '" in der Gruppe "' + p.group + '" endet am ' + p.deadline + '. Bitte trage deine Verfuegbarkeit noch ein.' }),
   },
   fr: {
@@ -134,6 +136,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Bagages : ${p.category}`, body: `${p.actor} vous a assigné à la catégorie "${p.category}" dans "${p.trip}".` }),
     version_available: p => ({ title: 'Nouvelle version ROUTD disponible', body: `ROUTD ${p.version} est maintenant disponible. Rendez-vous dans le panneau d'administration pour mettre à jour.` }),
     synology_session_cleared: () => ({ title: 'Session Synology effacée', body: 'Votre compte ou URL Synology a changé. Vous avez été déconnecté de Synology Photos.' }),
+    date_proposal_created: p => ({ title: 'Sondage de disponibilité : ' + p.proposal, body: `${p.actor} a créé un sondage de disponibilité "${p.proposal}" dans le groupe "${p.group}". Veuillez indiquer vos disponibilités.` }),
     date_proposal_deadline: p => ({ title: 'Sondage de disponibilite : ' + p.proposal, body: 'Le sondage "' + p.proposal + '" dans le groupe "' + p.group + '" se termine le ' + p.deadline + '. Veuillez indiquer vos disponibilites.' }),
   },
   es: {
@@ -147,6 +150,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Equipaje: ${p.category}`, body: `${p.actor} te asignó a la categoría "${p.category}" en "${p.trip}".` }),
     version_available: p => ({ title: 'Nueva versión de ROUTD disponible', body: `ROUTD ${p.version} ya está disponible. Visita el panel de administración para actualizar.` }),
     synology_session_cleared: () => ({ title: 'Sesión de Synology cerrada', body: 'Tu cuenta o URL de Synology ha cambiado. Has cerrado sesión en Synology Photos.' }),
+    date_proposal_created: p => ({ title: 'Encuesta de disponibilidad: ' + p.proposal, body: `${p.actor} creó una encuesta de disponibilidad "${p.proposal}" en el grupo "${p.group}". Por favor, indica tu disponibilidad.` }),
     date_proposal_deadline: p => ({ title: 'Disponibilidad: ' + p.proposal, body: 'La encuesta "' + p.proposal + '" en el grupo "' + p.group + '" cierra el ' + p.deadline + '. Indica tu disponibilidad antes.' }),
   },
   nl: {
@@ -160,6 +164,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Paklijst: ${p.category}`, body: `${p.actor} heeft je toegewezen aan de categorie "${p.category}" in "${p.trip}".` }),
     version_available: p => ({ title: 'Nieuwe ROUTD-versie beschikbaar', body: `ROUTD ${p.version} is nu beschikbaar. Bezoek het beheerderspaneel om bij te werken.` }),
     synology_session_cleared: () => ({ title: 'Synology-sessie gewist', body: 'Je Synology-account of URL is gewijzigd. Je bent uitgelogd bij Synology Photos.' }),
+    date_proposal_created: p => ({ title: 'Beschikbaarheidspoll: ' + p.proposal, body: `${p.actor} heeft een beschikbaarheidspoll "${p.proposal}" in groep "${p.group}" aangemaakt. Vul alstublieft je beschikbaarheid in.` }),
     date_proposal_deadline: p => ({ title: 'Beschikbaarheid invullen: ' + p.proposal + '', body: 'De peilingsvraag "' + p.proposal + '" in groep "' + p.group + '" sluit op ' + p.deadline + '. Vul je beschikbaarheid nog in voor die datum.' }),
   },
   ru: {
@@ -173,6 +178,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     packing_tagged: p => ({ title: `Список вещей: ${p.category}`, body: `${p.actor} назначил вас в категорию "${p.category}" в "${p.trip}".` }),
     version_available: p => ({ title: 'Доступна новая версия ROUTD', body: `ROUTD ${p.version} теперь доступен. Перейдите в панель администратора для обновления.` }),
     synology_session_cleared: () => ({ title: 'Сессия Synology сброшена', body: 'Ваш аккаунт или URL Synology изменился. Вы вышли из Synology Photos.' }),
+    date_proposal_created: p => ({ title: 'Опрос доступности: ' + p.proposal, body: `${p.actor} создал опрос доступности "${p.proposal}" в группе "${p.group}". Пожалуйста, укажите свою доступность.` }),
     date_proposal_deadline: p => ({ title: 'Srok dostupnosti: ' + p.proposal, body: 'Opros "' + p.proposal + '" v gruppe "' + p.group + '" zakryvaetsya ' + p.deadline + '.' }),
   },
   zh: {
@@ -664,6 +670,7 @@ const NTFY_EVENT_META: Partial<Record<NotifEventType, { priority: 1 | 2 | 3 | 4 
   packing_tagged:           { priority: 3, tags: ['luggage'] },
   version_available:        { priority: 4, tags: ['package'] },
   synology_session_cleared:   { priority: 3, tags: ['warning'] },
+  date_proposal_created:      { priority: 3, tags: ['calendar'] },
   date_proposal_deadline:     { priority: 4, tags: ['calendar', 'alarm_clock'] },
   explore_update:             { priority: 3, tags: [] },
 };
