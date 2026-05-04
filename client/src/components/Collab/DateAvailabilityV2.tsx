@@ -593,6 +593,32 @@ function AnalysisPanel({ groupId, proposal, onConfirm, onHighlight }: AnalysisPa
 
       {analysis && (
         <>
+          {/* Heatmap */}
+          <div style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid var(--border-faint)' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 6 }}>{t('dateAvail.overlapHeatmap') || 'Overlap heatmap'}</div>
+            <div style={{ display: 'flex', gap: 1, height: 24 }}>
+              {analysis.perDayOverlap.map((day, i) => {
+                const maxScore = Math.max(...analysis.perDayOverlap.map(d => d.score), 1);
+                const ratio = day.score / maxScore;
+                const hue = ratio > 0.1 ? 120 : 0; // green if >10% of max, else red
+                const saturation = 100;
+                const lightness = 45 + (1 - ratio) * 35; // darker green = higher overlap
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      background: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                    }}
+                    title={`${day.date}: ${day.yes} ja, ${day.maybe} misschien`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 8 }}>
             {t('dateAvail.analysisStats', {
               responded: analysis.statistics.totalResponded,
