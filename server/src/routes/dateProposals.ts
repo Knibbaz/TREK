@@ -409,6 +409,19 @@ router.patch('/:proposalId/confirm', authenticate, (req: Request, res: Response)
   const updated = db.prepare('SELECT * FROM date_proposals WHERE id = ?').get(proposalId) as Record<string, unknown>;
   res.json({ proposal: updated });
   broadcast(groupId, 'dateProposal:confirmed', { proposalId: Number(proposalId), confirmed_start, confirmed_end }, req.headers['x-socket-id'] as string);
+
+  // Send notifications
+  import('../services/notificationService').then(({ send }) => {
+    const groupName = (db.prepare('SELECT name FROM groups WHERE id = ?').get(groupId) as { name: string } | undefined)?.name || 'Group';
+    const actorName = authReq.user.username;
+    send('date_proposal_confirmed', {
+      proposal: proposal.id,
+      confirmed_start,
+      confirmed_end,
+      group: groupName,
+      actor: actorName,
+    }, groupId, authReq.user.id);
+  }).catch(() => {});
 });
 
 // ── PATCH /groups/:groupId/date-proposals/:proposalId/reopen ──────────────────

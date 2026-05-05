@@ -18,6 +18,7 @@ export type NotifEventType =
   | 'synology_session_cleared'
   | 'explore_update'
   | 'date_proposal_created'
+  | 'date_proposal_confirmed'
   | 'date_proposal_deadline';
 
 export interface AvailableChannels {
@@ -42,6 +43,7 @@ const IMPLEMENTED_COMBOS: Record<NotifEventType, NotifChannel[]> = {
   explore_update:    ['inapp', 'email', 'webhook'],
   synology_session_cleared: ['inapp'],
   date_proposal_created: ['email'],
+  date_proposal_confirmed: ['email'],
   date_proposal_deadline: ['email'],
 };
 
