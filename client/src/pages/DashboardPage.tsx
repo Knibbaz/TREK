@@ -184,7 +184,7 @@ function SpotlightStats({ trip, totalDays, t }: { trip: DashboardTrip; totalDays
 
 function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale, dark }: TripCardProps): React.ReactElement {
   const status = getTripStatus(trip)
-  const days = useCountUp(trip.day_count || totalDays)
+  const days = useCountUp(trip.day_count || 0)
   const places = useCountUp(trip.place_count || 0)
   const buddies = useCountUp(trip.shared_count || 0)
 
@@ -332,6 +332,7 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
           <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
             {onEdit && <button title={t('common.edit')} onClick={() => onEdit(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Edit2 size={14} /></button>}
             {onCopy && <button title={t('dashboard.copyTrip')} onClick={() => onCopy(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Copy size={14} /></button>}
+            {onPublish && <button title={t('dashboard.publishExplore')} onClick={() => onPublish(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Compass size={14} /></button>}
             {onArchive && <button title={t('dashboard.archive')} onClick={() => onArchive(trip.id)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Archive size={14} /></button>}
             {onDelete && <button title={t('common.delete')} onClick={() => onDelete(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-red-300 hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>}
           </div>
@@ -756,13 +757,13 @@ export default function DashboardPage(): React.ReactElement {
   const [publishPrice, setPublishPrice] = useState(0)
   const [publishDescriptions, setPublishDescriptions] = useState<Record<string, string>>({})
   const [publishMode, setPublishMode] = useState<'publish' | 'update'>('publish')
-  const [publishCommunityEnabled, setPublishCommunityEnabled] = useState(false)
+  const [publishDescLang, setPublishDescLang] = useState<string>('en')
   const openPublishModal = (trip: DashboardTrip, mode: 'publish' | 'update' = 'publish') => {
     setPublishingTrip(trip)
     setPublishMode(mode)
     setPublishPrice(0)
     setPublishDescriptions({})
-    setPublishCommunityEnabled(false)
+    setPublishDescLang('en')
   }
 
   const handlePublish = async () => {
@@ -771,9 +772,21 @@ export default function DashboardPage(): React.ReactElement {
       if (publishMode === 'update') {
         const result = await exploreApi.publishUpdate(publishingTrip.id, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined)
         toast.success(t('explore.publishUpdateSuccess').replace('{version}', String(result.version)).replace('{count}', String(result.notified_count)))
-      } else {
-        await exploreApi.publishTrip(publishingTrip.id, publishPrice, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined, publishCommunityEnabled)
+      } else if (user?.role === 'admin') {
+        await exploreApi.publishTrip(publishingTrip.id, publishPrice, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined)
         toast.success(t('dashboard.toast.published'))
+      } else {
+        // Creators use the submission flow
+        const result = await exploreApi.submitTrip(publishingTrip.id, {
+          price: publishPrice,
+          descriptions: Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined,
+          community_enabled: false,
+        })
+        if (result.auto_approved) {
+          toast.success(t('dashboard.toast.published'))
+        } else {
+          toast.success(t('dashboard.toast.submittedForReview'))
+        }
       }
       setPublishingTrip(null)
     } catch (err) {
@@ -1053,7 +1066,7 @@ export default function DashboardPage(): React.ReactElement {
               onCopy={can('trip_create') ? handleCopy : undefined}
               onDelete={can('trip_delete', spotlight) ? handleDelete : undefined}
               onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
-              onPublish={exploreEnabled && spotlight.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
+              onPublish={exploreEnabled && spotlight.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
               onClick={tr => navigate(`/trips/${tr.id}`)}
             />
             </div>
@@ -1072,7 +1085,7 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={can('trip_create') ? handleCopy : undefined}
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                    onPublish={exploreEnabled && trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
+                    onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1088,7 +1101,7 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={can('trip_create') ? handleCopy : undefined}
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                    onPublish={exploreEnabled && trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
+                    onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1181,6 +1194,13 @@ export default function DashboardPage(): React.ReactElement {
         message={t('dashboard.confirm.delete', { title: deleteTrip?.title || '' })}
       />
 
+      <CopyTripDialog
+        isOpen={!!copyTrip}
+        tripTitle={copyTrip?.title || ''}
+        onClose={() => setCopyTrip(null)}
+        onConfirm={confirmCopy}
+      />
+
       {publishingTrip && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => setPublishingTrip(null)}>
           <div style={{ background: 'var(--bg-primary)', borderRadius: 16, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
@@ -1205,77 +1225,53 @@ export default function DashboardPage(): React.ReactElement {
               </div>
             )}
 
-            {/* Community bijdragen toggle */}
-            {publishMode === 'publish' && (
-              <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  id="communityEnabled"
-                  checked={publishCommunityEnabled}
-                  onChange={e => setPublishCommunityEnabled(e.target.checked)}
-                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#8b5cf6' }}
-                />
-                <label htmlFor="communityEnabled" style={{ fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}>
-                  {t('explore.enableCommunity')}
-                </label>
-              </div>
-            )}
-
-            {/* Meertalige beschrijvingen */}
+            {/* Meertalige beschrijvingen — dropdown per taal */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
+              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
                 {t('explore.descriptions')}
               </label>
 
-              {Object.entries(publishDescriptions).map(([lang, text]) => (
-                <div key={lang} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'var(--bg-tertiary)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{lang}</span>
-                    <button
-                      onClick={() => { const d = { ...publishDescriptions }; delete d[lang]; setPublishDescriptions(d) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 11, padding: 0 }}
-                    >
-                      {t('explore.removeLanguage')}
-                    </button>
-                  </div>
-                  <textarea
-                    value={text}
-                    onChange={e => setPublishDescriptions(d => ({ ...d, [lang]: e.target.value }))}
-                    rows={3}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-
-              {/* Taal toevoegen */}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                  placeholder={t('explore.addLanguage') + ' (en, nl, de...)'}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      const code = (e.target as HTMLInputElement).value.trim().toLowerCase();
-                      if (code && !publishDescriptions[code]) {
-                        setPublishDescriptions(d => ({ ...d, [code]: '' }));
-                        (e.target as HTMLInputElement).value = '';
-                      }
+              {/* Taal dropdown */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+                <select
+                  value={publishDescLang}
+                  onChange={e => {
+                    const lang = e.target.value
+                    setPublishDescLang(lang)
+                    if (!publishDescriptions[lang]) {
+                      setPublishDescriptions(d => ({ ...d, [lang]: '' }))
                     }
                   }}
                   style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit' }}
-                />
-                <button
-                  onClick={(e) => {
-                    const input = (e.currentTarget.previousSibling as HTMLInputElement);
-                    const code = input.value.trim().toLowerCase();
-                    if (code && !publishDescriptions[code]) {
-                      setPublishDescriptions(d => ({ ...d, [code]: '' }));
-                      input.value = '';
-                    }
-                  }}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
                 >
-                  +
-                </button>
+                  <option value="en">English</option>
+                  <option value="nl">Nederlands</option>
+                  <option value="de">Deutsch</option>
+                  <option value="fr">Français</option>
+                  <option value="it">Italiano</option>
+                  <option value="es">Español</option>
+                </select>
+                {publishDescriptions[publishDescLang] !== undefined && (
+                  <button
+                    onClick={() => { const d = { ...publishDescriptions }; delete d[publishDescLang]; setPublishDescriptions(d); setPublishDescLang('en') }}
+                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}
+                    title={t('explore.removeLanguage')}
+                  >
+                    ×
+                  </button>
+                )}
               </div>
+
+              {/* Tekstarea voor geselecteerde taal */}
+              {publishDescriptions[publishDescLang] !== undefined && (
+                <textarea
+                  value={publishDescriptions[publishDescLang]}
+                  onChange={e => setPublishDescriptions(d => ({ ...d, [publishDescLang]: e.target.value }))}
+                  rows={4}
+                  placeholder={t('explore.submitModal.description')}
+                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
+                />
+              )}
             </div>
 
             <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
