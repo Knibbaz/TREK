@@ -53,10 +53,10 @@ function evaluateOne(condition: NoticeCondition, ctx: ConditionContext): boolean
 
     case 'justJoinedGroup': {
       const thirtyMinsAgo = Date.now() - 30 * 60 * 1000;
-      // Find the most recent group join for this user
+      // Find the most recent group join for this user (column is added_at, not joined_at)
       const joinRow = db.prepare(`
-        SELECT CAST(strftime('%s', joined_at) AS INTEGER) * 1000 AS joined_ms
-        FROM group_members WHERE user_id = ? ORDER BY joined_at DESC LIMIT 1
+        SELECT CAST(strftime('%s', added_at) AS INTEGER) * 1000 AS joined_ms
+        FROM group_members WHERE user_id = ? ORDER BY added_at DESC LIMIT 1
       `).get(ctx.user.id) as { joined_ms: number } | undefined;
       if (!joinRow || joinRow.joined_ms < thirtyMinsAgo) return false;
       // Show again if the user joined after they last dismissed this notice
