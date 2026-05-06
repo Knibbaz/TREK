@@ -19,7 +19,8 @@ export type NotifEventType =
   | 'explore_update'
   | 'date_proposal_created'
   | 'date_proposal_confirmed'
-  | 'date_proposal_deadline';
+  | 'date_proposal_deadline'
+  | 'date_proposal_ping';
 
 export interface AvailableChannels {
   email: boolean;
@@ -45,6 +46,7 @@ const IMPLEMENTED_COMBOS: Record<NotifEventType, NotifChannel[]> = {
   date_proposal_created: ['email'],
   date_proposal_confirmed: ['email'],
   date_proposal_deadline: ['email'],
+  date_proposal_ping: ['inapp', 'email'],
 };
 
 /** Events that target admins only (shown in admin panel, not in user settings). */
