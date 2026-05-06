@@ -123,7 +123,8 @@ router.get('/place-photo/:placeId', authenticate, async (req: Request, res: Resp
 });
 
 // GET /place-photo/:placeId/bytes — serve cached photo bytes from disk
-router.get('/place-photo/:placeId/bytes', authenticate, (req: Request, res: Response) => {
+// No auth required: shared maps (viewed by guests) need photo access.
+router.get('/place-photo/:placeId/bytes', (req: Request, res: Response) => {
   const { placeId } = req.params;
   const fp = serveFilePath(placeId);
   if (!fp) return res.status(404).json({ error: 'Photo not cached' });
