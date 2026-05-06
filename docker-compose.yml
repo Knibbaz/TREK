@@ -3,7 +3,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: trek_dev
+    container_name: routd_dev
     read_only: true
     security_opt:
       - no-new-privileges:true
@@ -25,7 +25,7 @@ services:
       - LOG_LEVEL=${LOG_LEVEL:-info} # info = concise user actions; debug = verbose admin-level details
       - DEFAULT_LANGUAGE=en # Default language on the login page for users with no saved preference. Browser/OS language is auto-detected first; this is the fallback. Supported: de, en, es, fr, hu, nl, br, cs, pl, ru, zh, zh-TW, it, ar
       - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-} # Comma-separated origins for CORS and email notification links
-      - ADMIN_EMAIL=admin@trek.local # Initial admin e-mail — only used on first boot when no users exist
+      - ADMIN_EMAIL=admin@routd.local # Initial admin e-mail — only used on first boot when no users exist
       - ADMIN_PASSWORD=changeme      # Initial admin password — only used on first boot when no users exist
       - COOKIE_SECURE=false # Escape hatch: force session cookies over plain HTTP even in production. Not recommended.
 #      - FORCE_HTTPS=true # Optional. Enables HTTPS redirect, HSTS, CSP upgrade-insecure-requests, and secure cookies behind a TLS proxy
@@ -33,9 +33,9 @@ services:
 #      - COOKIE_SECURE=false # Escape hatch: force session cookies over plain HTTP even in production. Not recommended.
 #      - TRUST_PROXY=1 # Trusted proxy count for X-Forwarded-For / X-Forwarded-Proto. Required for FORCE_HTTPS to work.
 #      - ALLOW_INTERNAL_NETWORK=false # Set to true if Immich or other services are hosted on your local network (RFC-1918 IPs). Loopback and link-local addresses remain blocked regardless.
-#      - APP_URL=https://trek.example.com # Public base URL — required when OIDC is enabled (must match the redirect URI registered with your IdP); also used as base URL for links in email notifications
+#      - APP_URL=https://routd.example.com # Public base URL — required when OIDC is enabled (must match the redirect URI registered with your IdP); also used as base URL for links in email notifications
 #      - OIDC_ISSUER=https://auth.example.com # OpenID Connect provider URL
-#      - OIDC_CLIENT_ID=trek # OpenID Connect client ID
+#      - OIDC_CLIENT_ID=routd # OpenID Connect client ID
 #      - OIDC_CLIENT_SECRET=supersecret # OpenID Connect client secret
 #      - OIDC_DISPLAY_NAME=SSO # Label shown on the SSO login button
 #      - OIDC_ONLY=false # Set true to force SSO-only mode: disables password login and registration, overrides Admin > Settings toggles, cannot be changed at runtime
