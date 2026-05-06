@@ -26,6 +26,8 @@ function createTables(db: Database.Database): void {
       synology_sid TEXT,
       must_change_password INTEGER DEFAULT 0,
       password_version INTEGER NOT NULL DEFAULT 0,
+      creator_auto_approved INTEGER DEFAULT 0,
+      creator_fee_percent INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -491,6 +493,8 @@ function createTables(db: Database.Database): void {
       descriptions TEXT NOT NULL DEFAULT '{}',
       last_published_at DATETIME,
       community_enabled INTEGER DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'approved',
+      submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -503,11 +507,57 @@ function createTables(db: Database.Database): void {
       trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
       source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
       snapshot_version INTEGER NOT NULL DEFAULT 1,
+      payment_id INTEGER REFERENCES explore_payments(id),
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       UNIQUE(user_id, source_trip_id)
     );
     CREATE INDEX IF NOT EXISTS idx_explore_user_trips_source ON explore_user_trips(source_trip_id);
     CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
+
+    CREATE TABLE IF NOT EXISTS creator_mollie_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      mollie_profile_id TEXT NOT NULL,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT NOT NULL,
+      token_expires_at DATETIME,
+      organization_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_mollie_user ON creator_mollie_accounts(user_id);
+
+    CREATE TABLE IF NOT EXISTS creator_payouts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      amount_cents INTEGER NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      paid_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_payouts_creator ON creator_payouts(creator_user_id);
+    CREATE INDEX IF NOT EXISTS idx_creator_payouts_status ON creator_payouts(status);
+
+    CREATE TABLE IF NOT EXISTS explore_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      source_trip_id INTEGER NOT NULL REFERENCES trips(id),
+      creator_user_id INTEGER NOT NULL REFERENCES users(id),
+      mollie_payment_id TEXT UNIQUE NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      platform_fee_cents INTEGER NOT NULL DEFAULT 0,
+      creator_payout_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      status TEXT NOT NULL DEFAULT 'pending',
+      paid_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_explore_payments_mollie ON explore_payments(mollie_payment_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_payments_creator ON explore_payments(creator_user_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_payments_user ON explore_payments(user_id);
 
     -- Groups addon tables
     CREATE TABLE IF NOT EXISTS groups (
