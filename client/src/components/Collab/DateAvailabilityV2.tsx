@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import {
   Plus, Trash2, CalendarDays, ChevronLeft, ChevronRight,
   Globe, Briefcase, Plane, X, Check, Link2, BarChart2,
-  Lock, Unlock, Copy, Zap
+  Lock, Unlock, Copy, Zap, BellRing
 } from 'lucide-react'
 import { dateProposalsApi, availabilityApi, settingsApi, groupsApi, tripsApi } from '../../api/client'
 import { addListener, removeListener } from '../../api/websocket'
@@ -694,6 +694,7 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
   const [pending, setPending] = useState<Record<string, 'yes' | 'no' | 'maybe'>>({})
   const [pendingNotes, setPendingNotes] = useState<Record<string, string | null>>({})
   const [saving, setSaving] = useState(false)
+  const [pinging, setPinging] = useState(false)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null)
   const [confirmingPeriod, setConfirmingPeriod] = useState<{ start: string; end: string } | null>(null)
@@ -831,6 +832,18 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
     } catch { toast.error(t('common.error')) }
   }
 
+  const handlePing = async () => {
+    setPinging(true)
+    try {
+      const result = await dateProposalsApi.ping(groupId, proposal.id)
+      toast.success(t('dateAvail.pingSuccess', { count: result.pinged }) || `${result.pinged} member(s) pinged`)
+    } catch {
+      toast.error('Failed to send ping')
+    } finally {
+      setPinging(false)
+    }
+  }
+
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
 
   // Build list of months in range
@@ -906,6 +919,10 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
               <button onClick={() => setShowGuestPanel(v => !v)} title={t('dateAvail.guestLink') || 'Gastlink'}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, border: 'none', background: showGuestPanel ? 'var(--accent)' : 'transparent', cursor: 'pointer', color: showGuestPanel ? 'var(--accent-text)' : 'var(--text-faint)' }}>
                 <Link2 size={14} />
+              </button>
+              <button onClick={handlePing} disabled={pinging} title={t('dateAvail.pingMembers') || 'Ping members'}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, border: 'none', background: 'transparent', cursor: pinging ? 'not-allowed' : 'pointer', color: 'var(--text-faint)', opacity: pinging ? 0.5 : 1 }}>
+                <BellRing size={14} />
               </button>
             </>
           )}

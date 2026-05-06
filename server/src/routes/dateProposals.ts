@@ -486,6 +486,54 @@ router.delete('/:proposalId/guest-link/:tokenId', authenticate, (req: Request, r
   res.json({ ok: true });
 });
 
+// ── POST /groups/:groupId/date-proposals/:proposalId/ping ────────────────────
+
+router.post('/:proposalId/ping', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const { groupId, proposalId } = req.params;
+  const access = getGroupAccess(groupId, authReq.user.id);
+  if (!access) return res.status(404).json({ error: 'Group not found' });
+  if (access.role !== 'owner' && access.role !== 'admin') return res.status(403).json({ error: 'No permission' });
+
+  const proposal = db.prepare('SELECT * FROM date_proposals WHERE id = ? AND group_id = ?')
+    .get(proposalId, groupId) as { id: number; title: string; status?: string } | undefined;
+  if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
+  if (proposal.status === 'confirmed') return res.status(400).json({ error: 'Proposal already confirmed' });
+
+  const members = getGroupMembers(groupId);
+  const respondedIds = new Set(
+    (db.prepare('SELECT DISTINCT user_id FROM date_availability WHERE proposal_id = ?')
+      .all(proposalId) as Array<{ user_id: number }>).map(r => r.user_id)
+  );
+  const inactive = members.filter(m => !respondedIds.has(m.id) && m.id !== authReq.user.id);
+
+  if (inactive.length === 0) return res.json({ ok: true, pinged: 0 });
+
+  const filled = `${respondedIds.size}/${members.length}`;
+  const groupInfo = db.prepare('SELECT name FROM groups WHERE id = ?').get(groupId) as { name: string } | undefined;
+
+  import('../services/notificationService').then(({ send }) => {
+    for (const member of inactive) {
+      send({
+        event: 'date_proposal_ping',
+        actorId: authReq.user.id,
+        scope: 'user',
+        targetId: member.id,
+        params: {
+          proposal: proposal.title,
+          group: groupInfo?.name || 'Group',
+          actor: authReq.user.username,
+          filled,
+          groupId: String(groupId),
+          proposalId: String(proposalId),
+        },
+      }).catch(() => {});
+    }
+  });
+
+  res.json({ ok: true, pinged: inactive.length });
+});
+
 export default router;
 
 // ── GET /api/date-proposals/mine ──────────────────────────────────────────────
