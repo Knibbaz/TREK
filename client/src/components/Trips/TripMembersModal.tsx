@@ -36,7 +36,7 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
   const [shareToken, setShareToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
-  const [perms, setPerms] = useState({ share_map: true, share_plan: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false, allow_clone: false })
+  const [perms, setPerms] = useState({ share_map: true, share_plan: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false, allow_clone: false, share_description: false })
   const toast = useToast()
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -55,6 +55,7 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
         share_budget: d.share_budget ?? false,
         share_collab: d.share_collab ?? false,
         allow_clone: d.allow_clone ?? false,
+        share_description: d.share_description ?? false,
       })
       setLoading(false)
     }).catch(() => setLoading(false))
@@ -108,6 +109,7 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
         {[
           { key: 'share_map', label: t('share.permMap') },
           { key: 'share_plan', label: t('share.permPlan') },
+          { key: 'share_description', label: t('share.permDescription') },
           { key: 'share_bookings', label: t('share.permBookings') },
           { key: 'share_packing', label: t('share.permPacking') },
           { key: 'share_budget', label: t('share.permBudget') },
