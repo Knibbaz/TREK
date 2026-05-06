@@ -3,6 +3,7 @@ import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { db } from '../db/database';
 import { copyTripTransaction, mergeTripFromSource } from '../services/tripCopyService';
+import { getPlatformFeePercent } from '../services/mollieConnectService';
 
 const router = express.Router();
 router.use(authenticate);
@@ -21,6 +22,17 @@ interface ExploreTrip {
   version: number
   descriptions: string // JSON string
   community_enabled: number
+  listing_title?: string
+  tagline?: string
+  tags?: string // JSON string
+  destination?: string
+  country_code?: string
+  difficulty?: string
+  best_season?: string // JSON string
+  display_title?: string
+  avg_rating?: number
+  rating_count?: number
+  view_count?: number
 }
 
 function isAdmin(userId: number): boolean {
@@ -32,13 +44,102 @@ function getUser(userId: number): { role: string; creator_auto_approved: number 
   return db.prepare('SELECT role, creator_auto_approved FROM users WHERE id = ?').get(userId) as { role: string; creator_auto_approved: number } | undefined;
 }
 
+// ── Get explore configuration ──────────────────────────────────────────────
+router.get('/config', (req: Request, res: Response) => {
+  try {
+    const commissionPct = getPlatformFeePercent();
+    res.json({ commission_percentage: commissionPct });
+  } catch (err: unknown) {
+    console.error('Error fetching explore config:', err);
+    res.status(500).json({ error: 'Failed to fetch explore config' });
+  }
+});
+
 // ── List published explore trips ───────────────────────────────────────────
 router.get('/trips', (req: Request, res: Response) => {
   try {
     const filter = req.query.filter as string | undefined; // 'all' | 'curated' | 'community'
+    const q = req.query.q as string | undefined;
+    const minPrice = req.query.minPrice as string | undefined;
+    const maxPrice = req.query.maxPrice as string | undefined;
+    const destination = req.query.destination as string | undefined;
+    const difficulty = req.query.difficulty as string | undefined;
+    const tag = req.query.tag as string | undefined;
+    const sort = req.query.sort as string | undefined; // 'newest' | 'popular' | 'rating' | 'price_asc' | 'price_desc'
+    const page = Math.max(1, parseInt(req.query.page as string || '1', 10));
+    const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string || '20', 10)));
+    const offset = (page - 1) * limit;
+
     let whereClause = 'ep.trip_id IS NOT NULL AND ep.is_published = 1';
+    const params: (string | number)[] = [];
+
     if (filter === 'curated') whereClause += ' AND COALESCE(ep.community_enabled, 0) = 0';
     if (filter === 'community') whereClause += ' AND COALESCE(ep.community_enabled, 0) = 1';
+
+    // Full-text search on title, description, destination, tags
+    if (q && q.trim()) {
+      const searchTerm = `%${q.trim().toLowerCase()}%`;
+      whereClause += ` AND (
+        LOWER(COALESCE(ep.listing_title, t.title)) LIKE ?
+        OR LOWER(t.description) LIKE ?
+        OR LOWER(COALESCE(ep.destination, '')) LIKE ?
+        OR LOWER(COALESCE(ep.tagline, '')) LIKE ?
+        OR LOWER(COALESCE(ep.tags, '')) LIKE ?
+      )`;
+      params.push(searchTerm, searchTerm, searchTerm, searchTerm, searchTerm);
+    }
+
+    if (minPrice !== undefined) {
+      whereClause += ' AND COALESCE(ep.price, 0) >= ?';
+      params.push(Number(minPrice));
+    }
+    if (maxPrice !== undefined) {
+      whereClause += ' AND COALESCE(ep.price, 0) <= ?';
+      params.push(Number(maxPrice));
+    }
+    if (destination && destination.trim()) {
+      whereClause += " AND LOWER(COALESCE(ep.destination, '')) LIKE ?";
+      params.push(`%${destination.trim().toLowerCase()}%`);
+    }
+    if (difficulty && difficulty.trim()) {
+      whereClause += " AND COALESCE(ep.difficulty, 'easy') = ?";
+      params.push(difficulty.trim().toLowerCase());
+    }
+    if (tag && tag.trim()) {
+      whereClause += " AND LOWER(COALESCE(ep.tags, '')) LIKE ?";
+      params.push(`%"${tag.trim().toLowerCase()}"%`);
+    }
+
+    // Count total for pagination
+    const countQuery = `
+      SELECT COUNT(*) as total
+      FROM trips t
+      LEFT JOIN explore_published ep ON t.id = ep.trip_id
+      WHERE ${whereClause}
+    `;
+    const countResult = db.prepare(countQuery).get(...params) as { total: number } | undefined;
+    const total = countResult?.total || 0;
+
+    // Sorting
+    let orderClause = 'ORDER BY ep.created_at DESC';
+    switch (sort) {
+      case 'popular':
+        orderClause = 'ORDER BY COALESCE(ep.view_count, 0) DESC, ep.created_at DESC';
+        break;
+      case 'rating':
+        orderClause = 'ORDER BY COALESCE(ep.avg_rating, 0) DESC, ep.created_at DESC';
+        break;
+      case 'price_asc':
+        orderClause = 'ORDER BY COALESCE(ep.price, 0) ASC, ep.created_at DESC';
+        break;
+      case 'price_desc':
+        orderClause = 'ORDER BY COALESCE(ep.price, 0) DESC, ep.created_at DESC';
+        break;
+      case 'newest':
+      default:
+        orderClause = 'ORDER BY ep.created_at DESC';
+        break;
+    }
 
     const publishedTrips = db.prepare(`
       SELECT
@@ -54,15 +155,27 @@ router.get('/trips', (req: Request, res: Response) => {
         u.username as owner_name,
         COALESCE(ep.version, 1) as version,
         COALESCE(ep.descriptions, '{}') as descriptions,
-        COALESCE(ep.community_enabled, 0) as community_enabled
+        COALESCE(ep.community_enabled, 0) as community_enabled,
+        ep.listing_title,
+        ep.tagline,
+        COALESCE(ep.tags, '[]') as tags,
+        ep.destination,
+        ep.country_code,
+        COALESCE(ep.difficulty, 'easy') as difficulty,
+        COALESCE(ep.best_season, '[]') as best_season,
+        COALESCE(ep.listing_title, t.title) as display_title,
+        COALESCE(ep.avg_rating, 0) as avg_rating,
+        COALESCE(ep.rating_count, 0) as rating_count,
+        COALESCE(ep.view_count, 0) as view_count
       FROM trips t
       LEFT JOIN explore_published ep ON t.id = ep.trip_id
       LEFT JOIN users u ON t.user_id = u.id
       WHERE ${whereClause}
-      ORDER BY ep.created_at DESC
-    `).all() as ExploreTrip[];
+      ${orderClause}
+      LIMIT ? OFFSET ?
+    `).all(...params, limit, offset) as ExploreTrip[];
 
-    res.json({ trips: publishedTrips || [] });
+    res.json({ trips: publishedTrips || [], total, page, limit });
   } catch (err: unknown) {
     console.error('Error fetching explore trips:', err);
     res.status(500).json({ error: 'Failed to fetch explore trips' });
@@ -89,7 +202,18 @@ router.get('/trips/:id', (req: Request, res: Response) => {
         COALESCE(ep.version, 1) as version,
         COALESCE(ep.descriptions, '{}') as descriptions,
         COALESCE(ep.community_enabled, 0) as community_enabled,
-        COALESCE((SELECT COUNT(*) FROM places WHERE trip_id = t.id AND source = 'community'), 0) as community_places_count
+        COALESCE((SELECT COUNT(*) FROM places WHERE trip_id = t.id AND source = 'community'), 0) as community_places_count,
+        ep.listing_title,
+        ep.tagline,
+        COALESCE(ep.tags, '[]') as tags,
+        ep.destination,
+        ep.country_code,
+        COALESCE(ep.difficulty, 'easy') as difficulty,
+        COALESCE(ep.best_season, '[]') as best_season,
+        COALESCE(ep.listing_title, t.title) as display_title,
+        COALESCE(ep.avg_rating, 0) as avg_rating,
+        COALESCE(ep.rating_count, 0) as rating_count,
+        COALESCE(ep.view_count, 0) as view_count
       FROM trips t
       LEFT JOIN explore_published ep ON t.id = ep.trip_id
       LEFT JOIN users u ON t.user_id = u.id
@@ -98,29 +222,67 @@ router.get('/trips/:id', (req: Request, res: Response) => {
 
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
+    // Increment view count (best effort)
+    try {
+      db.prepare('UPDATE explore_published SET view_count = COALESCE(view_count, 0) + 1 WHERE trip_id = ?').run(id);
+    } catch { /* column may not exist yet */ }
+
     // Days with notes
     const days = db.prepare(`
       SELECT d.id, d.day_number, d.title, d.date, d.notes
       FROM days d WHERE d.trip_id = ? ORDER BY d.day_number ASC
     `).all(id) as Array<{ id: number; day_number: number; title: string | null; date: string | null; notes: string | null }>;
 
-    // Assigned places with price and reservation info
+    // Assigned places with price, reservation info, coordinates, and category
     const places = db.prepare(`
       SELECT
         p.id, p.name, p.description, p.image_url,
-        p.price, p.currency,
+        p.price, p.currency, p.lat, p.lng,
         da.day_id, da.order_index, da.reservation_status,
-        c.name as category_name, c.color as category_color
+        c.name as category_name, c.color as category_color, c.icon as category_icon
       FROM places p
       JOIN day_assignments da ON da.place_id = p.id
       JOIN days d ON d.id = da.day_id
       LEFT JOIN categories c ON c.id = p.category_id
-      WHERE d.trip_id = ?
+      WHERE d.trip_id = ? AND (p.source IS NULL OR p.source = 'admin')
       ORDER BY da.day_id, da.order_index ASC
     `).all(id) as any[];
 
-    const placesByDay: Record<number, typeof places> = {};
+    // Build category statistics
+    const categoryStats: Record<string, { name: string; color: string; icon: string; count: number }> = {};
     for (const place of places) {
+      const catName = place.category_name || 'Overig';
+      if (!categoryStats[catName]) {
+        categoryStats[catName] = {
+          name: catName,
+          color: place.category_color || '#6366f1',
+          icon: place.category_icon || '📍',
+          count: 0,
+        };
+      }
+      categoryStats[catName].count++;
+    }
+    const categoryStatsArray = Object.values(categoryStats).sort((a, b) => b.count - a.count);
+
+    // Blur coordinates for preview (apply ~500m random offset)
+    const BLUR_OFFSET = 0.0045; // ~500m in degrees
+    function blurCoordinate(val: number | null): number | null {
+      if (val == null) return null;
+      const offset = (Math.random() - 0.5) * 2 * BLUR_OFFSET;
+      return Number((val + offset).toFixed(6));
+    }
+
+    // Pick first 3 places as "highlights" (unblurred), rest is blurred
+    const highlightIds = new Set(places.slice(0, 3).map((p: any) => p.id));
+    const blurredPlaces = places.map((place: any) => ({
+      ...place,
+      lat: highlightIds.has(place.id) ? place.lat : blurCoordinate(place.lat),
+      lng: highlightIds.has(place.id) ? place.lng : blurCoordinate(place.lng),
+      is_highlight: highlightIds.has(place.id),
+    }));
+
+    const placesByDay: Record<number, typeof blurredPlaces> = {};
+    for (const place of blurredPlaces) {
       if (!placesByDay[place.day_id]) placesByDay[place.day_id] = [];
       placesByDay[place.day_id].push(place);
     }
@@ -135,7 +297,19 @@ router.get('/trips/:id', (req: Request, res: Response) => {
       };
     });
 
-    res.json({ trip, days: daysWithPlaces });
+    // Check if current user already owns this trip
+    const authReq = req as AuthRequest;
+    const userOwns = db.prepare('SELECT trip_id FROM explore_user_trips WHERE user_id = ? AND source_trip_id = ?')
+      .get(authReq.user.id, id) as { trip_id: number } | undefined;
+
+    res.json({
+      trip,
+      days: daysWithPlaces,
+      category_stats: categoryStatsArray,
+      total_budget_estimate: places.reduce((sum: number, p: any) => sum + (p.price || 0), 0),
+      already_purchased: !!userOwns,
+      user_trip_id: userOwns?.trip_id || null,
+    });
   } catch (err: unknown) {
     console.error('Error fetching explore trip:', err);
     res.status(500).json({ error: 'Failed to fetch explore trip' });
@@ -253,9 +427,14 @@ router.post('/trips/:id/purchase', (req: Request, res: Response) => {
     const { id } = req.params;
     const { title } = req.body;
 
-    const ep = db.prepare('SELECT trip_id, version FROM explore_published WHERE trip_id = ? AND is_published = 1').get(id) as
-      { trip_id: number; version: number } | undefined;
+    const ep = db.prepare('SELECT trip_id, price, version FROM explore_published WHERE trip_id = ? AND is_published = 1').get(id) as
+      { trip_id: number; price: number; version: number } | undefined;
     if (!ep) return res.status(404).json({ error: 'Trip not found or not published' });
+
+    // Paid trips must go through the payment flow
+    if (ep.price > 0) {
+      return res.status(400).json({ error: 'Payment required', code: 'PAYMENT_REQUIRED', trip_id: id });
+    }
 
     // Check if user already owns a copy
     const existing = db.prepare('SELECT trip_id FROM explore_user_trips WHERE user_id = ? AND source_trip_id = ?')
@@ -270,6 +449,25 @@ router.post('/trips/:id/purchase', (req: Request, res: Response) => {
       INSERT INTO explore_user_trips (user_id, trip_id, source_trip_id, snapshot_version)
       VALUES (?, ?, ?, ?)
     `).run(authReq.user.id, newTripId, id, ep.version || 1);
+
+    // Track free purchase in payments table so it shows up in creator earnings/sales
+    try {
+      const sourceTrip = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(id) as { user_id: number } | undefined;
+      if (sourceTrip) {
+        db.prepare(`
+          INSERT INTO explore_payments (user_id, source_trip_id, creator_user_id, mollie_payment_id, amount_cents, platform_fee_cents, creator_payout_cents, currency, status, paid_at)
+          VALUES (?, ?, ?, 'FREE', 0, 0, 0, 'EUR', 'paid', datetime('now'))
+        `).run(authReq.user.id, id, sourceTrip.user_id);
+      }
+    } catch (err) {
+      console.error('[explore] Failed to track free payment:', err);
+    }
+
+    // Increment purchase count (best effort)
+    try {
+      db.prepare('UPDATE explore_published SET purchase_count = COALESCE(purchase_count, 0) + 1 WHERE trip_id = ?')
+        .run(id);
+    } catch { /* column may not exist yet */ }
 
     res.json({ success: true, trip_id: Number(newTripId), message: 'Trip added to your trips' });
   } catch (err: unknown) {
@@ -420,7 +618,7 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
   try {
     const authReq = req as AuthRequest;
     const { id } = req.params;
-    const { price, descriptions, community_enabled } = req.body;
+    const { price, descriptions, community_enabled, listing_title, tagline, tags, destination, country_code, difficulty, best_season } = req.body;
 
     const actor = getUser(authReq.user.id);
     if (!actor || (actor.role !== 'creator' && actor.role !== 'admin')) {
@@ -439,14 +637,16 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
     }
 
     const descriptionsJson = descriptions ? JSON.stringify(descriptions) : '{}';
+    const tagsJson = Array.isArray(tags) ? JSON.stringify(tags) : '[]';
+    const bestSeasonJson = Array.isArray(best_season) ? JSON.stringify(best_season) : '[]';
     const communityFlag = community_enabled ? 1 : 0;
     const autoApproved = actor.creator_auto_approved === 1 || isAdmin(authReq.user.id);
     const status = autoApproved ? 'approved' : 'pending';
     const isPublished = autoApproved ? 1 : 0;
 
     db.prepare(`
-      INSERT INTO explore_published (trip_id, price, is_published, version, descriptions, community_enabled, status, submitted_by, last_published_at, created_at, updated_at)
-      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, datetime('now'), datetime('now'))
+      INSERT INTO explore_published (trip_id, price, is_published, version, descriptions, community_enabled, status, submitted_by, last_published_at, listing_title, tagline, tags, destination, country_code, difficulty, best_season, created_at, updated_at)
+      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       ON CONFLICT(trip_id) DO UPDATE SET
         price = excluded.price,
         is_published = excluded.is_published,
@@ -455,8 +655,15 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
         status = excluded.status,
         submitted_by = excluded.submitted_by,
         last_published_at = excluded.last_published_at,
+        listing_title = excluded.listing_title,
+        tagline = excluded.tagline,
+        tags = excluded.tags,
+        destination = excluded.destination,
+        country_code = excluded.country_code,
+        difficulty = excluded.difficulty,
+        best_season = excluded.best_season,
         updated_at = datetime('now')
-    `).run(id, price || 0, isPublished, descriptionsJson, communityFlag, status, authReq.user.id);
+    `).run(id, price || 0, isPublished, descriptionsJson, communityFlag, status, authReq.user.id, listing_title || null, tagline || null, tagsJson, destination || null, country_code || null, difficulty || 'easy', bestSeasonJson);
 
     res.json({ success: true, status, auto_approved: autoApproved });
   } catch (err: unknown) {
@@ -525,7 +732,9 @@ router.get('/submissions', (req: Request, res: Response) => {
              ep.descriptions, ep.community_enabled, ep.submitted_by, ep.created_at, ep.updated_at,
              t.title, t.description, t.cover_image, t.start_date, t.end_date,
              u.username as submitter_name, u.email as submitter_email,
-             u.creator_auto_approved
+             u.creator_auto_approved,
+             COALESCE((SELECT COUNT(*) FROM days WHERE trip_id = t.id), 0) as day_count,
+             COALESCE((SELECT COUNT(*) FROM places WHERE trip_id = t.id), 0) as place_count
       FROM explore_published ep
       JOIN trips t ON t.id = ep.trip_id
       JOIN users u ON u.id = ep.submitted_by
@@ -579,11 +788,12 @@ router.post('/submissions/:id/reject', (req: Request, res: Response) => {
     if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
 
     const { id } = req.params;
+    const { notes } = req.body;
 
     const submission = db.prepare('SELECT id FROM explore_published WHERE id = ? AND status = ?').get(id, 'pending') as { id: number } | undefined;
     if (!submission) return res.status(404).json({ error: 'Pending submission not found' });
 
-    db.prepare("UPDATE explore_published SET status = 'rejected', is_published = 0, updated_at = datetime('now') WHERE id = ?").run(id);
+    db.prepare("UPDATE explore_published SET status = 'rejected', is_published = 0, moderation_notes = ?, updated_at = datetime('now') WHERE id = ?").run(notes || null, id);
     res.json({ success: true });
   } catch (err: unknown) {
     console.error('Error rejecting submission:', err);

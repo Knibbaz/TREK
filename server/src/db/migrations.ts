@@ -2730,6 +2730,28 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Added viewer role to group_members and group_invite_tokens');
     },
+    // Migration 152: Add listing metadata columns to explore_published
+    () => {
+      // Add new columns for listing customization
+      db.exec(`ALTER TABLE explore_published ADD COLUMN listing_title TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN tagline TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN destination TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN country_code TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'easy'`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN best_season TEXT NOT NULL DEFAULT '[]'`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN moderation_notes TEXT`);
+      console.log('[migrations] Added listing metadata columns to explore_published');
+    },
+    // Migration 153: Add analytics columns to explore_published
+    () => {
+      db.exec(`ALTER TABLE explore_published ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN purchase_count INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN avg_rating REAL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`);
+      console.log('[migrations] Added analytics columns to explore_published');
+    },
   ];
 
   if (currentVersion < migrations.length) {

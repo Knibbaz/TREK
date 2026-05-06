@@ -40,7 +40,31 @@ export const apiClient: AxiosInstance = axios.create({
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete'])
 
-// Request interceptor - add socket ID + idempotency key for mutating requests
+// ── Simple in-memory cache for GET requests ────────────────────────────────
+interface CacheEntry {
+  data: unknown
+  expiresAt: number
+}
+const _apiCache = new Map<string, CacheEntry>()
+const CACHE_TTL_MS = 5_000 // 5 seconds
+
+function cacheKey(config: unknown): string {
+  const c = config as { url?: string; params?: Record<string, unknown> }
+  const params = c.params ? JSON.stringify(c.params) : ''
+  return `${c.url || ''}?${params}`
+}
+
+export function invalidateApiCache(urlPattern?: string): void {
+  if (!urlPattern) {
+    _apiCache.clear()
+    return
+  }
+  for (const key of _apiCache.keys()) {
+    if (key.startsWith(urlPattern)) _apiCache.delete(key)
+  }
+}
+
+// Request interceptor - add socket ID + idempotency key + cache lookup
 apiClient.interceptors.request.use(
   (config) => {
     const sid = getSocketId()
@@ -57,6 +81,20 @@ apiClient.interceptors.request.use(
         : Math.random().toString(36).slice(2)
       config.headers['X-Idempotency-Key'] = key
     }
+    // Simple GET cache lookup (skip if explicitly no-cache)
+    if (method === 'get' && !config.headers['X-Skip-Cache']) {
+      const key = cacheKey(config)
+      const cached = _apiCache.get(key)
+      if (cached && cached.expiresAt > Date.now()) {
+        config.adapter = async () => ({
+          data: cached.data,
+          status: 200,
+          statusText: 'OK',
+          headers: {},
+          config: config as any,
+        })
+      }
+    }
     return config
   },
   (error) => Promise.reject(error)
@@ -68,10 +106,45 @@ export function isAuthPublicPath(pathname: string): boolean {
   return publicPaths.includes(pathname) || publicPrefixes.some((p) => pathname.startsWith(p))
 }
 
-// Response interceptor - handle 401, 403 MFA, 429 rate limit
+// ── Retry mechanism ────────────────────────────────────────────────────────
+const RETRY_COUNT = 2
+const RETRY_DELAY_MS = 500
+const RETRYABLE_STATUSES = new Set([408, 429, 500, 502, 503, 504])
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+// Response interceptor - handle 401, 403 MFA, 429 rate limit, caching, retry
 apiClient.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response) => {
+    const method = (response.config.method ?? '').toLowerCase()
+    // Cache successful GET responses
+    if (method === 'get' && !response.config.headers['X-Skip-Cache']) {
+      const key = cacheKey(response.config)
+      _apiCache.set(key, { data: response.data, expiresAt: Date.now() + CACHE_TTL_MS })
+    }
+    // Clear entire cache on mutations so subsequent GETs fetch fresh data
+    if (MUTATING_METHODS.has(method)) {
+      _apiCache.clear()
+    }
+    return response
+  },
+  async (error) => {
+    const config = error.config
+
+    // Retry on network errors or retryable status codes
+    if (config && config.retryCount === undefined) config.retryCount = 0
+    if (
+      config &&
+      config.retryCount < RETRY_COUNT &&
+      (!error.response || RETRYABLE_STATUSES.has(error.response.status))
+    ) {
+      config.retryCount++
+      await sleep(RETRY_DELAY_MS * config.retryCount)
+      return apiClient(config)
+    }
+
     if (error.response?.status === 401 && (error.response?.data as { code?: string } | undefined)?.code === 'AUTH_REQUIRED') {
       const { pathname } = window.location
       if (!isAuthPublicPath(pathname)) {
@@ -285,6 +358,7 @@ export const tagsApi = {
 
 export const categoriesApi = {
   list: () => apiClient.get('/categories').then(r => r.data),
+  listMy: () => apiClient.get('/categories/my').then(r => r.data),
   create: (data: Record<string, unknown>) => apiClient.post('/categories', data).then(r => r.data),
   update: (id: number, data: Record<string, unknown>) => apiClient.put(`/categories/${id}`, data).then(r => r.data),
   delete: (id: number) => apiClient.delete(`/categories/${id}`).then(r => r.data),
@@ -296,6 +370,10 @@ export const adminApi = {
   updateUser: (id: number, data: Record<string, unknown>) => apiClient.put(`/admin/users/${id}`, data).then(r => r.data),
   deleteUser: (id: number) => apiClient.delete(`/admin/users/${id}`).then(r => r.data),
   stats: () => apiClient.get('/admin/stats').then(r => r.data),
+  getPlatformFee: () => apiClient.get('/admin/platform-fee').then(r => r.data),
+  setPlatformFee: (platform_fee_percent: number | null) => apiClient.put('/admin/platform-fee', { platform_fee_percent }).then(r => r.data),
+  getPayouts: () => apiClient.get('/admin/payouts').then(r => r.data),
+  registerPayout: (data: { creator_user_id: number; amount_cents: number; description?: string }) => apiClient.post('/admin/payouts', data).then(r => r.data),
   saveDemoBaseline: () => apiClient.post('/admin/save-demo-baseline').then(r => r.data),
   getOidc: () => apiClient.get('/admin/oidc').then(r => r.data),
   updateOidc: (data: Record<string, unknown>) => apiClient.put('/admin/oidc', data).then(r => r.data),
@@ -522,6 +600,8 @@ export const dateProposalsApi = {
     apiClient.post(`/groups/${groupId}/date-proposals/${proposalId}/guest-link`, { expires_in_days: expiresInDays }).then(r => r.data),
   deleteGuestLink: (groupId: number | string, proposalId: number, tokenId: number) =>
     apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}/guest-link/${tokenId}`).then(r => r.data),
+  ping: (groupId: number | string, proposalId: number) =>
+    apiClient.post(`/groups/${groupId}/date-proposals/${proposalId}/ping`).then(r => r.data),
 }
 
 export const availabilityApi = {
@@ -642,9 +722,9 @@ export const groupsApi = {
 
   // Polls
   listPolls: (tripId: number | string) => apiClient.get(`/addons/groups/polls/${tripId}`).then(r => r.data),
-  createPoll: (tripId: number | string, data: { title: string; description?: string; type?: string; deadline?: string }) =>
+  createPoll: (tripId: number | string, data: { title: string; description?: string; type?: string; deadline?: string; anonymous?: boolean; allow_guest_votes?: boolean }) =>
     apiClient.post(`/addons/groups/polls/${tripId}`, data).then(r => r.data),
-  addPollOption: (tripId: number | string, pollId: string, data: { label: string; description?: string; lat?: number; lng?: number }) =>
+  addPollOption: (tripId: number | string, pollId: string, data: { label: string; description?: string; lat?: number; lng?: number; image_url?: string }) =>
     apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/options`, data).then(r => r.data),
   deletePollOption: (tripId: number | string, pollId: string, optionId: string) =>
     apiClient.delete(`/addons/groups/polls/${tripId}/${pollId}/options/${optionId}`).then(r => r.data),
@@ -663,8 +743,19 @@ export const groupsApi = {
 }
 
 export const exploreApi = {
-  listTrips: (filter?: 'all' | 'curated' | 'community') =>
-    apiClient.get('/addons/explore/trips', { params: filter && filter !== 'all' ? { filter } : undefined }).then(r => r.data),
+  listTrips: (params?: {
+    filter?: 'all' | 'curated' | 'community'
+    q?: string
+    minPrice?: number
+    maxPrice?: number
+    destination?: string
+    difficulty?: string
+    tag?: string
+    sort?: 'newest' | 'popular' | 'rating' | 'price_asc' | 'price_desc'
+    page?: number
+    limit?: number
+  }) =>
+    apiClient.get('/addons/explore/trips', { params: params || undefined }).then(r => r.data),
   getTrip: (id: number | string) => apiClient.get(`/addons/explore/trips/${id}`).then(r => r.data),
   publishTrip: (id: number | string, price: number, descriptions?: Record<string, string>, community_enabled?: boolean) =>
     apiClient.post(`/addons/explore/trips/${id}/publish`, { price, descriptions, community_enabled }).then(r => r.data),
@@ -681,7 +772,18 @@ export const exploreApi = {
   deleteCommunityPlace: (sourceTripId: number | string, placeId: number | string) =>
     apiClient.delete(`/addons/explore/trips/${sourceTripId}/community-places/${placeId}`).then(r => r.data),
   // Creator submission flow
-  submitTrip: (id: number | string, data: { price?: number; descriptions?: Record<string, string>; community_enabled?: boolean }) =>
+  submitTrip: (id: number | string, data: {
+    price?: number;
+    descriptions?: Record<string, string>;
+    community_enabled?: boolean;
+    listing_title?: string;
+    tagline?: string;
+    tags?: string[];
+    destination?: string;
+    country_code?: string;
+    difficulty?: string;
+    best_season?: string[];
+  }) =>
     apiClient.post(`/addons/explore/trips/${id}/submit`, data).then(r => r.data),
   getMySubmissions: () => apiClient.get('/addons/explore/my-submissions').then(r => r.data),
   withdrawSubmission: (submissionId: number | string) => apiClient.delete(`/addons/explore/submissions/${submissionId}`).then(r => r.data),
@@ -690,8 +792,20 @@ export const exploreApi = {
     apiClient.get('/addons/explore/submissions', { params: status ? { status } : undefined }).then(r => r.data),
   approveSubmission: (submissionId: number | string, data: { auto_approve?: boolean; price?: number; descriptions?: Record<string, string>; community_enabled?: boolean }) =>
     apiClient.post(`/addons/explore/submissions/${submissionId}/approve`, data).then(r => r.data),
-  rejectSubmission: (submissionId: number | string) =>
-    apiClient.post(`/addons/explore/submissions/${submissionId}/reject`).then(r => r.data),
+  rejectSubmission: (submissionId: number | string, data?: { notes?: string }) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/reject`, data || {}).then(r => r.data),
+  // Configuration
+  getConfig: () =>
+    apiClient.get('/addons/explore/config').then(r => r.data),
+  // Payments
+  createPayment: (id: number | string) =>
+    apiClient.post(`/addons/explore/payments/trips/${id}/create-payment`).then(r => r.data),
+  getEarnings: () =>
+    apiClient.get('/addons/explore/payments/earnings').then(r => r.data),
+}
+
+export const mollieApi = {
+  getStatus: () => apiClient.get('/mollie/status').then(r => r.data),
 }
 
 export const worldmapApi = {
