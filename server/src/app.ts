@@ -36,6 +36,9 @@ import vacayRoutes from './routes/vacay';
 import atlasRoutes from './routes/atlas';
 import groupsRoutes from './routes/groups';
 import exploreRoutes from './routes/explore';
+import explorePaymentsRoutes from './routes/payments';
+import mollieWebhookRoutes from './routes/mollieWebhook';
+import mollieConnectRoutes from './routes/mollieConnect';
 import worldmapRoutes from './routes/worldmap';
 import memoriesRoutes from './routes/memories/unified';
 import photoRoutes from './routes/photos';
@@ -337,6 +340,9 @@ export function createApp(): express.Application {
   app.use('/api/addons/atlas', atlasRoutes);
   app.use('/api/addons/groups', groupsRoutes);
   app.use('/api/addons/explore', exploreRoutes);
+  app.use('/api/addons/explore/payments', explorePaymentsRoutes);
+  app.use('/api/mollie', mollieConnectRoutes);
+  app.use('/webhooks/mollie', mollieWebhookRoutes);
   app.use('/api/addons/worldmap', worldmapRoutes);
   app.use('/api/journeys', (req, res, next) => {
     if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return res.status(404).json({ error: 'Journey addon is not enabled' });

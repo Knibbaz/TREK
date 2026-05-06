@@ -103,6 +103,15 @@ const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
   next();
 };
 
+const adminOrCreator = (req: Request, res: Response, next: NextFunction): void => {
+  const authReq = req as AuthRequest;
+  if (!authReq.user || (authReq.user.role !== 'admin' && authReq.user.role !== 'creator')) {
+    res.status(403).json({ error: 'Admin or creator access required' });
+    return;
+  }
+  next();
+};
+
 const demoUploadBlock = (req: Request, res: Response, next: NextFunction): void => {
   const authReq = req as AuthRequest;
   if (process.env.DEMO_MODE === 'true'?.toLowerCase() && isDemoEmail(authReq.user?.email)) {
@@ -112,4 +121,4 @@ const demoUploadBlock = (req: Request, res: Response, next: NextFunction): void 
   next();
 };
 
-export { authenticate, requireCookieAuth, optionalAuth, adminOnly, demoUploadBlock };
+export { authenticate, requireCookieAuth, optionalAuth, adminOnly, adminOrCreator, demoUploadBlock };
