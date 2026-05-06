@@ -55,8 +55,8 @@ export const isDocker = (() => {
 
 export function listUsers() {
   const users = db.prepare(
-    'SELECT id, username, email, role, creator_auto_approved, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
-  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null; creator_auto_approved?: number })[];
+    'SELECT id, username, email, role, creator_auto_approved, creator_fee_percent, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
+  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null; creator_auto_approved?: number; creator_fee_percent?: number | null })[];
   let onlineUserIds = new Set<number>();
   try {
     const { getOnlineUserIds } = require('../websocket');
@@ -112,8 +112,8 @@ export function createUser(data: { username: string; email: string; password: st
   };
 }
 
-export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string; creator_auto_approved?: boolean }) {
-  const { username, email, role, password, creator_auto_approved } = data;
+export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string; creator_auto_approved?: boolean; creator_fee_percent?: number | null }) {
+  const { username, email, role, password, creator_auto_approved, creator_fee_percent } = data;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
 
   if (!user) return { error: 'User not found', status: 404 };
@@ -144,15 +144,18 @@ export function updateUser(id: string, data: { username?: string; email?: string
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
       creator_auto_approved = CASE WHEN ? IS NOT NULL THEN ? ELSE creator_auto_approved END,
+      creator_fee_percent = CASE WHEN ? IS NOT NULL THEN ? ELSE creator_fee_percent END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
   `).run(username || null, email || null, role || null, passwordHash,
     creator_auto_approved !== undefined ? 1 : null,
     creator_auto_approved !== undefined ? (creator_auto_approved ? 1 : 0) : null,
+    creator_fee_percent !== undefined ? 1 : null,
+    creator_fee_percent !== undefined ? creator_fee_percent : null,
     id);
 
   const updated = db.prepare(
-    'SELECT id, username, email, role, creator_auto_approved, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, username, email, role, creator_auto_approved, creator_fee_percent, created_at, updated_at FROM users WHERE id = ?'
   ).get(id);
 
   const changed: string[] = [];
@@ -161,6 +164,7 @@ export function updateUser(id: string, data: { username?: string; email?: string
   if (role) changed.push('role');
   if (password) changed.push('password');
   if (creator_auto_approved !== undefined) changed.push('creator_auto_approved');
+  if (creator_fee_percent !== undefined) changed.push('creator_fee_percent');
 
   return {
     user: updated,

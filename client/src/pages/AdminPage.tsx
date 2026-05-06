@@ -20,7 +20,7 @@ import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
-import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock } from 'lucide-react'
+import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 
@@ -30,6 +30,7 @@ interface AdminUser {
   email: string
   role: 'admin' | 'user' | 'creator'
   creator_auto_approved?: number
+  creator_fee_percent?: number | null
   created_at: string
   last_login?: string | null
   online?: boolean
@@ -46,11 +47,14 @@ interface ExploreSubmission {
   description: string | null
   start_date: string | null
   end_date: string | null
+  cover_image: string | null
   submitter_name: string
   submitter_email: string
   creator_auto_approved: number
   community_enabled: number
   created_at: string
+  day_count?: number
+  place_count?: number
 }
 
 interface AdminStats {
@@ -205,6 +209,7 @@ export default function AdminPage(): React.ReactElement {
   const TABS: PageSidebarTab[] = [
     { id: 'users', label: t('admin.tabs.users'), icon: Users },
     { id: 'explore', label: 'Explore', icon: Compass },
+    { id: 'payouts', label: t('admin.tabs.payouts') || 'Payouts', icon: CreditCard },
     { id: 'config', label: t('admin.tabs.config'), icon: SlidersHorizontal },
     { id: 'defaults', label: t('admin.tabs.defaults'), icon: UserCog },
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
@@ -222,7 +227,7 @@ export default function AdminPage(): React.ReactElement {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
-  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; creator_auto_approved: boolean }>({ username: '', email: '', role: 'user', password: '', creator_auto_approved: false })
+  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; creator_auto_approved: boolean; creator_fee_percent: string }>({ username: '', email: '', role: 'user', password: '', creator_auto_approved: false, creator_fee_percent: '' })
   const [showCreateUser, setShowCreateUser] = useState<boolean>(false)
   const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string; send_welcome_email: boolean }>({ username: '', email: '', password: '', role: 'user', send_welcome_email: false })
 
@@ -232,6 +237,7 @@ export default function AdminPage(): React.ReactElement {
   const [submissionFilter, setSubmissionFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
   const [approvingId, setApprovingId] = useState<number | null>(null)
   const [autoApproveMap, setAutoApproveMap] = useState<Record<number, boolean>>({})
+  const [previewSubmission, setPreviewSubmission] = useState<ExploreSubmission | null>(null)
 
   const loadSubmissions = async () => {
     setSubmissionsLoading(true)
@@ -244,6 +250,7 @@ export default function AdminPage(): React.ReactElement {
 
   useEffect(() => {
     if (activeTab === 'explore') loadSubmissions()
+    if (activeTab === 'payouts') loadPayouts()
   }, [activeTab, submissionFilter])
 
   const handleApprove = async (s: ExploreSubmission) => {
@@ -320,6 +327,16 @@ export default function AdminPage(): React.ReactElement {
   const [bookingAffiliateId, setBookingAffiliateId] = useState<string>('')
   const [savingBookingAffiliate, setSavingBookingAffiliate] = useState<boolean>(false)
 
+  // Platform fee
+  const [platformFee, setPlatformFee] = useState<string>('')
+  const [savingPlatformFee, setSavingPlatformFee] = useState<boolean>(false)
+
+  // Payouts
+  const [payoutData, setPayoutData] = useState<any>(null)
+  const [payoutsLoading, setPayoutsLoading] = useState(false)
+  const [payoutForm, setPayoutForm] = useState<{ creatorId: number | ''; amount: string; description: string }>({ creatorId: '', amount: '', description: '' })
+  const [savingPayout, setSavingPayout] = useState(false)
+
   // SMTP settings
   const [smtpValues, setSmtpValues] = useState<Record<string, string>>({})
   const [smtpLoaded, setSmtpLoaded] = useState(false)
@@ -329,6 +346,13 @@ export default function AdminPage(): React.ReactElement {
       setSmtpLoaded(true)
       if (r.data?.booking_affiliate_id) setBookingAffiliateId(r.data.booking_affiliate_id)
     }).catch(() => setSmtpLoaded(true))
+  }, [])
+
+  // Load platform fee
+  useEffect(() => {
+    adminApi.getPlatformFee().then(r => {
+      setPlatformFee(r.platform_fee_percent != null ? String(r.platform_fee_percent) : '')
+    }).catch(() => {})
   }, [])
 
   // API Keys
@@ -561,16 +585,17 @@ export default function AdminPage(): React.ReactElement {
 
   const handleEditUser = (user) => {
     setEditingUser(user)
-    setEditForm({ username: user.username, email: user.email, role: user.role, password: '', creator_auto_approved: !!(user.creator_auto_approved) })
+    setEditForm({ username: user.username, email: user.email, role: user.role, password: '', creator_auto_approved: !!(user.creator_auto_approved), creator_fee_percent: user.creator_fee_percent != null ? String(user.creator_fee_percent) : '' })
   }
 
   const handleSaveUser = async () => {
     try {
-      const payload: { username?: string; email?: string; role: string; password?: string; creator_auto_approved?: boolean } = {
+      const payload: { username?: string; email?: string; role: string; password?: string; creator_auto_approved?: boolean; creator_fee_percent?: number | null } = {
         username: editForm.username.trim() || undefined,
         email: editForm.email.trim() || undefined,
         role: editForm.role,
         creator_auto_approved: editForm.role === 'creator' ? editForm.creator_auto_approved : undefined,
+        creator_fee_percent: editForm.role === 'creator' && editForm.creator_fee_percent.trim() !== '' ? parseInt(editForm.creator_fee_percent.trim(), 10) : null,
       }
       if (editForm.password.trim()) {
         if (editForm.password.trim().length < 8) {
@@ -600,6 +625,36 @@ export default function AdminPage(): React.ReactElement {
       toast.success(t('admin.toast.userDeleted'))
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t('admin.toast.deleteError')))
+    }
+  }
+
+  const loadPayouts = async () => {
+    setPayoutsLoading(true)
+    try {
+      const data = await adminApi.getPayouts()
+      setPayoutData(data)
+    } catch {
+      toast.error(t('admin.payouts.loadError') || 'Payouts laden mislukt')
+    }
+    setPayoutsLoading(false)
+  }
+
+  const handleRegisterPayout = async () => {
+    if (!payoutForm.creatorId || !payoutForm.amount.trim()) return
+    try {
+      setSavingPayout(true)
+      await adminApi.registerPayout({
+        creator_user_id: Number(payoutForm.creatorId),
+        amount_cents: Math.round(parseFloat(payoutForm.amount) * 100),
+        description: payoutForm.description,
+      })
+      setPayoutForm({ creatorId: '', amount: '', description: '' })
+      await loadPayouts()
+      toast.success(t('admin.payouts.saved') || 'Payout geregistreerd')
+    } catch {
+      toast.error(t('admin.payouts.saveError') || 'Payout registreren mislukt')
+    } finally {
+      setSavingPayout(false)
     }
   }
 
@@ -971,8 +1026,18 @@ export default function AdminPage(): React.ReactElement {
                           <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: 'var(--text-faint)' }}>
                             <span>{s.price === 0 ? t('admin.explore.free') : `€${s.price}`}</span>
                             {s.community_enabled ? <span>{t('admin.explore.communityOn')}</span> : null}
+                            <span>{s.day_count ?? 0}d · {s.place_count ?? 0}p</span>
                             <span>{t('admin.explore.submittedOn')}: {new Date(s.created_at).toLocaleDateString()}</span>
                           </div>
+                          <button
+                            onClick={() => setPreviewSubmission(s)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-primary)',
+                              background: 'var(--bg-secondary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                            }}
+                          >
+                            <Eye size={12} /> {t('admin.explore.preview') || 'Preview'}
+                          </button>
                         </div>
 
                         {s.status === 'pending' && (
@@ -1009,6 +1074,116 @@ export default function AdminPage(): React.ReactElement {
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'payouts' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.payouts.title') || 'Creator payouts'}</h2>
+                <button
+                  onClick={loadPayouts}
+                  disabled={payoutsLoading}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
+                >
+                  {payoutsLoading ? t('common.loading') : (t('common.refresh') || 'Ververs')}
+                </button>
+              </div>
+
+              {/* Register payout form */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                <select
+                  value={payoutForm.creatorId}
+                  onChange={e => setPayoutForm(f => ({ ...f, creatorId: e.target.value ? Number(e.target.value) : '' }))}
+                  style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                >
+                  <option value="">{t('admin.payouts.selectCreator') || 'Selecteer creator'}</option>
+                  {(payoutData?.creators || []).map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.username} ({c.email})</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={t('admin.payouts.amountPlaceholder') || 'Bedrag (€)'}
+                  value={payoutForm.amount}
+                  onChange={e => setPayoutForm(f => ({ ...f, amount: e.target.value }))}
+                  style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                />
+                <input
+                  type="text"
+                  placeholder={t('admin.payouts.descriptionPlaceholder') || 'Omschrijving (optioneel)'}
+                  value={payoutForm.description}
+                  onChange={e => setPayoutForm(f => ({ ...f, description: e.target.value }))}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                />
+                <button
+                  onClick={handleRegisterPayout}
+                  disabled={savingPayout || !payoutForm.creatorId || !payoutForm.amount.trim()}
+                  style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: savingPayout ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', opacity: savingPayout ? 0.7 : 1 }}
+                >
+                  {savingPayout ? t('common.saving') : (t('admin.payouts.register') || 'Registreer')}
+                </button>
+              </div>
+
+              {/* Creators earnings table */}
+              <h3 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.payouts.creators') || 'Creators'}</h3>
+              {payoutsLoading && !payoutData ? (
+                <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('common.loading')}</p>
+              ) : (payoutData?.creators || []).length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('admin.payouts.noCreators') || 'Geen creators gevonden'}</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(payoutData.creators || []).map((c: any) => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{c.username}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{c.email}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.sales') || 'Verkopen'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{c.sales_count}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.earned') || 'Verdiend'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>€{(c.total_earned / 100).toFixed(2)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.paid') || 'Uitbetaald'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>€{(c.total_paid / 100).toFixed(2)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.balance') || 'Openstaand'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: ((c.total_earned - c.total_paid) > 0) ? '#d97706' : 'var(--text-faint)' }}>€{((c.total_earned - c.total_paid) / 100).toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Payout history */}
+              <h3 style={{ margin: '20px 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.payouts.history') || 'Uitbetalingsgeschiedenis'}</h3>
+              {(payoutData?.payouts || []).length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('admin.payouts.noPayouts') || 'Nog geen payouts geregistreerd'}</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(payoutData.payouts || []).map((p: any) => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{p.creator_name}</span>
+                        {p.description && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{p.description}</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>€{(p.amount_cents / 100).toFixed(2)}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{new Date(p.paid_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   ))}
@@ -1212,6 +1387,50 @@ export default function AdminPage(): React.ReactElement {
                         className="absolute left-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200"
                         style={{ transform: requireMfa ? 'translateX(20px)' : 'translateX(0)' }}
                       />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Platform Fee */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="font-semibold text-slate-900">{t('admin.platformFee') || 'Platform fee'}</h2>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.platformFeeHint') || 'Standaard percentage dat het platform inhoudt bij elke verkoop.'}</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        {t('admin.platformFeeLabel') || 'Fee percentage (%)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={platformFee}
+                        onChange={e => setPlatformFee(e.target.value)}
+                        placeholder={t('admin.platformFeePlaceholder') || 'Bijv. 10'}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setSavingPlatformFee(true)
+                        try {
+                          const val = platformFee.trim() === '' ? null : parseInt(platformFee.trim(), 10)
+                          await adminApi.setPlatformFee(val)
+                          toast.success(t('common.saved'))
+                        } catch {
+                          toast.error(t('common.error'))
+                        } finally {
+                          setSavingPlatformFee(false)
+                        }
+                      }}
+                      disabled={savingPlatformFee}
+                      className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {savingPlatformFee ? t('common.saving') : t('common.save')}
                     </button>
                   </div>
                 </div>
@@ -2111,16 +2330,33 @@ export default function AdminPage(): React.ReactElement {
               />
             </div>
             {editForm.role === 'creator' && (
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+              <>
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editForm.creator_auto_approved}
+                      onChange={e => setEditForm(f => ({ ...f, creator_auto_approved: e.target.checked }))}
+                    />
+                    {t('admin.creatorAutoApprove')}
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {t('admin.creatorFeePercent') || 'Platform fee (%)'}
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={editForm.creator_auto_approved}
-                    onChange={e => setEditForm(f => ({ ...f, creator_auto_approved: e.target.checked }))}
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder={t('admin.creatorFeePercentPlaceholder') || 'Leeg = standaard fee'}
+                    value={editForm.creator_fee_percent}
+                    onChange={e => setEditForm(f => ({ ...f, creator_fee_percent: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                   />
-                  {t('admin.creatorAutoApprove')}
-                </label>
-              </div>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.creatorFeePercentHint') || 'Percentage dat het platform inhoudt per verkoop. Leeg = gebruik standaard fee.'}</p>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -2252,6 +2488,74 @@ docker run -d --name trek \\
           </div>
         </div>
       </Modal>
+
+      {/* Explore Submission Preview Modal */}
+      {previewSubmission && (
+        <div onClick={() => setPreviewSubmission(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-primary)', borderRadius: 16, overflow: 'hidden', maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            {previewSubmission.cover_image && (
+              <div style={{ width: '100%', height: 200, background: '#f3f4f6', backgroundImage: `url(${previewSubmission.cover_image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+            )}
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{previewSubmission.title}</h2>
+                  <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 4 }}>
+                    {t('admin.explore.submittedBy')} <strong>{previewSubmission.submitter_name}</strong> ({previewSubmission.submitter_email})
+                  </div>
+                </div>
+                <button onClick={() => setPreviewSubmission(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--text-faint)', padding: 0 }}>×</button>
+              </div>
+
+              {previewSubmission.description && (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 12px' }}>{previewSubmission.description}</p>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.explore.price') || 'Price'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.price === 0 ? t('admin.explore.free') : `€${previewSubmission.price}`}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.explore.community') || 'Community'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.community_enabled ? 'Enabled' : 'Disabled'}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('dashboard.days') || 'Days'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.day_count ?? 0}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('dashboard.places') || 'Places'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.place_count ?? 0}</div>
+                </div>
+              </div>
+
+              {(previewSubmission.start_date || previewSubmission.end_date) && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+                  {previewSubmission.start_date && new Date(previewSubmission.start_date).toLocaleDateString()} {previewSubmission.end_date ? '— ' + new Date(previewSubmission.end_date).toLocaleDateString() : ''}
+                </div>
+              )}
+
+              {previewSubmission.status === 'pending' && (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => { setPreviewSubmission(null); handleReject(previewSubmission) }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#dc2626', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                  >
+                    {t('admin.explore.reject')}
+                  </button>
+                  <button
+                    onClick={() => { setPreviewSubmission(null); handleApprove(previewSubmission) }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'rgba(16,185,129,0.12)', color: '#059669', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                  >
+                    {t('admin.explore.approve')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -4,10 +4,26 @@ export function listCategories() {
   return db.prepare('SELECT * FROM categories ORDER BY name ASC').all();
 }
 
-export function createCategory(userId: number, name: string, color?: string, icon?: string) {
+export function listCategoriesForUser(userId: number) {
+  return db.prepare(`
+    SELECT * FROM categories
+    WHERE user_id IS NULL OR user_id = ?
+    ORDER BY name ASC
+  `).all(userId);
+}
+
+export function listMyCategories(userId: number) {
+  return db.prepare(`
+    SELECT * FROM categories
+    WHERE user_id = ?
+    ORDER BY name ASC
+  `).all(userId);
+}
+
+export function createCategory(userId: number | null, name: string, color?: string, icon?: string) {
   const result = db.prepare(
     'INSERT INTO categories (name, color, icon, user_id) VALUES (?, ?, ?, ?)'
-  ).run(name, color || '#6366f1', icon || '\uD83D\uDCCD', userId);
+  ).run(name, color || '#6366f1', icon || '\uD83D\DCCD', userId);
   return db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
 }
 
@@ -28,4 +44,11 @@ export function updateCategory(categoryId: number | string, name?: string, color
 
 export function deleteCategory(categoryId: number | string) {
   db.prepare('DELETE FROM categories WHERE id = ?').run(categoryId);
+}
+
+export function canModifyCategory(userId: number, userRole: string, categoryId: number | string): boolean {
+  if (userRole === 'admin') return true;
+  const category = getCategoryById(categoryId);
+  if (!category) return false;
+  return (category as any).user_id === userId;
 }

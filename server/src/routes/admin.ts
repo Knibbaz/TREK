@@ -2,6 +2,7 @@ import express, { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
 import { authenticate, adminOnly } from '../middleware/auth';
 import { AuthRequest } from '../types';
+import { db } from '../db/database';
 import { writeAudit, getClientIp, logInfo } from '../services/auditLog';
 import * as svc from '../services/adminService';
 import { getAdminUserDefaults, setAdminUserDefaults } from '../services/settingsService';
@@ -497,6 +498,87 @@ router.put('/default-user-settings', (req: Request, res: Response) => {
     res.json(getAdminUserDefaults());
   } catch (err: any) {
     res.status(400).json({ error: err.message });
+  }
+});
+
+// ── Creator payouts ──────────────────────────────────────────────────────────
+router.get('/payouts', (_req: Request, res: Response) => {
+  try {
+    const creators = db.prepare(`
+      SELECT u.id, u.username, u.email,
+        COALESCE(SUM(ep.creator_payout_cents), 0) as total_earned,
+        COALESCE(SUM(CASE WHEN ep.status = 'paid' THEN ep.creator_payout_cents ELSE 0 END), 0) as total_paid,
+        COUNT(CASE WHEN ep.status = 'paid' THEN 1 END) as sales_count
+      FROM users u
+      LEFT JOIN explore_payments ep ON ep.creator_user_id = u.id
+      WHERE u.role = 'creator'
+      GROUP BY u.id
+      ORDER BY total_earned DESC
+    `).all() as Array<{
+      id: number; username: string; email: string;
+      total_earned: number; total_paid: number; sales_count: number;
+    }>;
+
+    const payouts = db.prepare(`
+      SELECT cp.*, u.username as creator_name
+      FROM creator_payouts cp
+      JOIN users u ON u.id = cp.creator_user_id
+      ORDER BY cp.created_at DESC
+    `).all();
+
+    res.json({ creators, payouts });
+  } catch (err: any) {
+    console.error('Error fetching payouts:', err);
+    res.status(500).json({ error: 'Failed to fetch payouts' });
+  }
+});
+
+router.post('/payouts', (req: Request, res: Response) => {
+  try {
+    const { creator_user_id, amount_cents, description } = req.body;
+    if (!creator_user_id || !amount_cents) {
+      return res.status(400).json({ error: 'creator_user_id and amount_cents are required' });
+    }
+
+    const result = db.prepare(`
+      INSERT INTO creator_payouts (creator_user_id, amount_cents, description, status, paid_at)
+      VALUES (?, ?, ?, 'paid', datetime('now'))
+    `).run(creator_user_id, amount_cents, description || null);
+
+    const payout = db.prepare('SELECT * FROM creator_payouts WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json({ payout });
+  } catch (err: any) {
+    console.error('Error creating payout:', err);
+    res.status(500).json({ error: 'Failed to create payout' });
+  }
+});
+
+// ── Platform fee settings ───────────────────────────────────────────────────
+router.get('/platform-fee', (_req: Request, res: Response) => {
+  try {
+    const row = db.prepare("SELECT value FROM app_settings WHERE key = 'platform_fee_percent'").get() as { value: string } | undefined;
+    const fee = row ? parseInt(row.value, 10) : null;
+    res.json({ platform_fee_percent: fee });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch platform fee' });
+  }
+});
+
+router.put('/platform-fee', (req: Request, res: Response) => {
+  try {
+    const { platform_fee_percent } = req.body;
+    if (platform_fee_percent === undefined || platform_fee_percent === null) {
+      db.prepare("DELETE FROM app_settings WHERE key = 'platform_fee_percent'").run();
+      return res.json({ platform_fee_percent: null });
+    }
+    const fee = parseInt(platform_fee_percent, 10);
+    if (isNaN(fee) || fee < 0 || fee > 100) {
+      return res.status(400).json({ error: 'Fee must be between 0 and 100' });
+    }
+    db.prepare("INSERT INTO app_settings (key, value) VALUES ('platform_fee_percent', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").run(String(fee));
+    res.json({ platform_fee_percent: fee });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to update platform fee' });
   }
 });
 
