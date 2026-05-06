@@ -10,6 +10,7 @@ import { AuthRequest, Trip } from '../types';
 import { writeAudit, getClientIp, logInfo } from '../services/auditLog';
 import { checkPermission } from '../services/permissions';
 import { copyTripTransaction } from '../services/tripCopyService';
+import { isGroupViewerForTrip } from '../services/groupsService';
 import { getUnsplashApiKeyRaw } from '../services/adminService';
 import {
   listTrips,
@@ -182,6 +183,11 @@ router.put('/:id', authenticate, (req: Request, res: Response) => {
   const access = canAccessTrip(req.params.id, authReq.user.id);
   if (!access) return res.status(404).json({ error: 'Trip not found' });
 
+  // Block viewers from editing
+  if (isGroupViewerForTrip(Number(req.params.id), authReq.user.id)) {
+    return res.status(403).json({ error: 'Viewers cannot edit trips' });
+  }
+
   const tripOwnerId = access.user_id;
   const isMember = access.user_id !== authReq.user.id;
 
@@ -279,6 +285,12 @@ router.delete('/:id', authenticate, (req: Request, res: Response) => {
   const authReq = req as AuthRequest;
   const tripOwner = getTripOwner(req.params.id);
   if (!tripOwner) return res.status(404).json({ error: 'Trip not found' });
+
+  // Block viewers from deleting
+  if (isGroupViewerForTrip(Number(req.params.id), authReq.user.id)) {
+    return res.status(403).json({ error: 'Viewers cannot delete trips' });
+  }
+
   const tripOwnerId = tripOwner.user_id;
   const isMemberDel = tripOwnerId !== authReq.user.id;
   if (!checkPermission('trip_delete', authReq.user.role, tripOwnerId, authReq.user.id, isMemberDel))
@@ -315,6 +327,11 @@ router.post('/:id/members', authenticate, (req: Request, res: Response) => {
   if (!access)
     return res.status(404).json({ error: 'Trip not found' });
 
+  // Block viewers from adding members
+  if (isGroupViewerForTrip(Number(req.params.id), authReq.user.id)) {
+    return res.status(403).json({ error: 'Viewers cannot manage members' });
+  }
+
   const tripOwnerId = access.user_id;
   const isMember = tripOwnerId !== authReq.user.id;
   if (!checkPermission('member_manage', authReq.user.role, tripOwnerId, authReq.user.id, isMember))
@@ -347,6 +364,12 @@ router.delete('/:id/members/:userId', authenticate, (req: Request, res: Response
 
   const targetId = parseInt(req.params.userId);
   const isSelf = targetId === authReq.user.id;
+
+  // Block viewers from removing members (unless removing self)
+  if (!isSelf && isGroupViewerForTrip(Number(req.params.id), authReq.user.id)) {
+    return res.status(403).json({ error: 'Viewers cannot manage members' });
+  }
+
   if (!isSelf) {
     const access = canAccessTrip(req.params.id, authReq.user.id);
     if (!access) return res.status(404).json({ error: 'Trip not found' });

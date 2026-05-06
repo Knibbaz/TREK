@@ -15,7 +15,7 @@ export interface GroupMember {
   id: number;
   group_id: number;
   user_id: number;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'viewer';
   invited_by: number | null;
   joined_at: string;
   username?: string;
@@ -35,7 +35,7 @@ export interface GroupTrip {
 export interface GroupWithDetails extends Group {
   member_count: number;
   trip_count: number;
-  role: 'owner' | 'admin' | 'member';
+  role: 'owner' | 'admin' | 'member' | 'viewer';
   members?: GroupMember[];
   trips?: GroupTrip[];
 }
@@ -215,7 +215,7 @@ export function leaveGroupWithReassignment(groupId: number, userId: number, newA
 }
 
 // ── Update member role ──────────────────────────────────────────────────────
-export function updateMemberRole(groupId: number, memberUserId: number, actingUserId: number, newRole: 'admin' | 'member'): { success: boolean; error?: string } {
+export function updateMemberRole(groupId: number, memberUserId: number, actingUserId: number, newRole: 'admin' | 'member' | 'viewer'): { success: boolean; error?: string } {
   const actor = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, actingUserId) as { role: string } | undefined;
   if (!actor || actor.role !== 'owner') return { success: false, error: 'Only owners can change roles' };
 
@@ -314,7 +314,7 @@ export interface GroupInviteToken {
   group_id: number;
   token: string;
   created_by: number;
-  role: 'admin' | 'member';
+  role: 'admin' | 'member' | 'viewer';
   max_uses: number;
   used_count: number;
   expires_at: string | null;
@@ -324,7 +324,7 @@ export interface GroupInviteToken {
 export function createGroupInviteLink(
   groupId: number,
   createdBy: number,
-  role: 'admin' | 'member' = 'member',
+  role: 'admin' | 'member' | 'viewer' = 'member',
   maxUses: number = 0,
   expiresInDays?: number
 ): { token: string; expires_at: string | null } | null {
@@ -973,6 +973,16 @@ export function castGuestVote(
 }
 
 // ── Poll management: only 1 open poll per group ─────────────────────────────
+// ── Viewer access check ─────────────────────────────────────────────────────
+export function isGroupViewerForTrip(tripId: number, userId: number): boolean {
+  const row = db.prepare(`
+    SELECT gm.role FROM group_members gm
+    JOIN group_trips gt ON gt.group_id = gm.group_id
+    WHERE gt.trip_id = ? AND gm.user_id = ?
+  `).get(tripId, userId) as { role: string } | undefined;
+  return row?.role === 'viewer';
+}
+
 export function createGroupPoll(
   tripId: string,
   createdBy: number,

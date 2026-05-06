@@ -2615,6 +2615,121 @@ function runMigrations(db: Database.Database): void {
         console.log(`[migrations] Fixed ${result.changes} inverted day_accommodation pairs`);
       }
     },
+    // Migration 148: Mollie Connect + explore payments + creator categories support
+    () => {
+      // Fix missing explore_published columns for databases that lag behind
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+
+      // Payment tracking for explore purchases
+      try { db.exec('ALTER TABLE explore_user_trips ADD COLUMN payment_id INTEGER REFERENCES explore_payments(id)'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+
+      // Creator Mollie Connect accounts
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_mollie_accounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          mollie_profile_id TEXT NOT NULL,
+          access_token TEXT NOT NULL,
+          refresh_token TEXT NOT NULL,
+          token_expires_at DATETIME,
+          organization_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_creator_mollie_user ON creator_mollie_accounts(user_id);
+      `);
+
+      // Explore payment records
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          source_trip_id INTEGER NOT NULL REFERENCES trips(id),
+          creator_user_id INTEGER NOT NULL REFERENCES users(id),
+          mollie_payment_id TEXT UNIQUE NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          platform_fee_cents INTEGER NOT NULL DEFAULT 0,
+          creator_payout_cents INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'EUR',
+          status TEXT NOT NULL DEFAULT 'pending',
+          paid_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_payments_mollie ON explore_payments(mollie_payment_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_payments_creator ON explore_payments(creator_user_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_payments_user ON explore_payments(user_id);
+      `);
+    },
+    // Migration 149: Creator payouts table (platform collects, pays out later)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_payouts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          creator_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          amount_cents INTEGER NOT NULL,
+          description TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          paid_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_creator_payouts_creator ON creator_payouts(creator_user_id);
+        CREATE INDEX IF NOT EXISTS idx_creator_payouts_status ON creator_payouts(status);
+      `);
+    },
+    // Migration 150: Per-creator platform fee percentage
+    () => {
+      try { db.exec('ALTER TABLE users ADD COLUMN creator_fee_percent INTEGER'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration 151: Add 'viewer' role for invite links (read-only access)
+    () => {
+      // Recreate group_members to add 'viewer' role
+      const hasViewerRole = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='group_members'").get() as { sql: string } | undefined;
+      if (hasViewerRole?.sql?.includes('viewer')) {
+        console.log('[migrations] viewer role already in group_members, skipping');
+        return;
+      }
+
+      db.exec(`
+        CREATE TABLE group_members_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'admin', 'member', 'viewer')),
+          invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, user_id)
+        );
+        INSERT INTO group_members_new SELECT * FROM group_members;
+        DROP TABLE group_members;
+        ALTER TABLE group_members_new RENAME TO group_members;
+        CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+        CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+      `);
+
+      // Recreate group_invite_tokens to add 'viewer' role
+      db.exec(`
+        CREATE TABLE group_invite_tokens_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member', 'viewer')),
+          max_uses INTEGER NOT NULL DEFAULT 1,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO group_invite_tokens_new SELECT * FROM group_invite_tokens;
+        DROP TABLE group_invite_tokens;
+        ALTER TABLE group_invite_tokens_new RENAME TO group_invite_tokens;
+        CREATE INDEX IF NOT EXISTS idx_group_invite_token ON group_invite_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_group_invite_group ON group_invite_tokens(group_id);
+      `);
+      console.log('[migrations] Added viewer role to group_members and group_invite_tokens');
+    },
   ];
 
   if (currentVersion < migrations.length) {

@@ -59,7 +59,7 @@ export default function GroupsPage(): React.ReactElement {
   const [inviteError, setInviteError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [showInviteModal, setShowInviteModal] = useState(false)
-  const [inviteForm, setInviteForm] = useState<{ max_uses: number; expires_in_days: number | '' }>({ max_uses: 1, expires_in_days: 7 })
+  const [inviteForm, setInviteForm] = useState<{ role: 'member' | 'viewer'; max_uses: number; expires_in_days: number | '' }>({ role: 'member', max_uses: 1, expires_in_days: 7 })
   const [showAdminReassignModal, setShowAdminReassignModal] = useState(false)
   const [selectedNewAdmin, setSelectedNewAdmin] = useState<number | null>(null)
 
@@ -330,7 +330,7 @@ export default function GroupsPage(): React.ReactElement {
     setInviteError(null)
     try {
       const result = await groupsApi.createInviteLink(currentGroup.id, {
-        role: 'member',
+        role: inviteForm.role,
         max_uses: inviteForm.max_uses,
         expires_in_days: inviteForm.expires_in_days || undefined,
       })
@@ -1090,6 +1090,23 @@ export default function GroupsPage(): React.ReactElement {
       {/* Invite link creation modal */}
       <Modal isOpen={showInviteModal} onClose={() => setShowInviteModal(false)} title={t('admin.invite.create')} size="sm">
         <div className="space-y-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">Rechten</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setInviteForm(f => ({ ...f, role: 'member' }))}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                  inviteForm.role === 'member' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                }`}>
+                Kan bewerken
+              </button>
+              <button type="button" onClick={() => setInviteForm(f => ({ ...f, role: 'viewer' }))}
+                className={`flex-1 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+                  inviteForm.role === 'viewer' ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:border-slate-400'
+                }`}>
+                Alleen lezen
+              </button>
+            </div>
+          </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-1.5">{t('admin.invite.maxUses')}</label>
             <div className="flex gap-2">
