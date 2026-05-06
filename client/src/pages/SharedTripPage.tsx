@@ -1,16 +1,17 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
-import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet'
+import { MapContainer, TileLayer, Marker, Tooltip, Polyline, useMap } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import { useTranslation, SUPPORTED_LANGUAGES } from '../i18n'
 import { useSettingsStore } from '../store/settingsStore'
 import { getLocaleForLanguage } from '../i18n'
-import { shareApi, configApi, type ProjectMetadata } from '../api/client'
-import { getCategoryIcon } from '../components/shared/categoryIcons'
+import { shareApi, configApi } from '../api/client'
+import { getCategoryIcon, CATEGORY_ICON_MAP } from '../components/shared/categoryIcons'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle, Copy, Phone } from 'lucide-react'
+import { calculateRoute, calculateSegments } from '../components/Map/RouteCalculator'
 import { useAuthStore } from '../store/authStore'
 import { isDayInAccommodationRange } from '../utils/dayOrder'
 
@@ -27,17 +28,128 @@ function clusterIconCreateFunction(cluster: any) {
   })
 }
 
-function createMarkerIcon(place: any) {
-  const cat = place.category
-  const color = cat?.color || '#6366f1'
-  const CatIcon = getCategoryIcon(cat?.icon)
-  const iconSvg = renderToStaticMarkup(createElement(CatIcon, { size: 14, strokeWidth: 2, color: 'white' }))
+function categoryIconSvg(iconName: string | null | undefined, size: number): string {
+  const IconComponent = (iconName && CATEGORY_ICON_MAP[iconName]) || CATEGORY_ICON_MAP['MapPin']
+  try {
+    return renderToStaticMarkup(createElement(IconComponent, { size, color: 'white', strokeWidth: 2.5 }))
+  } catch { return '' }
+}
+
+function createMarkerIcon(place: any, orderNumbers: number[] | null, isSelected: boolean) {
+  const size = isSelected ? 44 : 36
+  const borderColor = isSelected ? '#111827' : 'white'
+  const borderWidth = isSelected ? 3 : 2.5
+  const shadow = isSelected
+    ? '0 0 0 3px rgba(17,24,39,0.25), 0 4px 14px rgba(0,0,0,0.3)'
+    : '0 2px 8px rgba(0,0,0,0.22)'
+  const bgColor = place.category?.color || '#6b7280'
+
+  let badgeHtml = ''
+  if (orderNumbers && orderNumbers.length > 0) {
+    const label = orderNumbers.join(' · ')
+    badgeHtml = `<span style="
+      position:absolute;bottom:-4px;right:-4px;
+      min-width:18px;height:${orderNumbers.length > 1 ? 16 : 18}px;border-radius:${orderNumbers.length > 1 ? 8 : 9}px;
+      padding:0 ${orderNumbers.length > 1 ? 4 : 3}px;
+      background:rgba(255,255,255,0.94);
+      border:1.5px solid rgba(0,0,0,0.15);
+      box-shadow:0 1px 4px rgba(0,0,0,0.18);
+      display:flex;align-items:center;justify-content:center;
+      font-size:${orderNumbers.length > 1 ? 7.5 : 9}px;font-weight:800;color:#111827;
+      font-family:-apple-system,system-ui,sans-serif;line-height:1;
+      box-sizing:border-box;white-space:nowrap;
+    ">${label}</span>`
+  }
+
+  if (place.image_url && (place.image_url.startsWith('data:') || place.image_url.startsWith('/api/maps/place-photo/') || place.image_url.startsWith('http'))) {
+    return L.divIcon({
+      className: '',
+      html: `<div style="width:${size}px;height:${size}px;cursor:pointer;position:relative;">
+        <div style="width:${size}px;height:${size}px;border-radius:50%;border:${borderWidth}px solid ${borderColor};box-shadow:${shadow};overflow:hidden;background:${bgColor};">
+          <img src="${place.image_url}" width="${size}" height="${size}" style="display:block;border-radius:50%;object-fit:cover;" />
+        </div>
+        ${badgeHtml}
+      </div>`,
+      iconSize: [size, size],
+      iconAnchor: [size / 2, size / 2],
+      tooltipAnchor: [size / 2 + 6, 0],
+    })
+  }
+
   return L.divIcon({
     className: '',
-    iconSize: [28, 28],
-    iconAnchor: [14, 14],
-    html: `<div style="width:28px;height:28px;border-radius:50%;background:${color};display:flex;align-items:center;justify-content:center;box-shadow:0 2px 6px rgba(0,0,0,0.3);border:2px solid white;">${iconSvg}</div>`,
+    html: `<div style="width:${size}px;height:${size}px;border-radius:50%;border:${borderWidth}px solid ${borderColor};box-shadow:${shadow};background:${bgColor};display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;will-change:transform;contain:layout style;">
+      ${categoryIconSvg(place.category?.icon, isSelected ? 18 : 15)}
+      ${badgeHtml}
+    </div>`,
+    iconSize: [size, size],
+    iconAnchor: [size / 2, size / 2],
+    tooltipAnchor: [size / 2 + 6, 0],
   })
+}
+
+function parseWalkingMinutes(text: string): number {
+  const match = text.match(/(\d+)\s*min/)
+  if (match) return parseInt(match[1], 10)
+  const hMatch = text.match(/(\d+)\s*h\s*(\d+)?\s*min?/)
+  if (hMatch) {
+    const h = parseInt(hMatch[1], 10)
+    const m = hMatch[2] ? parseInt(hMatch[2], 10) : 0
+    return h * 60 + m
+  }
+  return Infinity
+}
+
+// Route travel time label component
+function RouteLabel({ midpoint, walkingText, drivingText, distanceText, hasGpx }: { midpoint: [number, number]; walkingText: string; drivingText: string; distanceText?: string; hasGpx?: boolean }) {
+  const map = useMap()
+  const [visible, setVisible] = useState(map ? map.getZoom() >= 12 : false)
+
+  useEffect(() => {
+    if (!map) return
+    const check = () => setVisible(map.getZoom() >= 12)
+    check()
+    map.on('zoomend', check)
+    return () => { map.off('zoomend', check) }
+  }, [map])
+
+  if (!visible || !midpoint) return null
+
+  // Only show walking when it is reasonably walkable (<= 30 min) and not a GPX track segment
+  const walkable = !hasGpx && parseWalkingMinutes(walkingText) <= 30
+
+  const icon = L.divIcon({
+    className: 'route-info-pill',
+    html: `<div style="
+      display:flex;align-items:center;gap:5px;
+      background:rgba(0,0,0,0.85);backdrop-filter:blur(8px);
+      color:#fff;border-radius:99px;padding:3px 9px;
+      font-size:9px;font-weight:600;white-space:nowrap;
+      font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+      box-shadow:0 2px 12px rgba(0,0,0,0.3);
+      pointer-events:none;
+      position:relative;left:-50%;top:-50%;
+    ">
+      ${distanceText ? `<span style="display:flex;align-items:center;gap:2px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v20M2 12h20"/></svg>
+        ${distanceText}
+      </span>` : ''}
+      ${distanceText ? '<span style="opacity:0.3">|</span>' : ''}
+      ${walkable ? `<span style="display:flex;align-items:center;gap:2px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="13" cy="4" r="2"/><path d="M7 21l3-7"/><path d="M10 14l5-5"/><path d="M15 9l-4 7"/><path d="M18 18l-3-7"/></svg>
+        ${walkingText}
+      </span>` : ''}
+      ${walkable ? '<span style="opacity:0.3">|</span>' : ''}
+      <span style="display:flex;align-items:center;gap:2px">
+        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9L18 10l-2-4H7L5 10l-2.5 1.1C1.7 11.3 1 12.1 1 13v3c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><circle cx="17" cy="17" r="2"/></svg>
+        ${drivingText}
+      </span>
+    </div>`,
+    iconSize: [0, 0],
+    iconAnchor: [0, 0],
+  })
+
+  return <Marker position={midpoint} icon={icon} interactive={false} zIndexOffset={2000} />
 }
 
 function FitBoundsToPlaces({ places }: { places: any[] }) {
@@ -62,7 +174,10 @@ export default function SharedTripPage() {
   const [cloning, setCloning] = useState(false)
   const [cloneMsg, setCloneMsg] = useState<{ ok: boolean; text: string } | null>(null)
   const [selectedPlace, setSelectedPlace] = useState<any>(null)
-  const [projectMeta, setProjectMeta] = useState<ProjectMetadata | null>(null)
+  const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null)
+  const [route, setRoute] = useState<[number, number][][] | null>(null)
+  const [routeSegments, setRouteSegments] = useState<any[]>([])
+  const [projectMeta, setProjectMeta] = useState<any>(null)
 
   useEffect(() => {
     if (!token) return
@@ -78,8 +193,141 @@ export default function SharedTripPage() {
       const firstTab = hasPlanTab ? 'plan' : hasMapTab ? 'map' : hasBookings ? 'bookings' : hasPacking ? 'packing' : hasBudget ? 'budget' : hasCollab ? 'collab' : ''
       setActiveTab(firstTab)
     }).catch(() => setError(true))
-    configApi.getPublicConfig().then(c => setProjectMeta(c.projectMetadata)).catch(() => {})
+    configApi.getPublicConfig().then(c => setProjectMeta((c as any).projectMetadata)).catch(() => {})
   }, [token])
+
+  const trip = data?.trip
+  const days = data?.days
+  const assignments = data?.assignments
+  const dayNotes = data?.dayNotes
+  const places = data?.places
+  const reservations = data?.reservations
+  const accommodations = data?.accommodations
+  const packing = data?.packing
+  const budget = data?.budget
+  const categories = data?.categories
+  const permissions = data?.permissions
+  const collab = data?.collab
+  const sortedDays = data ? [...(days || [])].sort((a: any, b: any) => a.day_number - b.day_number) : []
+
+  // Build dayOrderMap for marker badges
+  const dayOrderMap = useMemo(() => {
+    if (!data) return {} as Record<number, number[]>
+
+    if (selectedDay) {
+      const da = (assignments[String(selectedDay)] || []).slice().sort((a: any, b: any) => a.order_index - b.order_index)
+      const map: Record<number, number[]> = {}
+      da.forEach((a: any, i: number) => {
+        if (!a.place?.id) return
+        if (!map[a.place.id]) map[a.place.id] = []
+        map[a.place.id].push(i + 1)
+      })
+      return map
+    }
+
+    const map: Record<number, number[]> = {}
+    sortedDays.forEach((day: any, idx: number) => {
+      const da = (assignments[String(day.id)] || []).slice().sort((a: any, b: any) => a.order_index - b.order_index)
+      da.forEach((a: any) => {
+        if (!a.place?.id) return
+        if (!map[a.place.id]) map[a.place.id] = []
+        if (!map[a.place.id].includes(idx + 1)) map[a.place.id].push(idx + 1)
+      })
+    })
+    return map
+  }, [data, days, assignments, selectedDay])
+
+  // Route calculation
+  useEffect(() => {
+    if (!data || import.meta.env.MODE === 'test') return
+    const controller = new AbortController()
+
+    const targetDays = selectedDay
+      ? sortedDays.filter((d: any) => d.id === selectedDay)
+      : sortedDays
+
+    type Entry = { kind: 'place'; lat: number; lng: number; route_geometry?: string } | { kind: 'transport' }
+
+    const allEntries: Entry[] = []
+    const allWaypoints: { lat: number; lng: number }[] = []
+    const waypointHasGpx: boolean[] = [] // true if segment FROM this waypoint follows a GPX track
+
+    for (const day of targetDays) {
+      const da = (assignments[String(day.id)] || []).slice().sort((a: any, b: any) => a.order_index - b.order_index)
+
+      const dayEntries: (Entry & { pos: number })[] = da
+        .filter((a: any) => a.place?.lat != null && a.place?.lng != null)
+        .map((a: any) => ({
+          kind: 'place' as const,
+          lat: a.place.lat,
+          lng: a.place.lng,
+          route_geometry: a.place.route_geometry || undefined,
+          pos: a.order_index,
+        }))
+        .sort((a: any, b: any) => a.pos - b.pos)
+
+      // Add transport break between days when showing all days
+      if (!selectedDay && allEntries.length > 0 && dayEntries.some((e: any) => e.kind === 'place')) {
+        allEntries.push({ kind: 'transport' })
+      }
+      allEntries.push(...dayEntries)
+      da.filter((a: any) => a.place?.lat != null && a.place?.lng != null).forEach((a: any) => {
+        allWaypoints.push({ lat: a.place.lat, lng: a.place.lng })
+        waypointHasGpx.push(!!a.place.route_geometry)
+      })
+    }
+
+    // Build segments (break at transport)
+    const segments: [number, number][][] = []
+    let currentSeg: [number, number][] = []
+    for (const entry of allEntries) {
+      if (entry.kind === 'place') {
+        currentSeg.push([entry.lat, entry.lng])
+      } else {
+        if (currentSeg.length >= 2) segments.push([...currentSeg])
+        currentSeg = []
+      }
+    }
+    if (currentSeg.length >= 2) segments.push(currentSeg)
+
+    // GPX segments
+    const gpxSegs: [number, number][][] = []
+    for (const entry of allEntries) {
+      if (entry.kind !== 'place' || !entry.route_geometry) continue
+      try {
+        const pts = JSON.parse(entry.route_geometry) as number[][]
+        if (pts.length >= 2) gpxSegs.push(pts.map(p => [p[0], p[1]] as [number, number]))
+      } catch {}
+    }
+
+    if (segments.length === 0 && gpxSegs.length === 0) {
+      setRoute(null)
+      setRouteSegments([])
+      return
+    }
+
+    setRoute([...segments, ...gpxSegs])
+
+    Promise.all([
+      Promise.all(segments.map(seg =>
+        calculateRoute(seg.map(([lat, lng]) => ({ lat, lng })), 'driving', { signal: controller.signal })
+          .then(r => r.coordinates)
+          .catch(() => seg)
+      )),
+      allWaypoints.length >= 2
+        ? calculateSegments(allWaypoints, { signal: controller.signal })
+        : Promise.resolve([]),
+    ]).then(([roadSegs, calcSegs]) => {
+      if (controller.signal.aborted) return
+      setRoute([...(roadSegs.length > 0 ? roadSegs : segments), ...gpxSegs].length > 0
+        ? [...(roadSegs.length > 0 ? roadSegs : segments), ...gpxSegs] : null)
+      setRouteSegments(calcSegs.map((seg, i) => ({ ...seg, hasGpx: waypointHasGpx[i] || false })))
+    }).catch(() => {
+      setRouteSegments([])
+    })
+
+    return () => controller.abort()
+  }, [data, days, assignments, selectedDay])
 
   if (error) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#f3f4f6' }}>
@@ -98,9 +346,6 @@ export default function SharedTripPage() {
     </div>
   )
 
-  const { trip, days, assignments, dayNotes, places, reservations, accommodations, packing, budget, categories, permissions, collab } = data
-  const sortedDays = [...(days || [])].sort((a: any, b: any) => a.day_number - b.day_number)
-
   // Map places
   const mapPlaces = selectedDay
     ? (assignments[String(selectedDay)] || []).map((a: any) => a.place).filter((p: any) => p?.lat && p?.lng)
@@ -113,7 +358,7 @@ export default function SharedTripPage() {
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #000 0%, #0f172a 50%, #1e293b 100%)', color: 'white', padding: '32px 20px 28px', textAlign: 'center', position: 'relative' }}>
         {/* Cover image background */}
-        {trip.cover_image && (
+        {trip?.cover_image && (
           <div style={{ position: 'absolute', inset: 0, backgroundImage: `url(${trip.cover_image.startsWith('http') ? trip.cover_image : trip.cover_image.startsWith('/') ? trip.cover_image : '/uploads/' + trip.cover_image})`, backgroundSize: 'cover', backgroundPosition: 'center', opacity: 0.15 }} />
         )}
         {/* Background decoration */}
@@ -127,16 +372,16 @@ export default function SharedTripPage() {
 
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Routes Organized for Unforgettable Travel Days</div>
 
-        <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>{trip.title}</h1>
+        <h1 style={{ margin: '0 0 4px', fontSize: 26, fontWeight: 700, letterSpacing: -0.5 }}>{trip?.title}</h1>
 
-        {trip.description && (
+        {trip?.description && permissions?.share_description && (
           <div style={{ fontSize: 13, opacity: 0.5, maxWidth: 400, margin: '0 auto', lineHeight: 1.5 }}>{trip.description}</div>
         )}
 
-        {(trip.start_date || trip.end_date) && (
+        {(trip?.start_date || trip?.end_date) && (
           <div style={{ marginTop: 10, display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(4px)', border: '1px solid rgba(255,255,255,0.08)' }}>
             <span style={{ fontSize: 12, fontWeight: 500, opacity: 0.8 }}>
-              {[trip.start_date, trip.end_date].filter(Boolean).map((d: string) => new Date(d + 'T00:00:00Z').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })).join(' — ')}
+              {[trip?.start_date, trip?.end_date].filter(Boolean).map((d: string) => new Date(d + 'T00:00:00Z').toLocaleDateString(locale, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })).join(' — ')}
             </span>
             {days?.length > 0 && <span style={{ fontSize: 11, opacity: 0.4 }}>·</span>}
             {days?.length > 0 && <span style={{ fontSize: 11, opacity: 0.5 }}>{days.length} {t('shared.days')}</span>}
@@ -217,19 +462,72 @@ export default function SharedTripPage() {
               spiderfyOnMaxZoom
               showCoverageOnHover={false}
               zoomToBoundsOnClick
-              animate={false}
+              animate
               iconCreateFunction={clusterIconCreateFunction}
             >
-              {mapPlaces.map((p: any) => (
-                <Marker key={p.id} position={[p.lat, p.lng]} icon={createMarkerIcon(p)} eventHandlers={{ click: () => setSelectedPlace(p) }}>
-                  <Tooltip direction="top" offset={[0, -10]} permanent={false}>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: '#111827' }}>{p.name}</div>
-                    {p.address && <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>{p.address}</div>}
-                    {p.category?.name && <div style={{ fontSize: 10, color: '#9ca3af', marginTop: 2 }}>{p.category.name}</div>}
-                  </Tooltip>
-                </Marker>
-              ))}
+              {mapPlaces.map((p: any) => {
+                const isSelected = p.id === selectedPlaceId
+                const orderNumbers = dayOrderMap[p.id] ?? null
+                return (
+                  <Marker
+                    key={p.id}
+                    position={[p.lat, p.lng]}
+                    icon={createMarkerIcon(p, orderNumbers, isSelected)}
+                    eventHandlers={{
+                      click: () => {
+                        if (selectedPlaceId === p.id) {
+                          setSelectedPlace(null)
+                          setSelectedPlaceId(null)
+                        } else {
+                          setSelectedPlace(p)
+                          setSelectedPlaceId(p.id)
+                        }
+                      },
+                    }}
+                    zIndexOffset={isSelected ? 1000 : 0}
+                  >
+                    <Tooltip direction="top" offset={[0, -10]} permanent={false}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.name}</div>
+                      {p.category?.name && (() => {
+                        const CatIcon = getCategoryIcon(p.category?.icon)
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
+                            <CatIcon size={10} style={{ color: p.category?.color || '#6b7280', flexShrink: 0 }} />
+                            <span style={{ fontSize: 11, color: '#6b7280' }}>{p.category.name}</span>
+                          </div>
+                        )
+                      })()}
+                      {p.address && <div style={{ fontSize: 11, color: '#9ca3af', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.address}</div>}
+                    </Tooltip>
+                  </Marker>
+                )
+              })}
             </MarkerClusterGroup>
+
+            {import.meta.env.MODE !== 'test' && route && route.length > 0 && (
+              <>
+                {route.map((seg, i) => seg.length > 1 && (
+                  <Polyline
+                    key={i}
+                    positions={seg}
+                    color="#111827"
+                    weight={3}
+                    opacity={0.9}
+                    dashArray="6, 5"
+                  />
+                ))}
+                {routeSegments.map((seg, i) => (
+                  <RouteLabel
+                    key={i}
+                    midpoint={seg.mid}
+                    walkingText={seg.walkingText}
+                    drivingText={seg.drivingText}
+                    distanceText={seg.distanceText}
+                    hasGpx={seg.hasGpx}
+                  />
+                ))}
+              </>
+            )}
           </MapContainer>
         </div>
         )}
@@ -290,7 +588,7 @@ export default function SharedTripPage() {
 
         {/* Place Detail Modal */}
         {selectedPlace && (
-          <div onClick={() => setSelectedPlace(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
+          <div onClick={() => { setSelectedPlace(null); setSelectedPlaceId(null) }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: 16 }}>
             <div onClick={(e) => e.stopPropagation()} style={{ background: 'white', borderRadius: 16, overflow: 'hidden', maxWidth: 480, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
               {/* Image */}
               {selectedPlace.image_url && (
@@ -309,7 +607,7 @@ export default function SharedTripPage() {
                       </div>
                     )}
                   </div>
-                  <button onClick={() => setSelectedPlace(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#6b7280', padding: 0 }}>×</button>
+                  <button onClick={() => { setSelectedPlace(null); setSelectedPlaceId(null) }} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: '#6b7280', padding: 0 }}>×</button>
                 </div>
 
                 {/* Description */}
@@ -517,14 +815,14 @@ export default function SharedTripPage() {
               {/* Total card */}
               <div style={{ background: 'linear-gradient(135deg, #000 0%, #1a1a2e 100%)', borderRadius: 14, padding: '20px 24px', color: 'white' }}>
                 <div style={{ fontSize: 10, fontWeight: 500, letterSpacing: 1, textTransform: 'uppercase', opacity: 0.5 }}>{t('shared.totalBudget')}</div>
-                <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4 }}>{total.toLocaleString(locale, { minimumFractionDigits: 2 })} {trip.currency || 'EUR'}</div>
+                <div style={{ fontSize: 28, fontWeight: 700, marginTop: 4 }}>{total.toLocaleString(locale, { minimumFractionDigits: 2 })} {trip?.currency || 'EUR'}</div>
               </div>
               {/* By category */}
               {Object.entries(grouped).map(([cat, items]: [string, any]) => (
                 <div key={cat} style={{ background: 'var(--bg-card, white)', borderRadius: 12, border: '1px solid var(--border-faint, #e5e7eb)', overflow: 'hidden' }}>
                   <div style={{ padding: '10px 16px', background: '#f9fafb', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f3f4f6' }}>
                     <span style={{ fontSize: 12, fontWeight: 700, color: '#374151' }}>{cat}</span>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>{items.reduce((s: number, i: any) => s + (parseFloat(i.total_price) || 0), 0).toLocaleString(locale, { minimumFractionDigits: 2 })} {trip.currency || ''}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#6b7280' }}>{items.reduce((s: number, i: any) => s + (parseFloat(i.total_price) || 0), 0).toLocaleString(locale, { minimumFractionDigits: 2 })} {trip?.currency || ''}</span>
                   </div>
                   {items.map((item: any) => (
                     <div key={item.id} style={{ padding: '8px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #fafafa' }}>

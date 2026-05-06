@@ -10,6 +10,7 @@ interface SharePermissions {
   share_budget?: boolean;
   share_collab?: boolean;
   allow_clone?: boolean;
+  share_description?: boolean;
 }
 
 interface ShareTokenInfo {
@@ -22,6 +23,7 @@ interface ShareTokenInfo {
   share_budget: boolean;
   share_collab: boolean;
   allow_clone: boolean;
+  share_description: boolean;
 }
 
 /**
@@ -41,20 +43,21 @@ export function createOrUpdateShareLink(
     share_budget = false,
     share_collab = false,
     allow_clone = false,
+    share_description = false,
   } = permissions;
 
   const existing = db.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(tripId) as { token: string } | undefined;
   if (existing) {
-    db.prepare('UPDATE share_tokens SET share_map = ?, share_plan = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ?, allow_clone = ? WHERE trip_id = ?')
-      .run(share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, tripId);
+    db.prepare('UPDATE share_tokens SET share_map = ?, share_plan = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ?, allow_clone = ?, share_description = ? WHERE trip_id = ?')
+      .run(share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, share_description ? 1 : 0, tripId);
     return { token: existing.token, created: false };
   }
 
   // New share links default to a 90-day TTL.
   const token = crypto.randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(tripId, token, createdBy, share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, expiresAt);
+  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, share_description, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(tripId, token, createdBy, share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, share_description ? 1 : 0, expiresAt);
   return { token, created: true };
 }
 
@@ -74,6 +77,7 @@ export function getShareLinks(tripId: string): ShareTokenInfo | null {
     share_budget: !!row.share_budget,
     share_collab: !!row.share_collab,
     allow_clone: !!row.allow_clone,
+    share_description: !!row.share_description,
   };
 }
 
@@ -144,13 +148,8 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     }
     assignments = byDay;
 
-    const allNotes = db.prepare(`SELECT * FROM day_notes WHERE day_id IN (${ph}) ORDER BY sort_order ASC`).all(...dayIds);
-    const notesByDay: Record<number, any[]> = {};
-    for (const n of allNotes as any[]) {
-      if (!notesByDay[n.day_id]) notesByDay[n.day_id] = [];
-      notesByDay[n.day_id].push(n);
-    }
-    dayNotes = notesByDay;
+    // Personal notes are never shared — filtered out in shared view
+    dayNotes = {};
   }
 
   // Places
@@ -187,6 +186,7 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     share_budget: !!shareRow.share_budget,
     share_collab: !!shareRow.share_collab,
     allow_clone: !!shareRow.allow_clone,
+    share_description: !!shareRow.share_description,
   };
 
   // Collab messages (only if owner chose to share)

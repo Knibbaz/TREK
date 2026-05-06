@@ -17,9 +17,9 @@ router.post('/trips/:tripId/share-link', authenticate, (req: Request, res: Respo
   if (!checkPermission('share_manage', authReq.user.role, access.user_id, authReq.user.id, access.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
-  const { share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone } = req.body || {};
+  const { share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, share_description } = req.body || {};
   const result = shareService.createOrUpdateShareLink(tripId, authReq.user.id, {
-    share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone,
+    share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, share_description,
   });
 
   if (result.created) {
