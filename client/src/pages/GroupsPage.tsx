@@ -756,7 +756,7 @@ export default function GroupsPage(): React.ReactElement {
           <div className="rounded-xl border p-4" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
             <DateAvailabilityV2
               groupId={currentGroup.id}
-              canCreate={canManageMembers || currentGroup.role === 'member'}
+              canCreate={canManageMembers || (currentGroup.role === 'member')}
               isAdmin={canManageMembers}
             />
           </div>
@@ -767,7 +767,7 @@ export default function GroupsPage(): React.ReactElement {
               <GroupPolls
                 tripId={gt.trip_id}
                 tripTitle={(currentGroup.trips || []).length > 1 ? (gt.trip_title || undefined) : undefined}
-                canCreate={canManageMembers || currentGroup.role === 'member'}
+                canCreate={canManageMembers || (currentGroup.role === 'member')}
               />
             </div>
           ))}
