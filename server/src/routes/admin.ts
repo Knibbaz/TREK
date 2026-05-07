@@ -582,6 +582,98 @@ router.put('/platform-fee', (req: Request, res: Response) => {
   }
 });
 
+// ── Creator profile management ──────────────────────────────────────────────
+
+// List pending creator applications
+router.get('/explore/creators', (req: Request, res: Response) => {
+  try {
+    const status = (req.query.status as string) || 'pending';
+    const creators = db.prepare(`
+      SELECT
+        ec.*,
+        u.username, u.email, u.created_at as user_created_at,
+        COUNT(ep.id) as listing_count
+      FROM explore_creators ec
+      JOIN users u ON u.id = ec.user_id
+      LEFT JOIN explore_published ep ON ep.user_id = ec.user_id AND ep.is_published = 1
+      WHERE ec.status = ?
+      GROUP BY ec.id
+      ORDER BY ec.created_at DESC
+    `).all(status) as any[];
+
+    res.json({ creators });
+  } catch (err: unknown) {
+    console.error('Error fetching creator applications:', err);
+    res.status(500).json({ error: 'Failed to fetch creator applications' });
+  }
+});
+
+// Approve creator application
+router.patch('/explore/creators/:id/approve', (req: Request, res: Response) => {
+  try {
+    const creatorId = parseInt(req.params.id, 10);
+    const { notes } = req.body;
+
+    const creator = db.prepare('SELECT * FROM explore_creators WHERE id = ?').get(creatorId) as any;
+    if (!creator) {
+      return res.status(404).json({ error: 'Creator not found' });
+    }
+
+    // Update creator status
+    db.prepare(`
+      UPDATE explore_creators
+      SET status = 'approved', updated_at = datetime('now')
+      WHERE id = ?
+    `).run(creatorId);
+
+    // Send notification to user
+    db.prepare(`
+      INSERT INTO notifications (user_id, type, title, message, created_at, is_read)
+      VALUES (?, 'creator_approved', 'Creator Profile Approved', ?, datetime('now'), 0)
+    `).run(creator.user_id, notes ? `Your creator profile has been approved. ${notes}` : 'Your creator profile has been approved!');
+
+    res.json({ success: true });
+  } catch (err: unknown) {
+    console.error('Error approving creator:', err);
+    res.status(500).json({ error: 'Failed to approve creator' });
+  }
+});
+
+// Reject creator application
+router.patch('/explore/creators/:id/reject', (req: Request, res: Response) => {
+  try {
+    const creatorId = parseInt(req.params.id, 10);
+    const { reason } = req.body;
+
+    if (!reason) {
+      return res.status(400).json({ error: 'rejection_reason is required' });
+    }
+
+    const creator = db.prepare('SELECT * FROM explore_creators WHERE id = ?').get(creatorId) as any;
+    if (!creator) {
+      return res.status(404).json({ error: 'Creator not found' });
+    }
+
+    // Update creator status
+    db.prepare(`
+      UPDATE explore_creators
+      SET status = 'rejected', rejection_reason = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(reason, creatorId);
+
+    // Send notification to user
+    db.prepare(`
+      INSERT INTO notifications (user_id, type, title, message, created_at, is_read)
+      VALUES (?, 'creator_rejected', 'Creator Application Rejected', ?, datetime('now'), 0)
+    `).run(creator.user_id, `Your creator application was rejected: ${reason}`);
+
+    res.json({ success: true });
+  } catch (err: unknown) {
+    console.error('Error rejecting creator:', err);
+    res.status(500).json({ error: 'Failed to reject creator' });
+  }
+});
+
 // ── Dev-only: test notification endpoints ──────────────────────────────────────
 if (process.env.NODE_ENV?.toLowerCase() === 'development') {
   const { send } = require('../services/notificationService');

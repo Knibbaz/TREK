@@ -20,6 +20,7 @@ import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
+import { CreatorApplicationQueue } from '../components/Admin/CreatorApplicationQueue'
 import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
@@ -238,6 +239,7 @@ export default function AdminPage(): React.ReactElement {
   const [approvingId, setApprovingId] = useState<number | null>(null)
   const [autoApproveMap, setAutoApproveMap] = useState<Record<number, boolean>>({})
   const [previewSubmission, setPreviewSubmission] = useState<ExploreSubmission | null>(null)
+  const [exploreSubtab, setExploreSubtab] = useState<'submissions' | 'creators'>('submissions')
 
   const loadSubmissions = async () => {
     setSubmissionsLoading(true)
@@ -971,6 +973,44 @@ export default function AdminPage(): React.ReactElement {
 
           {activeTab === 'explore' && (
             <div>
+              {/* Explore subtabs */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border-primary)', paddingBottom: 12 }}>
+                <button
+                  onClick={() => setExploreSubtab('submissions')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: exploreSubtab === 'submissions' ? 'var(--accent)' : 'transparent',
+                    color: exploreSubtab === 'submissions' ? 'var(--accent-text)' : 'var(--text-muted)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Trip Submissions
+                </button>
+                <button
+                  onClick={() => setExploreSubtab('creators')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: exploreSubtab === 'creators' ? 'var(--accent)' : 'transparent',
+                    color: exploreSubtab === 'creators' ? 'var(--accent-text)' : 'var(--text-muted)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Creator Applications
+                </button>
+              </div>
+
+              {exploreSubtab === 'submissions' && (
+              <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.explore.title')}</h2>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -1077,6 +1117,14 @@ export default function AdminPage(): React.ReactElement {
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+              </div>
+              )}
+
+              {exploreSubtab === 'creators' && (
+                <div>
+                  <CreatorApplicationQueue />
                 </div>
               )}
             </div>

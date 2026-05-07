@@ -55,7 +55,87 @@ router.get('/config', (req: Request, res: Response) => {
   }
 });
 
-// ── List published explore trips ───────────────────────────────────────────
+// ── Creator profile endpoints ──────────────────────────────────────────────
+
+// Apply to become a creator
+router.post('/creators/apply', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { display_name, slug, bio, avatar, social_links } = req.body;
+    if (!display_name || !slug) {
+      return res.status(400).json({ error: 'display_name and slug are required' });
+    }
+
+    // Check if user already has a creator profile
+    const existing = db.prepare('SELECT id FROM explore_creators WHERE user_id = ?').get(userId);
+    if (existing) {
+      return res.status(400).json({ error: 'You already have a creator profile' });
+    }
+
+    // Check slug availability
+    const slugExists = db.prepare('SELECT id FROM explore_creators WHERE slug = ?').get(slug);
+    if (slugExists) {
+      return res.status(400).json({ error: 'Slug already taken' });
+    }
+
+    // Create creator profile
+    const result = db.prepare(`
+      INSERT INTO explore_creators (user_id, slug, display_name, bio, avatar, social_links, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'pending', datetime('now'), datetime('now'))
+    `).run(userId, slug, display_name, bio || null, avatar || null, JSON.stringify(social_links || {}));
+
+    // Send admin notification
+    const admins = db.prepare("SELECT id FROM users WHERE role = 'admin'").all() as { id: number }[];
+    for (const admin of admins) {
+      db.prepare(`
+        INSERT INTO notifications (user_id, type, title, message, data, created_at, is_read)
+        VALUES (?, 'creator_application', 'New Creator Application', ?, ?, datetime('now'), 0)
+      `).run(admin.id, `${display_name} applied to become a creator`, JSON.stringify({ creator_id: result.lastInsertRowid, user_id: userId }));
+    }
+
+    res.json({ id: result.lastInsertRowid, slug, display_name });
+  } catch (err: unknown) {
+    console.error('Error applying for creator:', err);
+    res.status(500).json({ error: 'Failed to apply for creator status' });
+  }
+});
+
+// Get own creator profile
+router.get('/creators/me', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const creator = db.prepare(`
+      SELECT * FROM explore_creators WHERE user_id = ?
+    `).get(userId);
+
+    if (!creator) {
+      return res.status(404).json({ error: 'No creator profile found' });
+    }
+
+    res.json(creator);
+  } catch (err: unknown) {
+    console.error('Error fetching creator profile:', err);
+    res.status(500).json({ error: 'Failed to fetch creator profile' });
+  }
+});
+
+// Check slug availability
+router.get('/creators/check-slug/:slug', (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const exists = db.prepare('SELECT id FROM explore_creators WHERE slug = ?').get(slug);
+    res.json({ available: !exists });
+  } catch (err: unknown) {
+    console.error('Error checking slug:', err);
+    res.status(500).json({ error: 'Failed to check slug availability' });
+  }
+});
+
+// List published explore trips ───────────────────────────────────────────
 router.get('/trips', (req: Request, res: Response) => {
   try {
     const filter = req.query.filter as string | undefined; // 'all' | 'curated' | 'community'

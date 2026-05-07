@@ -2774,6 +2774,23 @@ const nl: Record<string, string> = {
   'explore.pricingNet': 'Netto voor jou',
   'explore.submitNote': 'Je listing wordt ter beoordeling ingediend. Admins reviewen binnen 48 uur.',
 
+  // Creator profiel
+  'explore.becomeCreator': 'Word Creator',
+  'explore.creatorStep1': 'Profiel',
+  'explore.creatorStep2': 'Bio & Links',
+  'explore.creatorStep3': 'Controleren',
+  'explore.displayName': 'Weergavenaam',
+  'explore.displayNamePlaceholder': 'Bijv. Jana Reiziger',
+  'explore.creatorSlug': 'Profiel-URL',
+  'explore.slugAvailable': '✓ Beschikbaar',
+  'explore.slugTaken': '✗ Al in gebruik',
+  'explore.bio': 'Bio',
+  'explore.bioPlaceholder': 'Vertel reizigers over jouw ervaring en passie voor reizen...',
+  'explore.socialLinks': 'Social media (optioneel)',
+  'explore.creatorApplicationNote': 'Je aanvraag wordt binnen 48 uur door ons team beoordeeld.',
+  'explore.creatorValidationError': 'Weergavenaam en URL zijn verplicht',
+  'explore.creatorApplicationError': 'Het indienen van je aanvraag is mislukt',
+
   'admin.creatorAutoApprove': 'Automatisch goedkeuren (geen admin review nodig)',
   'admin.creatorFeePercent': 'Platform fee (%)',
   'admin.creatorFeePercentPlaceholder': 'Leeg = standaard fee',

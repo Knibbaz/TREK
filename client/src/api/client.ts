@@ -797,6 +797,13 @@ export const exploreApi = {
   // Configuration
   getConfig: () =>
     apiClient.get('/addons/explore/config').then(r => r.data),
+  // Creator profile
+  applyCreator: (data: { display_name: string; slug: string; bio?: string; avatar?: string; social_links?: Record<string, string> }) =>
+    apiClient.post('/addons/explore/creators/apply', data).then(r => r.data),
+  getCreatorProfile: () =>
+    apiClient.get('/addons/explore/creators/me').then(r => r.data),
+  checkSlugAvailability: (slug: string) =>
+    apiClient.get(`/addons/explore/creators/check-slug/${slug}`).then(r => r.data),
   // Payments
   createPayment: (id: number | string) =>
     apiClient.post(`/addons/explore/payments/trips/${id}/create-payment`).then(r => r.data),

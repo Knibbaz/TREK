@@ -2852,6 +2852,23 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.pricingNet': 'Net for you',
   'explore.submitNote': 'Your listing will be submitted for review. Admins review within 48 hours.',
 
+  // Creator profile
+  'explore.becomeCreator': 'Become a Creator',
+  'explore.creatorStep1': 'Profile',
+  'explore.creatorStep2': 'Bio & Links',
+  'explore.creatorStep3': 'Review',
+  'explore.displayName': 'Display Name',
+  'explore.displayNamePlaceholder': 'e.g., Jane Wanderer',
+  'explore.creatorSlug': 'Profile URL',
+  'explore.slugAvailable': '✓ Available',
+  'explore.slugTaken': '✗ Already taken',
+  'explore.bio': 'Bio',
+  'explore.bioPlaceholder': 'Tell travelers about your experience and passion for travel...',
+  'explore.socialLinks': 'Social Links (optional)',
+  'explore.creatorApplicationNote': 'Your application will be reviewed by our team within 48 hours.',
+  'explore.creatorValidationError': 'Display name and slug are required',
+  'explore.creatorApplicationError': 'Failed to submit application',
+
   'admin.explore.free': 'Free',
   'admin.explore.communityOn': 'Community enabled',
   'admin.explore.submittedOn': 'Submitted',

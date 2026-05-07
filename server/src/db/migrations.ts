@@ -2752,6 +2752,35 @@ function runMigrations(db: Database.Database): void {
       db.exec(`ALTER TABLE explore_published ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`);
       console.log('[migrations] Added analytics columns to explore_published');
     },
+    // Migration 154: Create explore_creators table for creator profiles
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_creators (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          slug TEXT NOT NULL UNIQUE,
+          display_name TEXT NOT NULL,
+          bio TEXT,
+          avatar TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+          rejection_reason TEXT,
+          kyc_status TEXT NOT NULL DEFAULT 'not_started' CHECK(kyc_status IN ('not_started', 'pending', 'verified', 'rejected')),
+          kyc_rejection_reason TEXT,
+          payout_method TEXT CHECK(payout_method IN ('iban', 'wise', NULL)),
+          iban TEXT,
+          iban_name TEXT,
+          wise_recipient_id TEXT,
+          wise_currency TEXT DEFAULT 'EUR',
+          social_links TEXT DEFAULT '{}',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_creators_user ON explore_creators(user_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_creators_slug ON explore_creators(slug);
+        CREATE INDEX IF NOT EXISTS idx_explore_creators_status ON explore_creators(status);
+      `);
+      console.log('[migrations] Created explore_creators table');
+    },
   ];
 
   if (currentVersion < migrations.length) {
