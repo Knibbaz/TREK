@@ -135,6 +135,52 @@ router.get('/creators/check-slug/:slug', (req: Request, res: Response) => {
   }
 });
 
+// Get featured listings
+router.get('/trips/featured', (req: Request, res: Response) => {
+  try {
+    const limit = Math.min(10, Math.max(1, parseInt(req.query.limit as string || '6', 10)));
+
+    const featured = db.prepare(`
+      SELECT
+        t.id,
+        t.title,
+        t.description,
+        t.cover_image as cover_url,
+        t.start_date,
+        t.end_date,
+        COALESCE(ep.price, 0) as price,
+        COALESCE((SELECT COUNT(*) FROM days WHERE trip_id = t.id), 0) as duration_days,
+        COALESCE((SELECT COUNT(*) FROM places WHERE trip_id = t.id AND (source IS NULL OR source = 'admin')), 0) as places_count,
+        u.username as owner_name,
+        COALESCE(ep.version, 1) as version,
+        COALESCE(ep.descriptions, '{}') as descriptions,
+        COALESCE(ep.community_enabled, 0) as community_enabled,
+        ep.listing_title,
+        ep.tagline,
+        COALESCE(ep.tags, '[]') as tags,
+        ep.destination,
+        ep.country_code,
+        COALESCE(ep.difficulty, 'easy') as difficulty,
+        COALESCE(ep.best_season, '[]') as best_season,
+        COALESCE(ep.listing_title, t.title) as display_title,
+        COALESCE(ep.avg_rating, 0) as avg_rating,
+        COALESCE(ep.rating_count, 0) as rating_count,
+        COALESCE(ep.view_count, 0) as view_count
+      FROM trips t
+      LEFT JOIN explore_published ep ON t.id = ep.trip_id
+      LEFT JOIN users u ON t.user_id = u.id
+      WHERE ep.trip_id IS NOT NULL AND ep.is_published = 1 AND COALESCE(ep.is_featured, 0) = 1
+      ORDER BY ep.updated_at DESC
+      LIMIT ?
+    `).all(limit) as any[];
+
+    res.json({ featured: featured || [] });
+  } catch (err: unknown) {
+    console.error('Error fetching featured listings:', err);
+    res.status(500).json({ error: 'Failed to fetch featured listings' });
+  }
+});
+
 // List published explore trips ───────────────────────────────────────────
 router.get('/trips', (req: Request, res: Response) => {
   try {
@@ -724,9 +770,12 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
     const status = autoApproved ? 'approved' : 'pending';
     const isPublished = autoApproved ? 1 : 0;
 
+    const existingPublished = db.prepare('SELECT version FROM explore_published WHERE trip_id = ?').get(id) as { version: number } | undefined;
+    const newVersion = (existingPublished?.version || 0) + 1;
+
     db.prepare(`
       INSERT INTO explore_published (trip_id, price, is_published, version, descriptions, community_enabled, status, submitted_by, last_published_at, listing_title, tagline, tags, destination, country_code, difficulty, best_season, created_at, updated_at)
-      VALUES (?, ?, ?, 1, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       ON CONFLICT(trip_id) DO UPDATE SET
         price = excluded.price,
         is_published = excluded.is_published,
@@ -742,10 +791,17 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
         country_code = excluded.country_code,
         difficulty = excluded.difficulty,
         best_season = excluded.best_season,
+        version = version + 1,
         updated_at = datetime('now')
-    `).run(id, price || 0, isPublished, descriptionsJson, communityFlag, status, authReq.user.id, listing_title || null, tagline || null, tagsJson, destination || null, country_code || null, difficulty || 'easy', bestSeasonJson);
+    `).run(id, price || 0, isPublished, newVersion, descriptionsJson, communityFlag, status, authReq.user.id, listing_title || null, tagline || null, tagsJson, destination || null, country_code || null, difficulty || 'easy', bestSeasonJson);
 
-    res.json({ success: true, status, auto_approved: autoApproved });
+    // Track version in explore_listing_versions
+    db.prepare(`
+      INSERT INTO explore_listing_versions (trip_id, version, listing_title, tagline, tags, destination, country_code, difficulty, best_season, price, descriptions, community_enabled)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(id, newVersion, listing_title || null, tagline || null, tagsJson, destination || null, country_code || null, difficulty || 'easy', bestSeasonJson, price || 0, descriptionsJson, communityFlag);
+
+    res.json({ success: true, status, auto_approved: autoApproved, version: newVersion });
   } catch (err: unknown) {
     console.error('Error submitting trip:', err);
     res.status(500).json({ error: 'Failed to submit trip' });
@@ -902,6 +958,146 @@ router.delete('/trips/:sourceTripId/community-places/:placeId', (req: Request, r
   } catch (err: unknown) {
     console.error('Error deleting community place:', err);
     res.status(500).json({ error: 'Failed to delete community place' });
+  }
+});
+
+// ── Get listing version history ────────────────────────────────────────────
+router.get('/version-history/:tripId', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { tripId } = req.params;
+
+    // Check permissions: admin or listing creator
+    const listing = db.prepare('SELECT submitted_by FROM explore_published WHERE trip_id = ?').get(tripId) as { submitted_by: number } | undefined;
+    if (!listing && !isAdmin(authReq.user.id)) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+    if (listing && listing.submitted_by !== authReq.user.id && !isAdmin(authReq.user.id)) {
+      return res.status(403).json({ error: 'Not authorized to view version history' });
+    }
+
+    const versions = db.prepare(`
+      SELECT * FROM explore_listing_versions
+      WHERE trip_id = ?
+      ORDER BY version DESC
+    `).all(tripId) as any[];
+
+    res.json({ versions });
+  } catch (err: unknown) {
+    console.error('Error fetching version history:', err);
+    res.status(500).json({ error: 'Failed to fetch version history' });
+  }
+});
+
+// ── Admin: suspend listing ─────────────────────────────────────────────────
+router.post('/submissions/:id/suspend', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const submission = db.prepare('SELECT id FROM explore_published WHERE id = ?').get(id) as { id: number } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    db.prepare(`
+      UPDATE explore_published
+      SET is_suspended = 1, suspension_reason = ?, suspended_at = datetime('now'), suspended_by = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(reason || null, authReq.user.id, id);
+
+    res.json({ success: true, message: 'Listing suspended' });
+  } catch (err: unknown) {
+    console.error('Error suspending listing:', err);
+    res.status(500).json({ error: 'Failed to suspend listing' });
+  }
+});
+
+// ── Admin: unsuspend listing ───────────────────────────────────────────────
+router.post('/submissions/:id/unsuspend', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+
+    const submission = db.prepare('SELECT id FROM explore_published WHERE id = ?').get(id) as { id: number } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
+
+    db.prepare(`
+      UPDATE explore_published
+      SET is_suspended = 0, suspension_reason = NULL, suspended_at = NULL, suspended_by = NULL, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(id);
+
+    res.json({ success: true, message: 'Listing unsuspended' });
+  } catch (err: unknown) {
+    console.error('Error unsuspending listing:', err);
+    res.status(500).json({ error: 'Failed to unsuspend listing' });
+  }
+});
+
+// ── Admin: suspend creator ─────────────────────────────────────────────────
+router.post('/creators/:id/suspend', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const creator = db.prepare('SELECT id FROM explore_creators WHERE id = ?').get(id) as { id: number } | undefined;
+    if (!creator) return res.status(404).json({ error: 'Creator not found' });
+
+    db.prepare(`
+      UPDATE explore_creators
+      SET is_suspended = 1, suspension_reason = ?, suspended_at = datetime('now'), updated_at = datetime('now')
+      WHERE id = ?
+    `).run(reason || null, id);
+
+    // Also suspend all their listings
+    db.prepare(`
+      UPDATE explore_published
+      SET is_suspended = 1, suspension_reason = 'Creator account suspended', suspended_by = ?, updated_at = datetime('now')
+      WHERE submitted_by = (SELECT user_id FROM explore_creators WHERE id = ?)
+    `).run(authReq.user.id, id);
+
+    res.json({ success: true, message: 'Creator suspended' });
+  } catch (err: unknown) {
+    console.error('Error suspending creator:', err);
+    res.status(500).json({ error: 'Failed to suspend creator' });
+  }
+});
+
+// ── Admin: unsuspend creator ───────────────────────────────────────────────
+router.post('/creators/:id/unsuspend', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+
+    const creator = db.prepare('SELECT id FROM explore_creators WHERE id = ?').get(id) as { id: number } | undefined;
+    if (!creator) return res.status(404).json({ error: 'Creator not found' });
+
+    db.prepare(`
+      UPDATE explore_creators
+      SET is_suspended = 0, suspension_reason = NULL, suspended_at = NULL, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(id);
+
+    // Unsuspend all their listings
+    db.prepare(`
+      UPDATE explore_published
+      SET is_suspended = 0, suspension_reason = NULL, suspended_at = NULL, suspended_by = NULL, updated_at = datetime('now')
+      WHERE submitted_by = (SELECT user_id FROM explore_creators WHERE id = ?) AND suspension_reason = 'Creator account suspended'
+    `).run(id);
+
+    res.json({ success: true, message: 'Creator unsuspended' });
+  } catch (err: unknown) {
+    console.error('Error unsuspending creator:', err);
+    res.status(500).json({ error: 'Failed to unsuspend creator' });
   }
 });
 

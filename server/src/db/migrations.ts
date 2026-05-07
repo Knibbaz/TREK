@@ -2781,6 +2781,42 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Created explore_creators table');
     },
+    // Migration 155: explore_listing_versions for version history
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_listing_versions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          version INTEGER NOT NULL,
+          listing_title TEXT,
+          tagline TEXT,
+          tags TEXT DEFAULT '[]',
+          destination TEXT,
+          country_code TEXT,
+          difficulty TEXT DEFAULT 'easy',
+          best_season TEXT DEFAULT '[]',
+          price INTEGER DEFAULT 0,
+          descriptions TEXT DEFAULT '{}',
+          community_enabled INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(trip_id, version)
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_versions_trip ON explore_listing_versions(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_versions_version ON explore_listing_versions(version DESC);
+      `);
+      console.log('[migrations] Created explore_listing_versions table');
+    },
+    // Migration 156: Add suspension feature to explore
+    () => {
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN is_suspended INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN suspension_reason TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN suspended_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN suspended_by INTEGER REFERENCES users(id) ON DELETE SET NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_creators ADD COLUMN is_suspended INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_creators ADD COLUMN suspension_reason TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_creators ADD COLUMN suspended_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added suspension columns to explore tables');
+    },
   ];
 
   if (currentVersion < migrations.length) {

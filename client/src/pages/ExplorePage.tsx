@@ -624,6 +624,7 @@ export default function ExplorePage(): React.ReactElement {
   const user = useAuthStore(s => s.user)
   const isCreator = user?.role === 'creator' || user?.role === 'admin'
   const navigate = useNavigate()
+  const [featured, setFeatured] = useState<ExploreTrip[]>([])
   const [trips, setTrips] = useState<ExploreTrip[]>([])
   const [loading, setLoading] = useState(true)
   const [selectedTrip, setSelectedTrip] = useState<ExploreTrip | null>(null)
@@ -798,6 +799,15 @@ export default function ExplorePage(): React.ReactElement {
     }
   }
 
+  const loadFeatured = useCallback(async () => {
+    try {
+      const data = await exploreApi.getFeaturedTrips(6)
+      setFeatured(data.featured || [])
+    } catch (err) {
+      console.error('Error loading featured trips:', err)
+    }
+  }, [])
+
   const loadTrips = useCallback(async () => {
     try {
       setLoading(true)
@@ -825,8 +835,9 @@ export default function ExplorePage(): React.ReactElement {
   }, [exploreFilter, sortBy, page, limit, searchQuery, minPrice, maxPrice, filterDestination, filterDifficulty])
 
   useEffect(() => {
+    loadFeatured()
     loadTrips()
-  }, [loadTrips])
+  }, [loadFeatured, loadTrips])
 
   const handleView = async (trip: ExploreTrip) => {
     setSelectedTrip(trip)
@@ -1134,6 +1145,20 @@ export default function ExplorePage(): React.ReactElement {
             </div>
           )}
         </div>
+
+        {/* Featured section */}
+        {featured.length > 0 && !searchQuery && page === 1 && (
+          <div style={{ marginBottom: 40 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+              <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-primary)' }}>⭐ {t('explore.featured') || 'Aanbevolen'}</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 16 }}>
+              {featured.map(trip => (
+                <ExploreCard key={trip.id} trip={trip} onView={handleView} t={t} language={language} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Loading */}
         {loading && (

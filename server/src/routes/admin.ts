@@ -674,6 +674,35 @@ router.patch('/explore/creators/:id/reject', (req: Request, res: Response) => {
   }
 });
 
+// Toggle featured status for listings
+router.patch('/explore/listings/:id/featured', (req: Request, res: Response) => {
+  try {
+    const listingId = parseInt(req.params.id, 10);
+    const { is_featured } = req.body;
+
+    if (is_featured === undefined || is_featured === null) {
+      return res.status(400).json({ error: 'is_featured is required' });
+    }
+
+    const listing = db.prepare('SELECT * FROM explore_published WHERE id = ?').get(listingId) as any;
+    if (!listing) {
+      return res.status(404).json({ error: 'Listing not found' });
+    }
+
+    // Toggle featured status
+    db.prepare(`
+      UPDATE explore_published
+      SET is_featured = ?, updated_at = datetime('now')
+      WHERE id = ?
+    `).run(is_featured ? 1 : 0, listingId);
+
+    res.json({ success: true, is_featured: !!is_featured });
+  } catch (err: unknown) {
+    console.error('Error toggling featured status:', err);
+    res.status(500).json({ error: 'Failed to toggle featured status' });
+  }
+});
+
 // ── Dev-only: test notification endpoints ──────────────────────────────────────
 if (process.env.NODE_ENV?.toLowerCase() === 'development') {
   const { send } = require('../services/notificationService');

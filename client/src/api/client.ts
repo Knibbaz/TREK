@@ -743,6 +743,8 @@ export const groupsApi = {
 }
 
 export const exploreApi = {
+  getFeaturedTrips: (limit?: number) =>
+    apiClient.get('/addons/explore/trips/featured', { params: limit ? { limit } : undefined }).then(r => r.data),
   listTrips: (params?: {
     filter?: 'all' | 'curated' | 'community'
     q?: string
@@ -809,6 +811,9 @@ export const exploreApi = {
     apiClient.post(`/addons/explore/payments/trips/${id}/create-payment`).then(r => r.data),
   getEarnings: () =>
     apiClient.get('/addons/explore/payments/earnings').then(r => r.data),
+  // Admin
+  toggleFeatured: (listingId: number | string, is_featured: boolean) =>
+    apiClient.patch(`/admin/explore/listings/${listingId}/featured`, { is_featured }).then(r => r.data),
 }
 
 export const mollieApi = {

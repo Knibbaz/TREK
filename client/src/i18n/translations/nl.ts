@@ -2790,6 +2790,8 @@ const nl: Record<string, string> = {
   'explore.creatorApplicationNote': 'Je aanvraag wordt binnen 48 uur door ons team beoordeeld.',
   'explore.creatorValidationError': 'Weergavenaam en URL zijn verplicht',
   'explore.creatorApplicationError': 'Het indienen van je aanvraag is mislukt',
+  'explore.featured': 'Aanbevolen',
+  'explore.featuredSection': 'Aanbevolen voor jou',
 
   'admin.creatorAutoApprove': 'Automatisch goedkeuren (geen admin review nodig)',
   'admin.creatorFeePercent': 'Platform fee (%)',

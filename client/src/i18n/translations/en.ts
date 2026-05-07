@@ -2868,6 +2868,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.creatorApplicationNote': 'Your application will be reviewed by our team within 48 hours.',
   'explore.creatorValidationError': 'Display name and slug are required',
   'explore.creatorApplicationError': 'Failed to submit application',
+  'explore.featured': 'Featured',
+  'explore.featuredSection': 'Recommended for you',
 
   'admin.explore.free': 'Free',
   'admin.explore.communityOn': 'Community enabled',
