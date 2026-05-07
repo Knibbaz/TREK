@@ -7,6 +7,8 @@ import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
 import { useAuthStore } from '../store/authStore'
 import { PublishModal } from '../components/Explore/PublishModal'
+import { EarningsDetailModal } from '../components/Explore/EarningsDetailModal'
+import { PaymentConfirmation } from '../components/Explore/PaymentConfirmation'
 
 interface ExploreTrip {
   id: number
@@ -658,6 +660,9 @@ export default function ExplorePage(): React.ReactElement {
 
   // Earnings state
   const [earnings, setEarnings] = useState<any>(null)
+  const [showEarningsDetail, setShowEarningsDetail] = useState(false)
+  const [detailedEarnings, setDetailedEarnings] = useState<any>(null)
+  const [loadingDetailedEarnings, setLoadingDetailedEarnings] = useState(false)
 
   // Category management state
   const [showCategoryModal, setShowCategoryModal] = useState(false)
@@ -665,6 +670,10 @@ export default function ExplorePage(): React.ReactElement {
   const [categoryForm, setCategoryForm] = useState({ name: '', color: '#6366f1', icon: '📍' })
   const [editingCategory, setEditingCategory] = useState<number | null>(null)
   const [savingCategory, setSavingCategory] = useState(false)
+
+  // Payment confirmation state
+  const [paymentModalStatus, setPaymentModalStatus] = useState<'processing' | 'success' | 'failed' | 'cancelled' | null>(null)
+  const [paymentModalTripId, setPaymentModalTripId] = useState<string | null>(null)
 
   const filteredTrips = trips
 
@@ -679,16 +688,20 @@ export default function ExplorePage(): React.ReactElement {
 
     // Handle payment redirect query params (one-shot on mount)
     const params = new URLSearchParams(window.location.search)
-    const paymentStatus = params.get('payment')
-    if (paymentStatus) {
-      if (paymentStatus === 'processing') {
-        toast.info(t('explore.paymentProcessing') || 'Je betaling wordt verwerkt. Je reis verschijnt binnen enkele ogenblikken in je collectie.')
-      } else if (paymentStatus === 'success' || paymentStatus === 'paid') {
-        toast.success(t('explore.paymentSuccess') || 'Betaling gelukt! Je reis is toegevoegd aan je collectie.')
-      } else if (paymentStatus === 'cancelled' || paymentStatus === 'canceled') {
-        toast.info(t('explore.paymentCancelled') || 'Betaling geannuleerd. Je kunt het opnieuw proberen.')
-      } else if (paymentStatus === 'failed' || paymentStatus === 'error') {
-        toast.error(t('explore.paymentFailed') || 'Betaling mislukt. Probeer het opnieuw.')
+    const urlPaymentStatus = params.get('payment')
+    const urlTripId = params.get('trip_id')
+    if (urlPaymentStatus) {
+      if (urlPaymentStatus === 'processing') {
+        setPaymentModalStatus('processing')
+      } else if (urlPaymentStatus === 'success' || urlPaymentStatus === 'paid') {
+        setPaymentModalStatus('success')
+      } else if (urlPaymentStatus === 'cancelled' || urlPaymentStatus === 'canceled') {
+        setPaymentModalStatus('cancelled')
+      } else if (urlPaymentStatus === 'failed' || urlPaymentStatus === 'error') {
+        setPaymentModalStatus('failed')
+      }
+      if (urlTripId) {
+        setPaymentModalTripId(urlTripId)
       }
       // Clean up URL
       window.history.replaceState({}, '', window.location.pathname)
@@ -715,6 +728,25 @@ export default function ExplorePage(): React.ReactElement {
       const data = await exploreApi.getEarnings()
       setEarnings(data)
     } catch {}
+  }
+
+  const loadDetailedEarnings = async () => {
+    try {
+      setLoadingDetailedEarnings(true)
+      const data = await exploreApi.getDetailedEarnings()
+      setDetailedEarnings(data)
+    } catch (err) {
+      console.error('Error loading detailed earnings:', err)
+    } finally {
+      setLoadingDetailedEarnings(false)
+    }
+  }
+
+  const handleOpenEarningsDetail = async () => {
+    setShowEarningsDetail(true)
+    if (!detailedEarnings) {
+      await loadDetailedEarnings()
+    }
   }
 
   const loadMyCategories = async () => {
@@ -955,20 +987,34 @@ export default function ExplorePage(): React.ReactElement {
 
             {/* Earnings summary */}
             {earnings && earnings.salesCount > 0 && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginBottom: 12 }}>
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)' }}>
+              <button
+                onClick={handleOpenEarningsDetail}
+                style={{
+                  width: '100%',
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(3, 1fr)',
+                  gap: 8,
+                  marginBottom: 12,
+                  border: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  padding: 0,
+                  fontFamily: 'inherit',
+                }}
+              >
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', transition: 'all 0.2s', transform: 'hover' ? 'translateY(-1px)' : 'none' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 2 }}>{t('explore.sales') || 'Verkopen'}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#059669' }}>{earnings.salesCount}</div>
                 </div>
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', transition: 'all 0.2s' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 2 }}>{t('explore.revenue') || 'Omzet'}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>€{(earnings.totalSales / 100).toFixed(2)}</div>
                 </div>
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', transition: 'all 0.2s' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 2 }}>{t('explore.payout') || 'Verdiend'}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-primary)' }}>€{(earnings.totalPayout / 100).toFixed(2)}</div>
                 </div>
-              </div>
+              </button>
             )}
 
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -1250,6 +1296,33 @@ export default function ExplorePage(): React.ReactElement {
         trips={myTrips}
         onSubmitted={() => loadMySubmissions()}
       />
+
+      {/* Earnings detail modal */}
+      {detailedEarnings && (
+        <EarningsDetailModal
+          isOpen={showEarningsDetail}
+          onClose={() => setShowEarningsDetail(false)}
+          sales={detailedEarnings.sales || []}
+          trips={detailedEarnings.trips || []}
+          totalEarnings={earnings || { totalSales: 0, totalFees: 0, totalPayout: 0, salesCount: 0 }}
+        />
+      )}
+
+      {/* Payment confirmation */}
+      {paymentModalStatus && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 50, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: 16, paddingTop: 80 }}>
+          <div style={{ width: '100%', maxWidth: 480 }}>
+            <PaymentConfirmation
+              status={paymentModalStatus}
+              tripId={paymentModalTripId || undefined}
+              onDismiss={() => {
+                setPaymentModalStatus(null)
+                setPaymentModalTripId(null)
+              }}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Category management modal */}
       {showCategoryModal && (

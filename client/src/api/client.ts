@@ -792,10 +792,26 @@ export const exploreApi = {
   // Admin submission management
   getSubmissions: (status?: 'pending' | 'approved' | 'rejected') =>
     apiClient.get('/addons/explore/submissions', { params: status ? { status } : undefined }).then(r => r.data),
+  getAdminSubmissions: (status?: 'pending' | 'approved' | 'rejected' | 'all') =>
+    apiClient.get('/addons/explore/submissions', { params: status && status !== 'all' ? { status } : undefined }).then(r => r.data),
   approveSubmission: (submissionId: number | string, data: { auto_approve?: boolean; price?: number; descriptions?: Record<string, string>; community_enabled?: boolean }) =>
     apiClient.post(`/addons/explore/submissions/${submissionId}/approve`, data).then(r => r.data),
   rejectSubmission: (submissionId: number | string, data?: { notes?: string }) =>
     apiClient.post(`/addons/explore/submissions/${submissionId}/reject`, data || {}).then(r => r.data),
+  // Version history & suspension
+  getVersionHistory: (tripId: number | string) =>
+    apiClient.get(`/addons/explore/version-history/${tripId}`).then(r => r.data),
+  suspendListing: (submissionId: number | string, data: { reason?: string }) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/suspend`, data).then(r => r.data),
+  unsuspendListing: (submissionId: number | string) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/unsuspend`, {}).then(r => r.data),
+  suspendCreator: (creatorId: number | string, data: { reason?: string }) =>
+    apiClient.post(`/addons/explore/creators/${creatorId}/suspend`, data).then(r => r.data),
+  unsuspendCreator: (creatorId: number | string) =>
+    apiClient.post(`/addons/explore/creators/${creatorId}/unsuspend`, {}).then(r => r.data),
+  // Fork deltas (tracking changes in forked trips)
+  getForkDeltas: (sourceId: number | string, forkedId: number | string) =>
+    apiClient.get(`/addons/explore/fork-deltas/${sourceId}/${forkedId}`).then(r => r.data),
   // Configuration
   getConfig: () =>
     apiClient.get('/addons/explore/config').then(r => r.data),
@@ -811,6 +827,8 @@ export const exploreApi = {
     apiClient.post(`/addons/explore/payments/trips/${id}/create-payment`).then(r => r.data),
   getEarnings: () =>
     apiClient.get('/addons/explore/payments/earnings').then(r => r.data),
+  getDetailedEarnings: () =>
+    apiClient.get('/addons/explore/payments/earnings/detailed').then(r => r.data),
   // Admin
   toggleFeatured: (listingId: number | string, is_featured: boolean) =>
     apiClient.patch(`/admin/explore/listings/${listingId}/featured`, { is_featured }).then(r => r.data),

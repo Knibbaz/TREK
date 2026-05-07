@@ -51,7 +51,7 @@ router.post('/trips/:id/create-payment', authenticate, async (req: Request, res:
     const { platformFeeCents, creatorPayoutCents } = calculateFees(amountCents, creatorFee?.creator_fee_percent);
 
     // Create Mollie payment (platform receives all money)
-    const redirectUrl = `${process.env.APP_URL || 'http://localhost:5173'}/explore?payment=processing`;
+    const redirectUrl = `${process.env.APP_URL || 'http://localhost:5173'}/explore?payment=processing&trip_id=${id}`;
     const payment = await createPlatformPayment(
       amountCents,
       `Trek: ${ep.title}`,
@@ -128,6 +128,58 @@ router.get('/earnings', authenticate, (req: Request, res: Response) => {
   } catch (err: any) {
     console.error('Error fetching earnings:', err);
     res.status(500).json({ error: 'Failed to fetch earnings' });
+  }
+});
+
+// ── Get detailed earnings breakdown (per sale) ─────────────────────────────
+router.get('/earnings/detailed', authenticate, (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (authReq.user.role !== 'creator' && authReq.user.role !== 'admin') {
+      return res.status(403).json({ error: 'Creator access required' });
+    }
+
+    // All sales with breakdown
+    const sales = db.prepare(`
+      SELECT
+        ep.id,
+        ep.created_at,
+        t.title as trip_title,
+        u.username as buyer_name,
+        ep.amount_cents,
+        ep.platform_fee_cents,
+        ep.creator_payout_cents,
+        ep.currency,
+        ep.status
+      FROM explore_payments ep
+      JOIN trips t ON t.id = ep.source_trip_id
+      JOIN users u ON u.id = ep.user_id
+      WHERE ep.creator_user_id = ?
+      ORDER BY ep.created_at DESC
+    `).all(authReq.user.id) as any[];
+
+    // Per-trip summary with details
+    const trips = db.prepare(`
+      SELECT
+        ep.source_trip_id,
+        t.title,
+        COUNT(*) as sales_count,
+        COALESCE(SUM(ep.amount_cents), 0) as total_revenue,
+        COALESCE(SUM(ep.platform_fee_cents), 0) as total_fees,
+        COALESCE(SUM(ep.creator_payout_cents), 0) as total_payout,
+        COALESCE(SUM(CASE WHEN ep.status = 'paid' THEN 1 ELSE 0 END), 0) as paid_count,
+        COALESCE(SUM(CASE WHEN ep.status = 'pending' THEN 1 ELSE 0 END), 0) as pending_count
+      FROM explore_payments ep
+      JOIN trips t ON t.id = ep.source_trip_id
+      WHERE ep.creator_user_id = ?
+      GROUP BY ep.source_trip_id
+      ORDER BY total_revenue DESC
+    `).all(authReq.user.id) as any[];
+
+    res.json({ sales, trips });
+  } catch (err: any) {
+    console.error('Error fetching detailed earnings:', err);
+    res.status(500).json({ error: 'Failed to fetch detailed earnings' });
   }
 });
 

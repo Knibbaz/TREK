@@ -2817,6 +2817,28 @@ function runMigrations(db: Database.Database): void {
       try { db.exec("ALTER TABLE explore_creators ADD COLUMN suspended_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       console.log('[migrations] Added suspension columns to explore tables');
     },
+    // Migration 157: explore_fork_deltas for tracking changes in forked trips
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_fork_deltas (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          forked_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          source_version INTEGER NOT NULL,
+          forked_version INTEGER NOT NULL,
+          delta_type TEXT NOT NULL CHECK(delta_type IN ('day_added', 'day_modified', 'day_deleted', 'place_added', 'place_modified', 'place_deleted', 'metadata_changed')),
+          resource_id INTEGER,
+          resource_type TEXT,
+          changes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(source_trip_id, forked_trip_id, source_version, forked_version, delta_type, resource_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_deltas_source ON explore_fork_deltas(source_trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_deltas_forked ON explore_fork_deltas(forked_trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_deltas_versions ON explore_fork_deltas(source_version, forked_version);
+      `);
+      console.log('[migrations] Created explore_fork_deltas table');
+    },
   ];
 
   if (currentVersion < migrations.length) {

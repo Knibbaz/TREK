@@ -169,7 +169,7 @@ router.get('/trips/featured', (req: Request, res: Response) => {
       FROM trips t
       LEFT JOIN explore_published ep ON t.id = ep.trip_id
       LEFT JOIN users u ON t.user_id = u.id
-      WHERE ep.trip_id IS NOT NULL AND ep.is_published = 1 AND COALESCE(ep.is_featured, 0) = 1
+      WHERE ep.trip_id IS NOT NULL AND ep.is_published = 1 AND COALESCE(ep.is_featured, 0) = 1 AND COALESCE(ep.is_suspended, 0) = 0
       ORDER BY ep.updated_at DESC
       LIMIT ?
     `).all(limit) as any[];
@@ -196,7 +196,7 @@ router.get('/trips', (req: Request, res: Response) => {
     const limit = Math.min(50, Math.max(1, parseInt(req.query.limit as string || '20', 10)));
     const offset = (page - 1) * limit;
 
-    let whereClause = 'ep.trip_id IS NOT NULL AND ep.is_published = 1';
+    let whereClause = 'ep.trip_id IS NOT NULL AND ep.is_published = 1 AND COALESCE(ep.is_suspended, 0) = 0';
     const params: (string | number)[] = [];
 
     if (filter === 'curated') whereClause += ' AND COALESCE(ep.community_enabled, 0) = 0';
@@ -343,7 +343,7 @@ router.get('/trips/:id', (req: Request, res: Response) => {
       FROM trips t
       LEFT JOIN explore_published ep ON t.id = ep.trip_id
       LEFT JOIN users u ON t.user_id = u.id
-      WHERE t.id = ? AND ep.trip_id IS NOT NULL AND ep.is_published = 1
+      WHERE t.id = ? AND ep.trip_id IS NOT NULL AND ep.is_published = 1 AND COALESCE(ep.is_suspended, 0) = 0
     `).get(id) as ExploreTrip | undefined;
 
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
@@ -1098,6 +1098,38 @@ router.post('/creators/:id/unsuspend', (req: Request, res: Response) => {
   } catch (err: unknown) {
     console.error('Error unsuspending creator:', err);
     res.status(500).json({ error: 'Failed to unsuspend creator' });
+  }
+});
+
+// ── Get fork deltas (changes between source and forked trip) ─────────────────
+router.get('/fork-deltas/:sourceId/:forkedId', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { sourceId, forkedId } = req.params;
+
+    // Check permissions: user must own the forked trip
+    const forkedTrip = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(forkedId) as { user_id: number } | undefined;
+    if (!forkedTrip || (forkedTrip.user_id !== authReq.user.id && !isAdmin(authReq.user.id))) {
+      return res.status(403).json({ error: 'Not authorized to view fork deltas' });
+    }
+
+    // Get deltas
+    const deltas = db.prepare(`
+      SELECT * FROM explore_fork_deltas
+      WHERE source_trip_id = ? AND forked_trip_id = ?
+      ORDER BY created_at DESC
+    `).all(sourceId, forkedId) as any[];
+
+    // Count by type
+    const deltasByType: Record<string, number> = {};
+    for (const delta of deltas) {
+      deltasByType[delta.delta_type] = (deltasByType[delta.delta_type] || 0) + 1;
+    }
+
+    res.json({ deltas, summary: deltasByType, total: deltas.length });
+  } catch (err: unknown) {
+    console.error('Error fetching fork deltas:', err);
+    res.status(500).json({ error: 'Failed to fetch fork deltas' });
   }
 });
 
