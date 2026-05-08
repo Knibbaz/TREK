@@ -83,6 +83,12 @@ interface UpdateInfo {
   is_prerelease?: boolean
 }
 
+interface MollieMethod {
+  name: string
+  fixed_cents: number
+  variable_pct: number
+}
+
 const ADMIN_EVENT_LABEL_KEYS: Record<string, string> = {
   version_available: 'settings.notifyVersionAvailable',
 }
@@ -206,11 +212,12 @@ export default function AdminPage(): React.ReactElement {
   const hour12 = useSettingsStore(s => s.settings.time_format) === '12h'
   const loadSettings = useSettingsStore(s => s.loadSettings)
   const mcpEnabled = useAddonStore(s => s.isEnabled('mcp'))
+  const exploreEnabled = useAddonStore(s => s.isEnabled('explore'))
   const devMode = useAuthStore(s => s.devMode)
   const TABS: PageSidebarTab[] = [
     { id: 'users', label: t('admin.tabs.users'), icon: Users },
-    { id: 'explore', label: 'Explore', icon: Compass },
-    { id: 'payouts', label: t('admin.tabs.payouts') || 'Payouts', icon: CreditCard },
+    ...(exploreEnabled ? [{ id: 'explore', label: 'Explore', icon: Compass }] : []),
+    ...(exploreEnabled ? [{ id: 'payouts', label: t('admin.tabs.payouts') || 'Payouts', icon: CreditCard }] : []),
     { id: 'config', label: t('admin.tabs.config'), icon: SlidersHorizontal },
     { id: 'defaults', label: t('admin.tabs.defaults'), icon: UserCog },
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
@@ -333,6 +340,10 @@ export default function AdminPage(): React.ReactElement {
   const [platformFee, setPlatformFee] = useState<string>('')
   const [savingPlatformFee, setSavingPlatformFee] = useState<boolean>(false)
 
+  // Mollie fees
+  const [mollieMethods, setMollieMethods] = useState<MollieMethod[]>([])
+  const [savingMollie, setSavingMollie] = useState<boolean>(false)
+
   // Payouts
   const [payoutData, setPayoutData] = useState<any>(null)
   const [payoutsLoading, setPayoutsLoading] = useState(false)
@@ -356,6 +367,13 @@ export default function AdminPage(): React.ReactElement {
       setPlatformFee(r.platform_fee_percent != null ? String(r.platform_fee_percent) : '')
     }).catch(() => {})
   }, [])
+
+  // Load Mollie fees when config tab is active
+  useEffect(() => {
+    if (activeTab === 'config') {
+      adminApi.getMollieFees().then(d => setMollieMethods(d.methods || [])).catch(() => {})
+    }
+  }, [activeTab])
 
   // API Keys
   const [mapsKey, setMapsKey] = useState<string>('')
@@ -1481,6 +1499,119 @@ export default function AdminPage(): React.ReactElement {
                       {savingPlatformFee ? t('common.saving') : t('common.save')}
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Mollie Payment Methods */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="font-semibold text-slate-900">Betalingskosten</h2>
+                  <p className="text-xs text-slate-400 mt-1">Mollie transactiekosten per betaalmethode</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="space-y-3">
+                    {mollieMethods.length > 0 ? (
+                      <>
+                        <div className="text-xs font-medium text-slate-600 mb-2 grid grid-cols-12 gap-2">
+                          <div className="col-span-4">Methode</div>
+                          <div className="col-span-3">Vast bedrag</div>
+                          <div className="col-span-3">Percentage</div>
+                          <div className="col-span-2"></div>
+                        </div>
+                        {mollieMethods.map((method, idx) => (
+                          <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                            <input
+                              type="text"
+                              value={method.name}
+                              onChange={e => {
+                                const updated = [...mollieMethods]
+                                updated[idx].name = e.target.value
+                                setMollieMethods(updated)
+                              }}
+                              placeholder="bijv. iDEAL"
+                              className="col-span-4 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                            />
+                            <div className="col-span-3 flex items-center gap-1">
+                              <span className="text-xs text-slate-500">€</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={method.fixed_cents}
+                                onChange={e => {
+                                  const updated = [...mollieMethods]
+                                  updated[idx].fixed_cents = parseInt(e.target.value, 10) || 0
+                                  setMollieMethods(updated)
+                                }}
+                                placeholder="29"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                              />
+                              <span className="text-xs text-slate-500">{(method.fixed_cents / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="col-span-3 flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={method.variable_pct}
+                                onChange={e => {
+                                  const updated = [...mollieMethods]
+                                  updated[idx].variable_pct = parseFloat(e.target.value) || 0
+                                  setMollieMethods(updated)
+                                }}
+                                placeholder="1.8"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                              />
+                              <span className="text-xs text-slate-500">%</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setMollieMethods(mollieMethods.filter((_, i) => i !== idx))
+                              }}
+                              className="col-span-2 px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium border border-red-200"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">Geen betalingsmethodes geconfigureerd</p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setMollieMethods([...mollieMethods, { name: '', fixed_cents: 29, variable_pct: 1.8 }])
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    Methode toevoegen
+                  </button>
+
+                  <div className="text-xs text-slate-500 pt-2 border-t">
+                    Kosten via <a href="https://www.mollie.com/nl/pricing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Mollie ↗</a>
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                      setSavingMollie(true)
+                      try {
+                        await adminApi.setMollieFees(mollieMethods)
+                        toast.success(t('common.saved'))
+                      } catch {
+                        toast.error(t('common.error'))
+                      } finally {
+                        setSavingMollie(false)
+                      }
+                    }}
+                    disabled={savingMollie}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingMollie ? t('common.saving') : t('common.save')}
+                  </button>
                 </div>
               </div>
 

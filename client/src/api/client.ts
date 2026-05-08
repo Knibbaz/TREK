@@ -372,6 +372,8 @@ export const adminApi = {
   stats: () => apiClient.get('/admin/stats').then(r => r.data),
   getPlatformFee: () => apiClient.get('/admin/platform-fee').then(r => r.data),
   setPlatformFee: (platform_fee_percent: number | null) => apiClient.put('/admin/platform-fee', { platform_fee_percent }).then(r => r.data),
+  getMollieFees: () => apiClient.get('/admin/mollie-fees').then(r => r.data),
+  setMollieFees: (methods: Array<{ name: string; fixed_cents: number; variable_pct: number }>) => apiClient.put('/admin/mollie-fees', { methods }).then(r => r.data),
   getPayouts: () => apiClient.get('/admin/payouts').then(r => r.data),
   registerPayout: (data: { creator_user_id: number; amount_cents: number; description?: string }) => apiClient.post('/admin/payouts', data).then(r => r.data),
   saveDemoBaseline: () => apiClient.post('/admin/save-demo-baseline').then(r => r.data),
@@ -812,6 +814,17 @@ export const exploreApi = {
   // Fork deltas (tracking changes in forked trips)
   getForkDeltas: (sourceId: number | string, forkedId: number | string) =>
     apiClient.get(`/addons/explore/fork-deltas/${sourceId}/${forkedId}`).then(r => r.data),
+  // Reviews & Ratings
+  getReviews: (sourceTripId: number | string, sortBy?: 'recent' | 'helpful' | 'rating_high' | 'rating_low') =>
+    apiClient.get(`/addons/explore/trips/${sourceTripId}/reviews`, { params: sortBy ? { sortBy } : undefined }).then(r => r.data),
+  createReview: (sourceTripId: number | string, data: { rating: number; title?: string; content: string }) =>
+    apiClient.post(`/addons/explore/trips/${sourceTripId}/reviews`, data).then(r => r.data),
+  deleteReview: (reviewId: number | string) =>
+    apiClient.delete(`/addons/explore/reviews/${reviewId}`).then(r => r.data),
+  markReviewHelpful: (reviewId: number | string, isHelpful: boolean) =>
+    apiClient.post(`/addons/explore/reviews/${reviewId}/helpful`, { is_helpful: isHelpful }).then(r => r.data),
+  removeReviewHelpful: (reviewId: number | string) =>
+    apiClient.delete(`/addons/explore/reviews/${reviewId}/helpful`).then(r => r.data),
   // Configuration
   getConfig: () =>
     apiClient.get('/addons/explore/config').then(r => r.data),

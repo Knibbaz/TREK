@@ -173,7 +173,7 @@ export function AdminModerationQueue() {
               <p className="text-sm text-gray-600">{selectedSubmission.description}</p>
               <div className="text-xs text-gray-600 pt-2 border-t space-y-1">
                 <p><strong>Lähettäjä:</strong> {selectedSubmission.submitter_name} ({selectedSubmission.submitter_email})</p>
-                <p><strong>Hinta:</strong> €{(selectedSubmission.price / 100).toFixed(2)}</p>
+                <p><strong>Hinta:</strong> €{Number(selectedSubmission.price).toFixed(2)}</p>
                 <p><strong>Päivät:</strong> {selectedSubmission.day_count} | <strong>Paikat:</strong> {selectedSubmission.place_count}</p>
                 <p><strong>Yhteisö käytössä:</strong> {selectedSubmission.community_enabled ? 'Kyllä' : 'Ei'}</p>
                 <p><strong>Versio:</strong> {selectedSubmission.version}</p>

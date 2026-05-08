@@ -45,10 +45,17 @@ function getUser(userId: number): { role: string; creator_auto_approved: number 
 }
 
 // ── Get explore configuration ──────────────────────────────────────────────
+const DEFAULT_MOLLIE_METHODS = [
+  { name: 'iDEAL', fixed_cents: 29, variable_pct: 1.8 },
+  { name: 'Credit card', fixed_cents: 29, variable_pct: 2.34 },
+];
+
 router.get('/config', (req: Request, res: Response) => {
   try {
     const commissionPct = getPlatformFeePercent();
-    res.json({ commission_percentage: commissionPct });
+    const row = db.prepare("SELECT value FROM app_settings WHERE key = 'mollie_payment_methods'").get() as { value: string } | undefined;
+    const mollieMethods = row ? JSON.parse(row.value) : DEFAULT_MOLLIE_METHODS;
+    res.json({ commission_percentage: commissionPct, mollie_methods: mollieMethods });
   } catch (err: unknown) {
     console.error('Error fetching explore config:', err);
     res.status(500).json({ error: 'Failed to fetch explore config' });
@@ -325,6 +332,7 @@ router.get('/trips/:id', (req: Request, res: Response) => {
         COALESCE((SELECT COUNT(*) FROM days WHERE trip_id = t.id), 0) as duration_days,
         COALESCE((SELECT COUNT(*) FROM places WHERE trip_id = t.id AND (source IS NULL OR source = 'admin')), 0) as places_count,
         u.username as owner_name,
+        t.user_id,
         COALESCE(ep.version, 1) as version,
         COALESCE(ep.descriptions, '{}') as descriptions,
         COALESCE(ep.community_enabled, 0) as community_enabled,
@@ -344,7 +352,7 @@ router.get('/trips/:id', (req: Request, res: Response) => {
       LEFT JOIN explore_published ep ON t.id = ep.trip_id
       LEFT JOIN users u ON t.user_id = u.id
       WHERE t.id = ? AND ep.trip_id IS NOT NULL AND ep.is_published = 1 AND COALESCE(ep.is_suspended, 0) = 0
-    `).get(id) as ExploreTrip | undefined;
+    `).get(id) as (ExploreTrip & { user_id: number }) | undefined;
 
     if (!trip) return res.status(404).json({ error: 'Trip not found' });
 
@@ -435,6 +443,7 @@ router.get('/trips/:id', (req: Request, res: Response) => {
       total_budget_estimate: places.reduce((sum: number, p: any) => sum + (p.price || 0), 0),
       already_purchased: !!userOwns,
       user_trip_id: userOwns?.trip_id || null,
+      is_own_trip: trip.user_id === authReq.user.id,
     });
   } catch (err: unknown) {
     console.error('Error fetching explore trip:', err);
@@ -556,6 +565,12 @@ router.post('/trips/:id/purchase', (req: Request, res: Response) => {
     const ep = db.prepare('SELECT trip_id, price, version FROM explore_published WHERE trip_id = ? AND is_published = 1').get(id) as
       { trip_id: number; price: number; version: number } | undefined;
     if (!ep) return res.status(404).json({ error: 'Trip not found or not published' });
+
+    // Check if creator is trying to purchase their own trip
+    const sourceTrip = db.prepare('SELECT user_id FROM trips WHERE id = ?').get(id) as { user_id: number } | undefined;
+    if (sourceTrip?.user_id === authReq.user.id) {
+      return res.status(403).json({ error: 'Cannot purchase your own trip', code: 'OWN_TRIP' });
+    }
 
     // Paid trips must go through the payment flow
     if (ep.price > 0) {
@@ -1130,6 +1145,204 @@ router.get('/fork-deltas/:sourceId/:forkedId', (req: Request, res: Response) => 
   } catch (err: unknown) {
     console.error('Error fetching fork deltas:', err);
     res.status(500).json({ error: 'Failed to fetch fork deltas' });
+  }
+});
+
+// ── Reviews & Ratings ─────────────────────────────────────────────────────
+
+// Get reviews for a trip
+router.get('/trips/:sourceTripId/reviews', (req: Request, res: Response) => {
+  try {
+    const { sourceTripId } = req.params;
+    const sortBy = req.query.sortBy as string || 'recent';
+
+    let orderClause = 'ORDER BY er.created_at DESC';
+    if (sortBy === 'helpful') {
+      orderClause = 'ORDER BY (er.helpful_count - er.unhelpful_count) DESC, er.created_at DESC';
+    } else if (sortBy === 'rating_high') {
+      orderClause = 'ORDER BY er.rating DESC, er.created_at DESC';
+    } else if (sortBy === 'rating_low') {
+      orderClause = 'ORDER BY er.rating ASC, er.created_at DESC';
+    }
+
+    const reviews = db.prepare(`
+      SELECT
+        er.id, er.source_trip_id, er.user_id, er.rating, er.title, er.content,
+        er.helpful_count, er.unhelpful_count, er.created_at,
+        u.username, u.avatar,
+        COALESCE((SELECT COUNT(*) FROM explore_review_helpful WHERE review_id = er.id AND is_helpful = 1), 0) as current_helpful,
+        COALESCE((SELECT COUNT(*) FROM explore_review_helpful WHERE review_id = er.id AND is_helpful = 0), 0) as current_unhelpful
+      FROM explore_reviews er
+      JOIN users u ON u.id = er.user_id
+      WHERE er.source_trip_id = ?
+      ${orderClause}
+    `).all(sourceTripId) as any[];
+
+    // Calculate average rating
+    const avgRating = db.prepare('SELECT AVG(rating) as avg, COUNT(*) as count FROM explore_reviews WHERE source_trip_id = ?')
+      .get(sourceTripId) as { avg: number; count: number } | undefined;
+
+    res.json({
+      reviews,
+      average_rating: avgRating?.avg || 0,
+      review_count: avgRating?.count || 0,
+    });
+  } catch (err: unknown) {
+    console.error('Error fetching reviews:', err);
+    res.status(500).json({ error: 'Failed to fetch reviews' });
+  }
+});
+
+// Create review
+router.post('/trips/:sourceTripId/reviews', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { sourceTripId } = req.params;
+    const { rating, title, content } = req.body;
+
+    if (!rating || rating < 1 || rating > 5) {
+      return res.status(400).json({ error: 'Rating must be between 1 and 5' });
+    }
+    if (!content || typeof content !== 'string' || content.trim().length === 0) {
+      return res.status(400).json({ error: 'Review content is required' });
+    }
+
+    // Check if trip is published
+    const ep = db.prepare('SELECT trip_id FROM explore_published WHERE trip_id = ? AND is_published = 1')
+      .get(sourceTripId);
+    if (!ep) return res.status(404).json({ error: 'Trip not found or not published' });
+
+    // Check if user already reviewed (update existing)
+    const existing = db.prepare('SELECT id FROM explore_reviews WHERE source_trip_id = ? AND user_id = ?')
+      .get(sourceTripId, userId) as { id: number } | undefined;
+
+    if (existing) {
+      db.prepare(`
+        UPDATE explore_reviews
+        SET rating = ?, title = ?, content = ?, updated_at = datetime('now')
+        WHERE id = ?
+      `).run(rating, title || null, content, existing.id);
+      return res.json({ success: true, review_id: existing.id, created: false });
+    }
+
+    // Create new review
+    const result = db.prepare(`
+      INSERT INTO explore_reviews (source_trip_id, user_id, rating, title, content, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+    `).run(sourceTripId, userId, rating, title || null, content);
+
+    res.status(201).json({ success: true, review_id: result.lastInsertRowid, created: true });
+  } catch (err: unknown) {
+    console.error('Error creating review:', err);
+    res.status(500).json({ error: 'Failed to create review' });
+  }
+});
+
+// Delete review
+router.delete('/reviews/:reviewId', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { reviewId } = req.params;
+
+    const review = db.prepare('SELECT id, user_id FROM explore_reviews WHERE id = ?')
+      .get(reviewId) as { id: number; user_id: number } | undefined;
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    if (review.user_id !== userId && !isAdmin(userId)) {
+      return res.status(403).json({ error: 'Not authorized to delete this review' });
+    }
+
+    db.prepare('DELETE FROM explore_reviews WHERE id = ?').run(reviewId);
+    res.json({ success: true, message: 'Review deleted' });
+  } catch (err: unknown) {
+    console.error('Error deleting review:', err);
+    res.status(500).json({ error: 'Failed to delete review' });
+  }
+});
+
+// Mark review as helpful/unhelpful
+router.post('/reviews/:reviewId/helpful', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { reviewId } = req.params;
+    const { is_helpful } = req.body;
+
+    if (typeof is_helpful !== 'boolean') {
+      return res.status(400).json({ error: 'is_helpful must be boolean' });
+    }
+
+    const review = db.prepare('SELECT id FROM explore_reviews WHERE id = ?').get(reviewId);
+    if (!review) return res.status(404).json({ error: 'Review not found' });
+
+    // Check if user already voted
+    const existing = db.prepare('SELECT id, is_helpful FROM explore_review_helpful WHERE review_id = ? AND user_id = ?')
+      .get(reviewId, userId) as { id: number; is_helpful: number } | undefined;
+
+    if (existing) {
+      if (existing.is_helpful === (is_helpful ? 1 : 0)) {
+        return res.status(200).json({ success: true, message: 'Already voted' });
+      }
+      // Update vote
+      db.prepare('UPDATE explore_review_helpful SET is_helpful = ? WHERE id = ?')
+        .run(is_helpful ? 1 : 0, existing.id);
+    } else {
+      // Create vote
+      db.prepare('INSERT INTO explore_review_helpful (review_id, user_id, is_helpful) VALUES (?, ?, ?)')
+        .run(reviewId, userId, is_helpful ? 1 : 0);
+    }
+
+    // Update counts
+    const counts = db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN is_helpful = 1 THEN 1 ELSE 0 END), 0) as helpful,
+        COALESCE(SUM(CASE WHEN is_helpful = 0 THEN 1 ELSE 0 END), 0) as unhelpful
+      FROM explore_review_helpful
+      WHERE review_id = ?
+    `).get(reviewId) as { helpful: number; unhelpful: number };
+
+    db.prepare('UPDATE explore_reviews SET helpful_count = ?, unhelpful_count = ? WHERE id = ?')
+      .run(counts.helpful, counts.unhelpful, reviewId);
+
+    res.json({ success: true, helpful_count: counts.helpful, unhelpful_count: counts.unhelpful });
+  } catch (err: unknown) {
+    console.error('Error marking review helpful:', err);
+    res.status(500).json({ error: 'Failed to update helpful status' });
+  }
+});
+
+// Remove helpful vote
+router.delete('/reviews/:reviewId/helpful', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { reviewId } = req.params;
+
+    db.prepare('DELETE FROM explore_review_helpful WHERE review_id = ? AND user_id = ?')
+      .run(reviewId, userId);
+
+    // Update counts
+    const counts = db.prepare(`
+      SELECT
+        COALESCE(SUM(CASE WHEN is_helpful = 1 THEN 1 ELSE 0 END), 0) as helpful,
+        COALESCE(SUM(CASE WHEN is_helpful = 0 THEN 1 ELSE 0 END), 0) as unhelpful
+      FROM explore_review_helpful
+      WHERE review_id = ?
+    `).get(reviewId) as { helpful: number; unhelpful: number };
+
+    db.prepare('UPDATE explore_reviews SET helpful_count = ?, unhelpful_count = ? WHERE id = ?')
+      .run(counts.helpful, counts.unhelpful, reviewId);
+
+    res.json({ success: true, helpful_count: counts.helpful, unhelpful_count: counts.unhelpful });
+  } catch (err: unknown) {
+    console.error('Error removing helpful vote:', err);
+    res.status(500).json({ error: 'Failed to remove helpful vote' });
   }
 });
 

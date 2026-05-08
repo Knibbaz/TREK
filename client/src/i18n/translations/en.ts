@@ -2814,6 +2814,21 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.moderation.pending': 'Pending',
   'explore.moderation.approvedLabel': 'Approved',
   'explore.moderation.rejectedLabel': 'Rejected',
+  // Reviews & Ratings
+  'explore.reviews.rating': 'Rating',
+  'explore.reviews.title': 'Title (optional)',
+  'explore.reviews.titlePlaceholder': 'e.g., Amazing trip!',
+  'explore.reviews.content': 'Your review',
+  'explore.reviews.contentPlaceholder': 'Share your experience with this trip...',
+  'explore.reviews.contentRequired': 'Review content is required',
+  'explore.reviews.submitError': 'Failed to submit review',
+  'explore.reviews.noReviews': 'No reviews yet. Be the first to review!',
+  'explore.reviews.reviewsCount': 'reviews',
+  'explore.reviews.deleteConfirm': 'Delete this review?',
+  'explore.reviews.sort_recent': 'Recent',
+  'explore.reviews.sort_helpful': 'Helpful',
+  'explore.reviews.sort_rating_high': 'Highest rated',
+  'explore.reviews.sort_rating_low': 'Lowest rated',
   // Admin explore submissions
   'admin.explore.title': 'Explore submissions',
   'admin.explore.filterPending': 'Pending',
@@ -2873,8 +2888,10 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.minPrice': 'Minimum price: €0.99',
   'explore.pricingGross': 'Selling price',
   'explore.pricingCommission': 'Platform commission',
+  'explore.mollieTransactionCost': 'Transaction cost',
   'explore.pricingNet': 'Net for you',
   'explore.submitNote': 'Your listing will be submitted for review. Admins review within 48 hours.',
+  'explore.ownTrip': 'This is your trip',
 
   // Creator profile
   'explore.becomeCreator': 'Become a Creator',

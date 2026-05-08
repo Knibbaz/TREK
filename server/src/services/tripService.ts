@@ -18,10 +18,13 @@ export const TRIP_SELECT = `
     CASE WHEN t.user_id = :userId THEN 1 ELSE 0 END as is_owner,
     u.username as owner_username,
     (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count,
-    CASE WHEN ep.trip_id IS NOT NULL AND ep.is_published = 1 THEN 1 ELSE 0 END as is_published
+    CASE WHEN ep.trip_id IS NOT NULL AND ep.is_published = 1 THEN 1 ELSE 0 END as is_published,
+    COALESCE(eut.source_trip_id, NULL) as source_trip_id,
+    CASE WHEN eut.id IS NOT NULL THEN 1 ELSE 0 END as from_explore
   FROM trips t
   JOIN users u ON u.id = t.user_id
   LEFT JOIN explore_published ep ON ep.trip_id = t.id
+  LEFT JOIN explore_user_trips eut ON eut.trip_id = t.id
 `;
 
 // ── Access helpers ────────────────────────────────────────────────────────

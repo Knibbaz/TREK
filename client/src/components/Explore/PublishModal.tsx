@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from '../../i18n';
-import { ChevronRight, ChevronLeft } from 'lucide-react';
+import { ChevronRight, ChevronLeft, ChevronDown } from 'lucide-react';
 import Modal from '../shared/Modal';
 import { PricingCalculator } from './PricingCalculator';
 import { exploreApi } from '../../api/client';
@@ -18,16 +18,27 @@ interface PublishModalProps {
   onSubmitted: () => void;
 }
 
+interface MollieMethod {
+  name: string;
+  fixed_cents: number;
+  variable_pct: number;
+}
+
 export function PublishModal({ isOpen, onClose, trips, onSubmitted }: PublishModalProps) {
   const { t } = useTranslation();
   const [step, setStep] = useState(1);
   const [commissionPct, setCommissionPct] = useState(15);
+  const [mollieMethods, setMollieMethods] = useState<MollieMethod[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Auto-select single trip
+  const hasSingleTrip = trips.length === 1;
+  const singleTripId = hasSingleTrip ? String(trips[0].id) : '';
+
   const [formData, setFormData] = useState({
-    trip_id: '',
-    listing_title: '',
+    trip_id: singleTripId,
+    listing_title: hasSingleTrip ? trips[0].title : '',
     tagline: '',
     destination: '',
     difficulty: 'easy' as 'easy' | 'moderate' | 'challenging',
@@ -43,12 +54,45 @@ export function PublishModal({ isOpen, onClose, trips, onSubmitted }: PublishMod
     if (isOpen) {
       exploreApi.getConfig().then(config => {
         setCommissionPct(config.commission_percentage ?? 15);
+        setMollieMethods(config.mollie_methods ?? []);
       }).catch(err => {
         console.error('Failed to load explore config:', err);
         setCommissionPct(15);
+        setMollieMethods([]);
       });
+
+      // Reset form when modal opens
+      setStep(1);
+      setError(null);
+      if (hasSingleTrip) {
+        setFormData({
+          trip_id: singleTripId,
+          listing_title: trips[0].title,
+          tagline: '',
+          destination: '',
+          difficulty: 'easy',
+          best_season: [],
+          tags: [],
+          price: 0,
+          is_free: true,
+          community_enabled: false,
+        });
+      } else {
+        setFormData({
+          trip_id: '',
+          listing_title: '',
+          tagline: '',
+          destination: '',
+          difficulty: 'easy',
+          best_season: [],
+          tags: [],
+          price: 0,
+          is_free: true,
+          community_enabled: false,
+        });
+      }
     }
-  }, [isOpen]);
+  }, [isOpen, hasSingleTrip, singleTripId, trips]);
 
   const selectedTrip = trips.find(t => t.id === Number(formData.trip_id));
 
@@ -97,7 +141,7 @@ export function PublishModal({ isOpen, onClose, trips, onSubmitted }: PublishMod
         difficulty: formData.difficulty,
         best_season: formData.best_season.length > 0 ? formData.best_season : undefined,
         tags: formData.tags.length > 0 ? formData.tags : undefined,
-        price: formData.is_free ? 0 : Math.round(formData.price * 100),
+        price: formData.is_free ? 0 : formData.price,
         community_enabled: formData.community_enabled,
       });
 
@@ -194,23 +238,34 @@ export function PublishModal({ isOpen, onClose, trips, onSubmitted }: PublishMod
       {/* Step 1: Listing info */}
       {step === 1 && (
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              {t('explore.submitModal.trip')} *
-            </label>
-            <select
-              value={formData.trip_id}
-              onChange={e => handleTripChange(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">{t('explore.selectTrip')}</option>
-              {trips.map(trip => (
-                <option key={trip.id} value={trip.id}>
-                  {trip.title}
-                </option>
-              ))}
-            </select>
-          </div>
+          {hasSingleTrip && (
+            <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <p className="text-xs text-blue-600 font-medium mb-1">{t('explore.submitModal.trip')}</p>
+              <p className="text-sm font-medium text-gray-900">{selectedTrip?.title}</p>
+            </div>
+          )}
+          {!hasSingleTrip && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                {t('explore.submitModal.trip')} *
+              </label>
+              <div className="relative">
+                <select
+                  value={formData.trip_id}
+                  onChange={e => handleTripChange(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm text-gray-900 appearance-none cursor-pointer"
+                >
+                  <option value="">{t('explore.selectTrip')}</option>
+                  {trips.map(trip => (
+                    <option key={trip.id} value={trip.id}>
+                      {trip.title}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+              </div>
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -352,12 +407,14 @@ export function PublishModal({ isOpen, onClose, trips, onSubmitted }: PublishMod
 
               {formData.price > 0 && (
                 <div className="mt-4">
-                  <PricingCalculator priceCents={priceCents} commissionPct={commissionPct} />
+                  <PricingCalculator priceCents={priceCents} commissionPct={commissionPct} mollieMethods={mollieMethods} />
                 </div>
               )}
             </div>
           )}
 
+          {/* Community contributions temporarily disabled */}
+          {/*
           <div>
             <label className="flex items-center gap-2 p-3 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
               <input
@@ -372,6 +429,7 @@ export function PublishModal({ isOpen, onClose, trips, onSubmitted }: PublishMod
               </div>
             </label>
           </div>
+          */}
         </div>
       )}
 

@@ -582,6 +582,38 @@ router.put('/platform-fee', (req: Request, res: Response) => {
   }
 });
 
+// ── Mollie payment method fees ──────────────────────────────────────────────
+const DEFAULT_MOLLIE_METHODS = [
+  { name: 'iDEAL', fixed_cents: 29, variable_pct: 1.8 },
+  { name: 'Credit card', fixed_cents: 29, variable_pct: 2.34 },
+];
+
+router.get('/mollie-fees', (req: Request, res: Response) => {
+  try {
+    const row = db.prepare("SELECT value FROM app_settings WHERE key = 'mollie_payment_methods'").get() as { value: string } | undefined;
+    const methods = row ? JSON.parse(row.value) : DEFAULT_MOLLIE_METHODS;
+    res.json({ methods });
+  } catch (err: any) {
+    console.error('Error fetching mollie fees:', err);
+    res.status(500).json({ error: 'Failed to fetch mollie fees' });
+  }
+});
+
+router.put('/mollie-fees', (req: Request, res: Response) => {
+  try {
+    const { methods } = req.body;
+    if (!Array.isArray(methods)) {
+      return res.status(400).json({ error: 'methods must be array' });
+    }
+    db.prepare("INSERT INTO app_settings (key, value) VALUES ('mollie_payment_methods', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value")
+      .run(JSON.stringify(methods));
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('Error updating mollie fees:', err);
+    res.status(500).json({ error: 'Failed to update mollie fees' });
+  }
+});
+
 // ── Creator profile management ──────────────────────────────────────────────
 
 // List pending creator applications

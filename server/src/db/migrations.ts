@@ -2839,6 +2839,37 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Created explore_fork_deltas table');
     },
+    // Migration 158: explore_reviews and explore_review_helpful tables
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_reviews (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+          title TEXT,
+          content TEXT NOT NULL,
+          helpful_count INTEGER DEFAULT 0,
+          unhelpful_count INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(source_trip_id, user_id)
+        );
+        CREATE TABLE IF NOT EXISTS explore_review_helpful (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          review_id INTEGER NOT NULL REFERENCES explore_reviews(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          is_helpful INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(review_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_reviews_trip ON explore_reviews(source_trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_reviews_user ON explore_reviews(user_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_reviews_rating ON explore_reviews(rating DESC);
+        CREATE INDEX IF NOT EXISTS idx_explore_review_helpful_review ON explore_review_helpful(review_id);
+      `);
+      console.log('[migrations] Created explore_reviews and explore_review_helpful tables');
+    },
   ];
 
   if (currentVersion < migrations.length) {

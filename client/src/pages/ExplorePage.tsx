@@ -63,6 +63,7 @@ interface TripDetail extends ExploreTrip {
   days: ExploreDay[]
   already_purchased?: boolean
   user_trip_id?: number | null
+  is_own_trip?: boolean
 }
 
 const GRADIENTS = [
@@ -537,7 +538,16 @@ function DetailPanel({ trip, detail, loadingDetail, purchasing, onClose, onPurch
           borderTop: '1px solid var(--border-primary)',
           backdropFilter: 'blur(12px)',
         }}>
-          {detail?.already_purchased && detail?.user_trip_id ? (
+          {detail?.is_own_trip ? (
+            <div style={{
+              width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '12px 20px', borderRadius: 12, border: '1px solid var(--border-primary)',
+              background: 'var(--bg-secondary)', color: 'var(--text-muted)',
+              fontSize: 14, fontWeight: 600, fontFamily: 'inherit',
+            }}>
+              {t('explore.ownTrip') || 'Dit is jouw reis'}
+            </div>
+          ) : detail?.already_purchased && detail?.user_trip_id ? (
             <button
               onClick={() => onOpenTrip(detail.user_trip_id!)}
               style={{
@@ -879,7 +889,7 @@ export default function ExplorePage(): React.ReactElement {
     setLoadingDetail(true)
     try {
       const data = await exploreApi.getTrip(trip.id)
-      setDetail({ ...data.trip, days: data.days ?? [], already_purchased: data.already_purchased, user_trip_id: data.user_trip_id })
+      setDetail({ ...data.trip, days: data.days ?? [], already_purchased: data.already_purchased, user_trip_id: data.user_trip_id, is_own_trip: data.is_own_trip })
       setCategoryStats(data.category_stats || [])
       setTotalBudget(data.total_budget_estimate || 0)
     } catch (err) {

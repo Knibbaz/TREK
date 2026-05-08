@@ -14,6 +14,7 @@ import TimezoneWidget from '../components/Dashboard/TimezoneWidget'
 import TripFormModal from '../components/Trips/TripFormModal'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
 import CopyTripDialog from '../components/shared/CopyTripDialog'
+import { PublishModal } from '../components/Explore/PublishModal'
 import { useToast } from '../components/shared/Toast'
 import { useCountUp } from '../hooks/useCountUp'
 import {
@@ -37,6 +38,8 @@ interface DashboardTrip {
   day_count?: number
   place_count?: number
   shared_count?: number
+  from_explore?: number
+  source_trip_id?: number
   [key: string]: string | number | boolean | null | undefined
 }
 
@@ -204,6 +207,17 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
 
         {/* Badges top-left */}
         <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', gap: 8 }}>
+          {trip.from_explore === 1 && (
+            <span style={{
+              background: 'rgba(99,102,241,0.85)', backdropFilter: 'blur(8px)',
+              color: 'white', fontSize: 10, fontWeight: 700,
+              padding: '4px 10px', borderRadius: 99, border: '1px solid rgba(255,255,255,0.25)',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <Compass size={9} />
+              Explore
+            </span>
+          )}
           {status && (
             <span style={{
               background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
@@ -316,19 +330,28 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
       <div className="relative p-6 flex flex-col text-white z-[2]" style={{ minHeight: 340 }}>
         {/* Top: badge + actions */}
         <div className="flex items-center justify-between mb-5">
-          {badgeText ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
-              style={isConcept ? { background: 'rgba(245,158,11,0.25)', borderColor: 'rgba(245,158,11,0.4)' } : { background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.15)' }}>
-              {isLive ? (
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
-              ) : isConcept ? (
-                <Edit2 size={10} />
-              ) : (
-                <Clock size={10} />
-              )}
-              {badgeText}
-            </span>
-          ) : <span />}
+          <div className="flex items-center gap-2">
+            {trip.from_explore === 1 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                style={{ background: 'rgba(99,102,241,0.25)', borderColor: 'rgba(99,102,241,0.4)' }}>
+                <Compass size={9} />
+                Explore
+              </span>
+            )}
+            {badgeText ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                style={isConcept ? { background: 'rgba(245,158,11,0.25)', borderColor: 'rgba(245,158,11,0.4)' } : { background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.15)' }}>
+                {isLive ? (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
+                ) : isConcept ? (
+                  <Edit2 size={10} />
+                ) : (
+                  <Clock size={10} />
+                )}
+                {badgeText}
+              </span>
+            ) : null}
+          </div>
           <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
             {onEdit && <button title={t('common.edit')} onClick={() => onEdit(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Edit2 size={14} /></button>}
             {onCopy && <button title={t('dashboard.copyTrip')} onClick={() => onCopy(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Copy size={14} /></button>}
@@ -423,6 +446,11 @@ function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, on
           <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {trip.title}
           </span>
+          {trip.from_explore === 1 && (
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#4f46e5', background: 'rgba(99,102,241,0.1)', padding: '2px 6px', borderRadius: 99, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              Explore
+            </span>
+          )}
           {!trip.is_owner && (
             <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: 99, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {t('dashboard.shared')}
@@ -754,45 +782,10 @@ export default function DashboardPage(): React.ReactElement {
   }
 
   const [publishingTrip, setPublishingTrip] = useState<DashboardTrip | null>(null)
-  const [publishPrice, setPublishPrice] = useState(0)
-  const [publishDescriptions, setPublishDescriptions] = useState<Record<string, string>>({})
-  const [publishMode, setPublishMode] = useState<'publish' | 'update'>('publish')
-  const [publishDescLang, setPublishDescLang] = useState<string>('en')
-  const openPublishModal = (trip: DashboardTrip, mode: 'publish' | 'update' = 'publish') => {
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const openPublishModal = (trip: DashboardTrip) => {
     setPublishingTrip(trip)
-    setPublishMode(mode)
-    setPublishPrice(0)
-    setPublishDescriptions({})
-    setPublishDescLang('en')
-  }
-
-  const handlePublish = async () => {
-    if (!publishingTrip) return
-    try {
-      if (publishMode === 'update') {
-        const result = await exploreApi.publishUpdate(publishingTrip.id, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined)
-        toast.success(t('explore.publishUpdateSuccess').replace('{version}', String(result.version)).replace('{count}', String(result.notified_count)))
-      } else if (user?.role === 'admin') {
-        await exploreApi.publishTrip(publishingTrip.id, publishPrice, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined)
-        toast.success(t('dashboard.toast.published'))
-      } else {
-        // Creators use the submission flow
-        const result = await exploreApi.submitTrip(publishingTrip.id, {
-          price: publishPrice,
-          descriptions: Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined,
-          community_enabled: false,
-        })
-        if (result.auto_approved) {
-          toast.success(t('dashboard.toast.published'))
-        } else {
-          toast.success(t('dashboard.toast.submittedForReview'))
-        }
-      }
-      setPublishingTrip(null)
-    } catch (err) {
-      console.error('Error publishing trip:', err)
-      toast.error(t('dashboard.toast.publishError'))
-    }
+    setShowPublishModal(true)
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -1201,96 +1194,19 @@ export default function DashboardPage(): React.ReactElement {
         onConfirm={confirmCopy}
       />
 
-      {publishingTrip && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => setPublishingTrip(null)}>
-          <div style={{ background: 'var(--bg-primary)', borderRadius: 16, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {publishMode === 'update' ? t('explore.publishUpdate') : t('dashboard.publishExplore')}
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 20px' }}>{publishingTrip.title}</p>
-
-            {/* Prijs (alleen bij eerste publicatie) */}
-            {publishMode === 'publish' && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  {t('dashboard.price')}
-                </label>
-                <input
-                  type="number"
-                  value={publishPrice}
-                  onChange={e => setPublishPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit' }}
-                  min="0"
-                />
-              </div>
-            )}
-
-            {/* Meertalige beschrijvingen — dropdown per taal */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                {t('explore.descriptions')}
-              </label>
-
-              {/* Taal dropdown */}
-              <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
-                <select
-                  value={publishDescLang}
-                  onChange={e => {
-                    const lang = e.target.value
-                    setPublishDescLang(lang)
-                    if (!publishDescriptions[lang]) {
-                      setPublishDescriptions(d => ({ ...d, [lang]: '' }))
-                    }
-                  }}
-                  style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit' }}
-                >
-                  <option value="en">English</option>
-                  <option value="nl">Nederlands</option>
-                  <option value="de">Deutsch</option>
-                  <option value="fr">Français</option>
-                  <option value="it">Italiano</option>
-                  <option value="es">Español</option>
-                </select>
-                {publishDescriptions[publishDescLang] !== undefined && (
-                  <button
-                    onClick={() => { const d = { ...publishDescriptions }; delete d[publishDescLang]; setPublishDescriptions(d); setPublishDescLang('en') }}
-                    style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-faint)', cursor: 'pointer', fontSize: 12, fontFamily: 'inherit' }}
-                    title={t('explore.removeLanguage')}
-                  >
-                    ×
-                  </button>
-                )}
-              </div>
-
-              {/* Tekstarea voor geselecteerde taal */}
-              {publishDescriptions[publishDescLang] !== undefined && (
-                <textarea
-                  value={publishDescriptions[publishDescLang]}
-                  onChange={e => setPublishDescriptions(d => ({ ...d, [publishDescLang]: e.target.value }))}
-                  rows={4}
-                  placeholder={t('explore.submitModal.description')}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-                />
-              )}
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setPublishingTrip(null)}
-                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handlePublish}
-                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
-              >
-                {publishMode === 'update' ? t('explore.publishUpdate') : t('dashboard.publish')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PublishModal
+        isOpen={showPublishModal}
+        onClose={() => {
+          setShowPublishModal(false)
+          setPublishingTrip(null)
+        }}
+        trips={publishingTrip ? [publishingTrip] : []}
+        onSubmitted={() => {
+          loadTrips()
+          setShowPublishModal(false)
+          setPublishingTrip(null)
+        }}
+      />
 
       <style>{`
         @keyframes pulse {
