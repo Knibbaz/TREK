@@ -1154,10 +1154,10 @@ export default function ExplorePage(): React.ReactElement {
                   padding: '5px 12px', borderRadius: 99, fontSize: 12, fontWeight: 600,
                   border: exploreFilter === f ? 'none' : '1px solid var(--border-primary)',
                   background: exploreFilter === f
-                    ? (f === 'community' ? 'rgba(139,92,246,0.15)' : 'var(--accent-primary)')
+                    ? (f === 'community' ? 'rgba(139,92,246,0.15)' : 'rgba(0,0,0,0.1)')
                     : 'var(--bg-card)',
                   color: exploreFilter === f
-                    ? (f === 'community' ? '#8b5cf6' : 'white')
+                    ? (f === 'community' ? '#8b5cf6' : 'var(--text-primary)')
                     : 'var(--text-muted)',
                   cursor: 'pointer', transition: 'all 0.15s',
                   display: 'flex', alignItems: 'center', gap: 5,
@@ -1242,12 +1242,12 @@ export default function ExplorePage(): React.ReactElement {
 
         {/* Empty state */}
         {!loading && trips.length === 0 && (
-          <div style={{ textAlign: 'center', padding: '80px 0' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '80px 24px' }}>
             <Compass size={44} style={{ color: 'var(--text-faint)', marginBottom: 16 }} />
-            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-faint)' }}>
+            <p style={{ margin: 0, fontSize: 14, color: 'var(--text-faint)', textAlign: 'center' }}>
               {t('explore.noTrips') || 'Nog geen reizen beschikbaar'}
             </p>
-            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--text-faint)' }}>
+            <p style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--text-faint)', textAlign: 'center' }}>
               {t('explore.noTripsHint') || 'Admins kunnen reizen publiceren via het dashboard'}
             </p>
           </div>
