@@ -937,6 +937,14 @@ export default function ExplorePage(): React.ReactElement {
     try {
       setPurchasing(true)
       const data = await exploreApi.createPayment(trip.id)
+
+      // Dev mode: show alert instead of redirecting to Mollie
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        alert(`[Dev Mode] Payment mock created.\n\nIn production, you would be redirected to Mollie checkout.\n\nPayment ID: ${data.id || 'mock-payment'}`)
+        setPurchasing(false)
+        return
+      }
+
       if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl
       } else {

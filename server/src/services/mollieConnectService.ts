@@ -6,6 +6,9 @@ import {
   APP_URL,
 } from '../config';
 
+// Check if in dev/localhost mode
+const isDevMode = process.env.NODE_ENV === 'development' || APP_URL.includes('localhost');
+
 // Lazily initialized Mollie client
 let _mollieClient: ReturnType<typeof createMollieClient> | null = null;
 function getMollieClient() {
@@ -24,6 +27,31 @@ export async function createPlatformPayment(
   redirectUrl: string,
   metadata: Record<string, string>
 ): Promise<Payment> {
+  // Dev mode: return mock payment instead of calling Mollie
+  if (isDevMode) {
+    console.warn('[Mollie] Dev mode: returning mock payment (webhook URL unreachable from localhost)');
+    return {
+      id: `tr_DEV_${Date.now()}`,
+      mode: 'test',
+      createdAt: new Date(),
+      status: 'open',
+      isCancellable: true,
+      isPaid: false,
+      isRefundable: false,
+      amount: {
+        currency: 'EUR',
+        value: (amountCents / 100).toFixed(2),
+      },
+      description,
+      redirectUrl,
+      webhookUrl: `${APP_URL}/webhooks/mollie`,
+      metadata,
+      links: {
+        checkout: { href: redirectUrl },
+      },
+    } as any as Payment;
+  }
+
   const payment = await getMollieClient().payments.create({
     amount: {
       currency: 'EUR',
@@ -41,6 +69,25 @@ export async function createPlatformPayment(
 // ── Webhook Handling ────────────────────────────────────────────────────────
 
 export async function getPaymentFromMollie(molliePaymentId: string): Promise<Payment> {
+  // Dev mode: return mock paid payment
+  if (isDevMode) {
+    console.warn('[Mollie] Dev mode: returning mock paid payment for', molliePaymentId);
+    return {
+      id: molliePaymentId,
+      mode: 'test',
+      createdAt: new Date(),
+      status: 'paid',
+      isPaid: true,
+      isCancellable: false,
+      isRefundable: true,
+      amount: { currency: 'EUR', value: '10.00' },
+      description: 'Dev mock payment',
+      redirectUrl: APP_URL,
+      webhookUrl: `${APP_URL}/webhooks/mollie`,
+      metadata: {},
+    } as any as Payment;
+  }
+
   return await getMollieClient().payments.get(molliePaymentId);
 }
 
