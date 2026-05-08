@@ -89,7 +89,7 @@ export function PricingCalculator({ priceCents, commissionPct, mollieMethods }: 
       )}
 
       <div className="text-xs text-gray-500 pt-2 border-t">
-        Kosten via <a href="https://www.mollie.com/nl/pricing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Mollie ↗</a>
+        {t('explore.costsVia')} <a href="https://www.mollie.com/nl/pricing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Mollie ↗</a>
       </div>
     </div>
   );

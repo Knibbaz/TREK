@@ -588,7 +588,7 @@ const DEFAULT_MOLLIE_METHODS = [
   { name: 'Credit card', fixed_cents: 29, variable_pct: 2.34 },
 ];
 
-router.get('/mollie-fees', (req: Request, res: Response) => {
+router.get('/mollie-fees', requireAdmin, (req: Request, res: Response) => {
   try {
     const row = db.prepare("SELECT value FROM app_settings WHERE key = 'mollie_payment_methods'").get() as { value: string } | undefined;
     const methods = row ? JSON.parse(row.value) : DEFAULT_MOLLIE_METHODS;
@@ -599,7 +599,7 @@ router.get('/mollie-fees', (req: Request, res: Response) => {
   }
 });
 
-router.put('/mollie-fees', (req: Request, res: Response) => {
+router.put('/mollie-fees', requireAdmin, (req: Request, res: Response) => {
   try {
     const { methods } = req.body;
     if (!Array.isArray(methods)) {

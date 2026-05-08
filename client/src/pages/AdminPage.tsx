@@ -1505,17 +1505,17 @@ export default function AdminPage(): React.ReactElement {
               {/* Mollie Payment Methods */}
               <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                 <div className="px-6 py-4 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-900">Betalingskosten</h2>
-                  <p className="text-xs text-slate-400 mt-1">Mollie transactiekosten per betaalmethode</p>
+                  <h2 className="font-semibold text-slate-900">{t('admin.molliePaymentMethods') || 'Betalingskosten'}</h2>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.molliePaymentMethodsHint') || 'Mollie transactiekosten per betaalmethode'}</p>
                 </div>
                 <div className="p-6 space-y-4">
                   <div className="space-y-3">
                     {mollieMethods.length > 0 ? (
                       <>
                         <div className="text-xs font-medium text-slate-600 mb-2 grid grid-cols-12 gap-2">
-                          <div className="col-span-4">Methode</div>
-                          <div className="col-span-3">Vast bedrag</div>
-                          <div className="col-span-3">Percentage</div>
+                          <div className="col-span-4">{t('admin.mollieMethod') || 'Methode'}</div>
+                          <div className="col-span-3">{t('admin.mollieFixedFee') || 'Vast bedrag'}</div>
+                          <div className="col-span-3">{t('admin.molliePercentage') || 'Percentage'}</div>
                           <div className="col-span-2"></div>
                         </div>
                         {mollieMethods.map((method, idx) => (
@@ -1528,7 +1528,7 @@ export default function AdminPage(): React.ReactElement {
                                 updated[idx].name = e.target.value
                                 setMollieMethods(updated)
                               }}
-                              placeholder="bijv. iDEAL"
+                              placeholder={t('admin.mollieMethodPlaceholder') || 'bijv. iDEAL'}
                               className="col-span-4 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
                             />
                             <div className="col-span-3 flex items-center gap-1">
@@ -1576,7 +1576,7 @@ export default function AdminPage(): React.ReactElement {
                         ))}
                       </>
                     ) : (
-                      <p className="text-sm text-slate-500">Geen betalingsmethodes geconfigureerd</p>
+                      <p className="text-sm text-slate-500">{t('admin.noPaymentMethods') || 'Geen betalingsmethodes geconfigureerd'}</p>
                     )}
                   </div>
 
@@ -1587,11 +1587,11 @@ export default function AdminPage(): React.ReactElement {
                     className="w-full px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 flex items-center justify-center gap-2"
                   >
                     <Plus className="w-4 h-4" />
-                    Methode toevoegen
+                    {t('admin.mollieAddMethod') || 'Methode toevoegen'}
                   </button>
 
                   <div className="text-xs text-slate-500 pt-2 border-t">
-                    Kosten via <a href="https://www.mollie.com/nl/pricing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Mollie ↗</a>
+                    {t('explore.costsVia')} <a href="https://www.mollie.com/nl/pricing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Mollie ↗</a>
                   </div>
 
                   <button
