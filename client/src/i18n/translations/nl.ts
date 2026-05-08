@@ -2803,6 +2803,12 @@ const nl: Record<string, string> = {
   'explore.commission': 'Commissie',
   'explore.net': 'Netto',
   'explore.buyer': 'Koper',
+  'explore.storefront': 'Creator profiel',
+  'explore.storefrontListings': 'Reizen',
+  'explore.storefrontSales': 'Verkopen',
+  'explore.storefrontAvgRating': 'Gem. beoordeling',
+  'explore.storefrontEmpty': 'Nog geen gepubliceerde reizen',
+  'explore.creatorNotFound': 'Creator niet gevonden',
 
   'admin.creatorAutoApprove': 'Automatisch goedkeuren (geen admin review nodig)',
   'admin.creatorFeePercent': 'Platform fee (%)',

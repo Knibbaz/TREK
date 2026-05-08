@@ -835,6 +835,8 @@ export const exploreApi = {
     apiClient.get('/addons/explore/creators/me').then(r => r.data),
   checkSlugAvailability: (slug: string) =>
     apiClient.get(`/addons/explore/creators/check-slug/${slug}`).then(r => r.data),
+  getCreatorStorefront: (slug: string) =>
+    apiClient.get(`/addons/explore/creators/${slug}`).then(r => r.data),
   // Payments
   createPayment: (id: number | string) =>
     apiClient.post(`/addons/explore/payments/trips/${id}/create-payment`).then(r => r.data),

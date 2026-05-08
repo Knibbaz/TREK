@@ -2921,6 +2921,12 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.commission': 'Commission',
   'explore.net': 'Net',
   'explore.buyer': 'Buyer',
+  'explore.storefront': 'Creator profile',
+  'explore.storefrontListings': 'Listings',
+  'explore.storefrontSales': 'Sales',
+  'explore.storefrontAvgRating': 'Avg. rating',
+  'explore.storefrontEmpty': 'No published trips yet',
+  'explore.creatorNotFound': 'Creator not found',
 
   'admin.explore.free': 'Free',
   'admin.explore.communityOn': 'Community enabled',

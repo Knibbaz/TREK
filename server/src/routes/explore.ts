@@ -142,6 +142,59 @@ router.get('/creators/check-slug/:slug', (req: Request, res: Response) => {
   }
 });
 
+// ── Get public creator storefront ──────────────────────────────────────────────
+router.get('/creators/:slug', (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+
+    const creator = db.prepare(`
+      SELECT ec.slug, ec.display_name, ec.bio, ec.avatar, ec.social_links,
+             u.id as user_id
+      FROM explore_creators ec
+      JOIN users u ON u.id = ec.user_id
+      WHERE ec.slug = ? AND ec.status = 'approved' AND ec.is_suspended = 0
+    `).get(slug) as any;
+
+    if (!creator) return res.status(404).json({ error: 'Creator not found' });
+
+    const listings = db.prepare(`
+      SELECT ep.trip_id, ep.listing_title, ep.tagline, ep.tags, ep.destination,
+             ep.difficulty, ep.price, ep.view_count, ep.purchase_count,
+             ep.avg_rating, ep.rating_count, ep.is_featured,
+             t.cover_image, t.start_date, t.end_date,
+             (SELECT COUNT(*) FROM days WHERE trip_id = t.id) as day_count,
+             (SELECT COUNT(*) FROM places WHERE trip_id = t.id) as place_count
+      FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      WHERE t.user_id = ? AND ep.is_published = 1 AND ep.is_suspended = 0
+      ORDER BY ep.is_featured DESC, ep.updated_at DESC
+    `).all(creator.user_id) as any[];
+
+    const stats = {
+      listing_count: listings.length,
+      total_sales: listings.reduce((s: number, l: any) => s + (l.purchase_count || 0), 0),
+      avg_rating: listings.length
+        ? Number((listings.reduce((s: number, l: any) => s + (l.avg_rating || 0), 0) / listings.length).toFixed(1))
+        : 0,
+    };
+
+    res.json({
+      creator: {
+        slug: creator.slug,
+        display_name: creator.display_name,
+        bio: creator.bio,
+        avatar: creator.avatar,
+        social_links: JSON.parse(creator.social_links || '{}'),
+      },
+      listings,
+      stats,
+    });
+  } catch (err: unknown) {
+    console.error('Error fetching creator storefront:', err);
+    res.status(500).json({ error: 'Failed to fetch creator' });
+  }
+});
+
 // Get featured listings
 router.get('/trips/featured', (req: Request, res: Response) => {
   try {

@@ -22,6 +22,7 @@ import GuestAvailabilityPage from './pages/GuestAvailabilityPage'
 import GuestPollPage from './pages/GuestPollPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
 import ExplorePage from './pages/ExplorePage'
+import { CreatorStorefrontPage } from './pages/CreatorStorefrontPage'
 import WorldMapPage from './pages/WorldMapPage'
 import SharedTripPage from './pages/SharedTripPage'
 import TripInvitePage from './pages/TripInvitePage'
@@ -223,6 +224,7 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shared/:token" element={<SharedTripPage />} />
+        <Route path="/creator/:slug" element={<CreatorStorefrontPage />} />
         <Route path="/invite/trip/:token" element={<TripInvitePage />} />
         <Route path="/public/journey/:token" element={<JourneyPublicPage />} />
         <Route path="/register" element={<LoginPage />} />
