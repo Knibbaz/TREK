@@ -2224,7 +2224,22 @@ function runMigrations(db: Database.Database): void {
       // Backfill carried_over_hours from carried_over (integer days) * 8 hours/day
       db.exec("UPDATE vacay_user_years SET carried_over_hours = carried_over * 8");
     },
-    // Migration 125: Explore versioning + user trip tracking + multilingual descriptions
+    // Migration 124b: Create explore_published table (was missing from upstream)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_published (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          is_published INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_published_user ON explore_published(user_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_published_trip ON explore_published(trip_id);
+      `);
+    },
+    // Migration 126: Explore versioning + user trip tracking + multilingual descriptions
     () => {
       try { db.exec("ALTER TABLE explore_published ADD COLUMN version INTEGER NOT NULL DEFAULT 1"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE explore_published ADD COLUMN descriptions TEXT NOT NULL DEFAULT '{}'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
@@ -2243,17 +2258,17 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
       `);
     },
-    // Migration 126: Community places — source tracking on places + community flag on explore_published
+    // Migration 127: Community places — source tracking on places + community flag on explore_published
     () => {
       try { db.exec("ALTER TABLE explore_published ADD COLUMN community_enabled INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE places ADD COLUMN source TEXT DEFAULT 'admin'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE places ADD COLUMN contributed_by INTEGER REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration 127: Import source tracking for places (GPX, Google Maps lists, KML)
+    // Migration 128: Import source tracking for places (GPX, Google Maps lists, KML)
     () => {
       try { db.exec("ALTER TABLE places ADD COLUMN import_source TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration 128: Migrate default category icons from emoji to lucide icon names
+    // Migration 129: Migrate default category icons from emoji to lucide icon names
     () => {
       const iconMap: Record<string, string> = {
         '🏨': 'BedDouble',
@@ -2272,7 +2287,7 @@ function runMigrations(db: Database.Database): void {
         update.run(lucide, emoji);
       }
     },
-    // Migration 129: Add price_type column to places
+    // Migration 130: Add price_type column to places
     () => {
       try { db.exec("ALTER TABLE places ADD COLUMN price_type TEXT DEFAULT 'total'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
@@ -2538,7 +2553,7 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_date_avail_guests_token ON date_availability_guests(guest_token_id);
       `);
     },
-    // Migration 141: Group polls (single-choice, ranked, swipe)
+    // Migration 142: Group polls (single-choice, ranked, swipe)
     () => db.exec(`
       -- Group polls (only 1 open per trip)
       CREATE TABLE IF NOT EXISTS group_polls (
@@ -2589,13 +2604,13 @@ function runMigrations(db: Database.Database): void {
       CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON group_poll_votes(poll_id);
       CREATE INDEX IF NOT EXISTS idx_poll_votes_user ON group_poll_votes(user_id);
     `),
-    // Migration 142: Creator auto-approval + explore published status + submitted_by
+    // Migration 143: Creator auto-approval + explore published status + submitted_by
     () => {
       try { db.exec('ALTER TABLE users ADD COLUMN creator_auto_approved INTEGER DEFAULT 0'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec("ALTER TABLE explore_published ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       try { db.exec('ALTER TABLE explore_published ADD COLUMN submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration 143: Group poll guest tokens
+    // Migration 144: Group poll guest tokens
     () => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS group_poll_guest_tokens (
@@ -2610,7 +2625,7 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_poll_guest_tokens_token ON group_poll_guest_tokens(token);
       `);
     },
-    // Migration 144: World map entries + worldmap addon registration
+    // Migration 145: World map entries + worldmap addon registration
     () => {
       db.exec(`
         CREATE TABLE IF NOT EXISTS world_map_entries (
@@ -2634,7 +2649,7 @@ function runMigrations(db: Database.Database): void {
         console.warn('[migrations] Non-fatal migration step failed:', err);
       }
     },
-    // Migration 145: Share plan / allow_clone permissions + trip collaboration tokens
+    // Migration 146: Share plan / allow_clone permissions + trip collaboration tokens
     () => {
       // Add share_plan permission flag to share_tokens.
       // Existing tokens get share_plan=1 to preserve backward compatibility.
@@ -2661,14 +2676,14 @@ function runMigrations(db: Database.Database): void {
         CREATE INDEX IF NOT EXISTS idx_trip_collab_token ON trip_collab_tokens(token);
       `);
     },
-    // Migration 146: Share description permission flag on share_tokens
+    // Migration 147: Share description permission flag on share_tokens
     () => {
       // Add share_description permission flag to share_tokens.
       // Controls whether the trip description is visible on the public share link. Default off.
       try { db.exec('ALTER TABLE share_tokens ADD COLUMN share_description INTEGER DEFAULT 0'); }
       catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
     },
-    // Migration 147: Swap inverted start_day_id/end_day_id pairs in day_accommodations caused
+    // Migration 148: Swap inverted start_day_id/end_day_id pairs in day_accommodations caused
     // by the old Math.min/Math.max picker bug (pre-8e05ba7) which used raw IDs
     // instead of positional order on trips with non-monotonic day ID layouts.
     // Idempotent: the WHERE clause only matches rows that still need swapping.
