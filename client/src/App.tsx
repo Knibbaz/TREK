@@ -228,7 +228,7 @@ export default function App() {
         <Route path="/join-group/:token" element={<GroupJoinPage />} />
         <Route path="/guest/availability/:token" element={<GuestAvailabilityPage />} />
         {/* OAuth 2.1 consent page — intentionally outside ProtectedRoute */}
-        <Route path="/oauth/authorize" element={<OAuthAuthorizePage />} />
+        <Route path="/oauth/consent" element={<OAuthAuthorizePage />} />
         <Route
           path="/dashboard"
           element={

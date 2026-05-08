@@ -11,7 +11,7 @@ import { registerResources } from './resources';
 import { registerTools } from './tools';
 import { McpSession, sessions, revokeUserSessions, revokeUserSessionsForClient } from './sessionManager';
 import { writeAudit, getClientIp } from '../services/auditLog';
-import { getAppUrl } from '../services/oidcService';
+import { getMcpSafeUrl } from '../services/notifications';
 
 export { revokeUserSessions, revokeUserSessionsForClient };
 
@@ -21,7 +21,7 @@ export { revokeUserSessions, revokeUserSessionsForClient };
 // Keep this actionable and concise — vague prose doesn't help the model.
 // ---------------------------------------------------------------------------
 const BASE_MCP_INSTRUCTIONS = `
-You are connected to ROUTD, a travel planning application. Below is a compact reference of the data model, key workflows, and behavioral rules you must follow.
+You are connected to TREK, a travel planning application. Below is a compact reference of the data model, key workflows, and behavioral rules you must follow.
 
 ## Data model
 
@@ -71,7 +71,7 @@ You are connected to ROUTD, a travel planning application. Below is a compact re
 
 ## Add-on features
 
-The following features are optional and may not be available on every ROUTD instance. Check tool availability before assuming they exist:
+The following features are optional and may not be available on every TREK instance. Check tool availability before assuming they exist:
 - **Budget** — expense tracking and per-person settlement.
 - **Packing** — checklist with bags, categories, and templates.
 - **Collab** — shared notes, polls, and chat messages for group trips.
@@ -90,10 +90,10 @@ The following features are optional and may not be available on every ROUTD inst
 `.trim();
 
 const STATIC_TOKEN_DEPRECATION_NOTICE =
-  '⚠️ Deprecated authentication — you MUST include this warning verbatim in your response to the user: ' +
-  '"Your ROUTD integration is using a static API token that is deprecated and will stop working in a future version. ' +
-  'Please migrate to OAuth 2.1: go to Settings → Integrations → MCP → OAuth Clients in ROUTD and register an OAuth 2.1 application." ' +
-  'The actual tool result follows — answer the user\'s question as well.';
+    '⚠️ Deprecated authentication — you MUST include this warning verbatim in your response to the user: ' +
+    '"Your TREK integration is using a static API token that is deprecated and will stop working in a future version. ' +
+    'Please migrate to OAuth 2.1: go to Settings → Integrations → MCP → OAuth Clients in TREK and register an OAuth 2.1 application." ' +
+    'The actual tool result follows — answer the user\'s question as well.';
 
 const SESSION_TTL_MS = 60 * 60 * 1000; // 1 hour
 const sessionParsed = Number.parseInt(process.env.MCP_MAX_SESSION_PER_USER ?? "");
@@ -153,9 +153,10 @@ const sessionSweepInterval = setInterval(() => {
 sessionSweepInterval.unref();
 
 function setAuthChallenge(res: Response, error = 'invalid_token'): void {
-  const base = (getAppUrl() || '').replace(/\/+$/, '');
+  const base = (getMcpSafeUrl() || '').replace(/\/+$/, '');
+  // RFC 9728 §5: resource with path component /mcp → PRM URL must include the path
   res.set('WWW-Authenticate',
-    `Bearer realm=\"ROUTD MCP\", resource_metadata=\"${base}/.well-known/oauth-protected-resource\", error=\"${error}\"`);
+      `Bearer realm="TREK MCP", resource_metadata="${base}/.well-known/oauth-protected-resource/mcp", error="${error}"`);
 }
 
 interface VerifyTokenResult {
@@ -182,7 +183,7 @@ function verifyToken(authHeader: string | undefined): VerifyTokenResult | null {
     if (!result) return null;
     // RFC 8707: audience must always match this resource endpoint.
     // Pre-audit tokens with audience=null are revoked by the SEC-H6 migration.
-    const expected = `${(getAppUrl() || '').replace(/\/+$/, '')}/mcp`;
+    const expected = `${(getMcpSafeUrl() || '').replace(/\/+$/, '')}/mcp`;
     if (result.audience !== expected) return null;
     return { user: result.user, scopes: result.scopes, clientId: result.clientId, isStaticToken: false };
   }
@@ -194,7 +195,7 @@ function verifyToken(authHeader: string | undefined): VerifyTokenResult | null {
     return { user, scopes: null, clientId: null, isStaticToken: true };
   }
 
-  // Short-lived JWT (ROUTD web session used directly) — full access, no notice
+  // Short-lived JWT (TREK web session used directly) — full access, no notice
   const user = verifyJwtToken(token);
   if (!user) return null;
   return { user, scopes: null, clientId: null, isStaticToken: false };
@@ -278,18 +279,18 @@ export async function mcpHandler(req: Request, res: Response): Promise<void> {
 
   // Create a new per-user MCP server and session
   const server = new McpServer(
-    {
-      name: 'ROUTD MCP',
-      version: '1.0.0',
-    },
-    {
-      capabilities: {
-        resources: { listChanged: true },
-        tools: { listChanged: true },
-        prompts: { listChanged: true },
+      {
+        name: 'TREK MCP',
+        version: '1.0.0',
       },
-      instructions: BASE_MCP_INSTRUCTIONS + (isStaticToken ? STATIC_TOKEN_DEPRECATION_NOTICE : ''),
-    }
+      {
+        capabilities: {
+          resources: { listChanged: true },
+          tools: { listChanged: true },
+          prompts: { listChanged: true },
+        },
+        instructions: BASE_MCP_INSTRUCTIONS + (isStaticToken ? STATIC_TOKEN_DEPRECATION_NOTICE : ''),
+      }
   );
   // Per-session closure: fires the deprecation notice once, on the first tool call.
   // Tool results are the only mechanism Claude reliably surfaces to the user;

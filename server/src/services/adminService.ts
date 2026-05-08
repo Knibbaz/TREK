@@ -55,8 +55,8 @@ export const isDocker = (() => {
 
 export function listUsers() {
   const users = db.prepare(
-    'SELECT id, username, email, role, creator_auto_approved, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
-  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null; creator_auto_approved?: number })[];
+    'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
+  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null })[];
   let onlineUserIds = new Set<number>();
   try {
     const { getOnlineUserIds } = require('../websocket');
@@ -72,7 +72,7 @@ export function listUsers() {
   }));
 }
 
-export function createUser(data: { username: string; email: string; password: string; role?: string; must_change_password?: boolean }) {
+export function createUser(data: { username: string; email: string; password: string; role?: string }) {
   const username = data.username?.trim();
   const email = data.email?.trim();
   const password = data.password?.trim();
@@ -84,7 +84,7 @@ export function createUser(data: { username: string; email: string; password: st
   const pwCheck = validatePassword(password);
   if (!pwCheck.ok) return { error: pwCheck.reason, status: 400 };
 
-  if (data.role && !['user', 'admin', 'creator'].includes(data.role)) {
+  if (data.role && !['user', 'admin'].includes(data.role)) {
     return { error: 'Invalid role', status: 400 };
   }
 
@@ -95,11 +95,10 @@ export function createUser(data: { username: string; email: string; password: st
   if (existingEmail) return { error: 'Email already taken', status: 409 };
 
   const passwordHash = bcrypt.hashSync(password, 12);
-  const mustChange = data.must_change_password ? 1 : 0;
 
   const result = db.prepare(
-    'INSERT INTO users (username, email, password_hash, role, must_change_password) VALUES (?, ?, ?, ?, ?)'
-  ).run(username, email, passwordHash, data.role || 'user', mustChange);
+    'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)'
+  ).run(username, email, passwordHash, data.role || 'user');
 
   const user = db.prepare(
     'SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?'
@@ -112,13 +111,15 @@ export function createUser(data: { username: string; email: string; password: st
   };
 }
 
-export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string; creator_auto_approved?: boolean }) {
-  const { username, email, role, password, creator_auto_approved } = data;
+export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string }) {
+  const username = typeof data.username === 'string' ? data.username.trim() : data.username;
+  const email = typeof data.email === 'string' ? data.email.trim() : data.email;
+  const { role, password } = data;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
 
   if (!user) return { error: 'User not found', status: 404 };
 
-  if (role && !['user', 'admin', 'creator'].includes(role)) {
+  if (role && !['user', 'admin'].includes(role)) {
     return { error: 'Invalid role', status: 400 };
   }
 
@@ -143,16 +144,12 @@ export function updateUser(id: string, data: { username?: string; email?: string
       email = COALESCE(?, email),
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
-      creator_auto_approved = CASE WHEN ? IS NOT NULL THEN ? ELSE creator_auto_approved END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(username || null, email || null, role || null, passwordHash,
-    creator_auto_approved !== undefined ? 1 : null,
-    creator_auto_approved !== undefined ? (creator_auto_approved ? 1 : 0) : null,
-    id);
+  `).run(username || null, email || null, role || null, passwordHash, id);
 
   const updated = db.prepare(
-    'SELECT id, username, email, role, creator_auto_approved, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?'
   ).get(id);
 
   const changed: string[] = [];
@@ -160,7 +157,6 @@ export function updateUser(id: string, data: { username?: string; email?: string
   if (email) changed.push('email');
   if (role) changed.push('role');
   if (password) changed.push('password');
-  if (creator_auto_approved !== undefined) changed.push('creator_auto_approved');
 
   return {
     user: updated,
@@ -313,7 +309,7 @@ export async function getGithubReleases(perPage: string = '10', page: string = '
   try {
     const resp = await fetch(
       `https://api.github.com/repos/mauriceboe/TREK/releases?per_page=${perPage}&page=${page}`,
-      { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+      { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'TREK-Server' } }
     );
     if (!resp.ok) return [];
     const data = await resp.json();
@@ -354,7 +350,7 @@ export async function checkVersion(): Promise<VersionInfo> {
       // Fetch release list and find the newest prerelease
       const resp = await fetch(
         'https://api.github.com/repos/mauriceboe/TREK/releases?per_page=100',
-        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'TREK-Server' } }
       );
       if (!resp.ok) {
         return fallback;
@@ -373,7 +369,7 @@ export async function checkVersion(): Promise<VersionInfo> {
     } else {
       const resp = await fetch(
         'https://api.github.com/repos/mauriceboe/TREK/releases/latest',
-        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'TREK-Server' } }
       );
       if (!resp.ok) {
         return fallback;
@@ -778,62 +774,4 @@ export function rotateJwtSecret(): { error?: string; status?: number } {
   }
   updateJwtSecret(newSecret);
   return {};
-}
-
-// ── Unsplash API key (admin-managed) ──────────────────────────────────────
-
-export function getUnsplashApiKeyRaw(): string | null {
-  const envKey = process.env.UNSPLASH_API_KEY;
-  if (envKey) return envKey;
-  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined;
-  if (!row?.value) return null;
-  return decrypt_api_key(row.value) || null;
-}
-
-export function getUnsplashApiKey(): { configured: boolean } {
-  return { configured: !!getUnsplashApiKeyRaw() };
-}
-
-export function setUnsplashApiKey(key: string): { configured: boolean } {
-  const trimmed = key.trim();
-  if (trimmed) {
-    db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('unsplash_api_key', ?)").run(maybe_encrypt_api_key(trimmed));
-  } else {
-    db.prepare("DELETE FROM app_settings WHERE key = 'unsplash_api_key'").run();
-  }
-  return { configured: !!trimmed };
-}
-
-// ── Group welcome notice ───────────────────────────────────────────────────
-
-const DEFAULT_GROUP_WELCOME = {
-  title: 'Welcome to the group!',
-  body: "You're now a member. Start exploring shared trips and availability together.",
-  icon: 'Users',
-};
-
-export function getGroupWelcomeNotice(): { title: string; body: string; icon: string } {
-  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'group_welcome_notice'").get() as { value: string } | undefined;
-  if (!row?.value) return { ...DEFAULT_GROUP_WELCOME };
-  try {
-    const stored = JSON.parse(row.value) as Partial<typeof DEFAULT_GROUP_WELCOME>;
-    return {
-      title: stored.title ?? DEFAULT_GROUP_WELCOME.title,
-      body:  stored.body  ?? DEFAULT_GROUP_WELCOME.body,
-      icon:  stored.icon  ?? DEFAULT_GROUP_WELCOME.icon,
-    };
-  } catch {
-    return { ...DEFAULT_GROUP_WELCOME };
-  }
-}
-
-export function setGroupWelcomeNotice(data: { title?: string; body?: string; icon?: string }): { title: string; body: string; icon: string } {
-  const current = getGroupWelcomeNotice();
-  const updated = {
-    title: (data.title ?? current.title).trim() || current.title,
-    body:  (data.body  ?? current.body ).trim() || current.body,
-    icon:  (data.icon  ?? current.icon ).trim() || current.icon,
-  };
-  db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('group_welcome_notice', ?)").run(JSON.stringify(updated));
-  return updated;
 }

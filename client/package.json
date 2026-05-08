@@ -1,11 +1,10 @@
 {
-  "name": "roam-client",
-  "version": "0.0.1",
+  "name": "trek-client",
+  "version": "3.0.17",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "dev:host": "vite --host",
     "prebuild": "node scripts/generate-icons.mjs",
     "build": "vite build",
     "preview": "vite preview",
@@ -26,7 +25,6 @@
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.4.1",
-    "react-hot-toast": "^2.6.0",
     "react-leaflet": "^4.2.1",
     "react-leaflet-cluster": "^2.1.0",
     "react-markdown": "^10.1.0",

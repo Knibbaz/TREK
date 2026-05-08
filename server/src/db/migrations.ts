@@ -1,6 +1,74 @@
 import Database from 'better-sqlite3';
 import { encrypt_api_key } from '../services/apiKeyCrypto';
 
+/** Returns true if any collision was encountered (renamed row). */
+export function trimUserWhitespace(db: Database.Database): boolean {
+  type DirtyRow = { id: number; username?: string; email?: string };
+  let hadCollision = false;
+
+  const dirtyUsernames = db.prepare(
+    `SELECT id, username FROM users WHERE username != TRIM(username)`
+  ).all() as DirtyRow[];
+
+  for (const row of dirtyUsernames) {
+    const trimmed = row.username!.trim();
+    const collision = db.prepare(
+      `SELECT id FROM users WHERE LOWER(username) = LOWER(?) AND id != ?`
+    ).get(trimmed, row.id) as { id: number } | undefined;
+
+    const final = collision ? `${trimmed}__migrated_${row.id}` : trimmed;
+    if (collision) {
+      hadCollision = true;
+      console.warn(
+        `[migration] WHITESPACE COLLISION username: user id=${row.id} ` +
+        `original=${JSON.stringify(row.username)} trimmed="${trimmed}" ` +
+        `collides with user id=${collision.id}. Renamed to "${final}". ` +
+        `Manual review required.`
+      );
+    } else {
+      console.warn(
+        `[migration] Trimmed username for user id=${row.id}: ` +
+        `${JSON.stringify(row.username)} → "${final}"`
+      );
+    }
+    db.prepare(`UPDATE users SET username = ? WHERE id = ?`).run(final, row.id);
+  }
+
+  const dirtyEmails = db.prepare(
+    `SELECT id, email FROM users WHERE email != TRIM(email)`
+  ).all() as DirtyRow[];
+
+  for (const row of dirtyEmails) {
+    const trimmed = row.email!.trim();
+    const collision = db.prepare(
+      `SELECT id FROM users WHERE LOWER(email) = LOWER(?) AND id != ?`
+    ).get(trimmed, row.id) as { id: number } | undefined;
+
+    let final = trimmed;
+    if (collision) {
+      hadCollision = true;
+      const at = trimmed.lastIndexOf('@');
+      final = at > 0
+        ? `${trimmed.slice(0, at)}__migrated_${row.id}${trimmed.slice(at)}`
+        : `${trimmed}__migrated_${row.id}`;
+      console.warn(
+        `[migration] WHITESPACE COLLISION email: user id=${row.id} ` +
+        `original=${JSON.stringify(row.email)} trimmed="${trimmed}" ` +
+        `collides with user id=${collision.id}. Renamed to "${final}". ` +
+        `User cannot sign in with this email until manually corrected.`
+      );
+    } else {
+      console.warn(
+        `[migration] Trimmed email for user id=${row.id}: ` +
+        `${JSON.stringify(row.email)} → "${final}"`
+      );
+    }
+    db.prepare(`UPDATE users SET email = ? WHERE id = ?`).run(final, row.id);
+  }
+
+  return hadCollision;
+}
+
 function runMigrations(db: Database.Database): void {
   db.exec('CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL)');
   const versionRow = db.prepare('SELECT version FROM schema_version').get() as { version: number } | undefined;
@@ -2614,6 +2682,26 @@ function runMigrations(db: Database.Database): void {
       if (result.changes > 0) {
         console.log(`[migrations] Fixed ${result.changes} inverted day_accommodation pairs`);
       }
+    },
+    // prepare migration to nest + typeorm
+    () => {
+      db.exec(`CREATE TABLE IF NOT EXISTS migrations (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, timestamp bigint NOT NULL, name varchar NOT NULL);`);
+      db.exec(`INSERT INTO migrations (timestamp, name) VALUES (1777810195344, 'InitialSchema1777810195344');`);
+      db.exec(`INSERT INTO app_settings (key, value) VALUES ('app_version', '${process.env.APP_VERSION || '3.0.14'}')`);
+    },
+    // trim leading/trailing whitespace from stored usernames and emails
+    () => {
+      const hadCollision = trimUserWhitespace(db);
+      if (hadCollision) {
+        db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('whitespace_migration_collision', 'true')").run();
+      }
+    },
+    () => {
+      db.exec(`CREATE TABLE IF NOT EXISTS schema_version_new (id INTEGER PRIMARY KEY AUTOINCREMENT,version INTEGER NOT NULL)`)
+      db.exec(`INSERT INTO schema_version_new (version) SELECT version FROM schema_version`)
+      db.exec(`DROP TABLE schema_version`)
+      db.exec(`ALTER TABLE schema_version_new RENAME TO schema_version`)
+      db.exec(`UPDATE app_settings SET value = '${process.env.APP_VERSION || '3.0.15'}' WHERE key = 'app_version'`);
     },
   ];
 

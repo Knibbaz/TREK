@@ -1,4 +1,11 @@
 import type { SystemNotice } from './types.js';
+import { registerPredicate } from './conditions.js';
+import { db } from '../db/database.js';
+
+registerPredicate('whitespace-collision-detected', () => {
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'whitespace_migration_collision'").get() as { value: string } | undefined;
+  return row?.value === 'true';
+});
 
 /**
  * SYSTEM NOTICE REGISTRY
@@ -124,24 +131,24 @@ export const SYSTEM_NOTICES: SystemNotice[] = [
     maxVersion: '4.0.0',
   },
 
-  // ── Group join welcome ─────────────────────────────────────────────────────
+  // ── 3.0.14 admin notice — whitespace migration collision ───────────────────
 
   {
-    id: 'group-welcome-v1',
-    display: 'modal',
-    severity: 'info',
-    icon: 'Users',
-    // titleKey and bodyKey are overridden at runtime with admin-editable content from app_settings.
-    // These values serve as fallbacks when no custom content has been saved.
-    titleKey: 'system_notice.group_welcome.title',
-    bodyKey:  'system_notice.group_welcome.body',
+    id: 'v3014-whitespace-collision',
+    display: 'banner',
+    severity: 'warn',
+    icon: 'AlertTriangle',
+    titleKey: 'system_notice.v3014_whitespace_collision.title',
+    bodyKey:  'system_notice.v3014_whitespace_collision.body',
     dismissible: true,
     conditions: [
-      { kind: 'addonEnabled', addonId: 'collab' },
-      { kind: 'justJoinedGroup' },
+      { kind: 'existingUserBeforeVersion', version: '3.0.14' },
+      { kind: 'role', roles: ['admin'] },
+      { kind: 'custom', id: 'whitespace-collision-detected' },
     ],
-    publishedAt: '2026-04-25T00:00:00Z',
-    priority: 50,
+    publishedAt: '2026-05-03T00:00:00Z',
+    priority: 85,
+    minVersion: '3.0.14',
   },
 
   // ── Onboarding ─────────────────────────────────────────────────────────────

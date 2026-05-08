@@ -47,13 +47,42 @@ function getSmtpConfig(): SmtpConfig | null {
 
 // Exported for use by notificationService
 export function getAppUrl(): string {
-  if (process.env.APP_URL) return process.env.APP_URL;
+  if (process.env.APP_URL) {
+    try {
+      const _ = new URL(process.env.APP_URL);
+      return process.env.APP_URL.replace(/\/+$/, '');
+    } catch (_ignored) {
+    }
+  }
   const origins = process.env.ALLOWED_ORIGINS;
   if (origins) {
     const first = origins.split(',')[0]?.trim();
-    if (first) return first.replace(/\/+$/, '');
+    if (first) {
+      try {
+        const _ = new URL(first);
+        return first.replace(/\/+$/, '');
+      } catch (_ignored) {
+      }
+    }
   }
-  const port = process.env.PORT || '3000';
+  const port = Number(process.env.PORT) || 3001;
+  return `http://localhost:${port}`;
+}
+
+/** Returns a URL guaranteed to satisfy the MCP SDK's issuer requirements (HTTPS or localhost).
+ *  Falls back to http://localhost:{PORT} when APP_URL/ALLOWED_ORIGINS use a non-HTTPS, non-localhost scheme
+ *  that would cause checkIssuerUrl to throw "Issuer URL must be HTTPS". */
+export function getMcpSafeUrl(): string {
+  const candidate = getAppUrl();
+  try {
+    const u = new URL(candidate);
+    if (u.protocol === 'https:' || u.hostname === 'localhost' || u.hostname === '127.0.0.1') {
+      return candidate;
+    }
+  } catch {
+    // candidate was somehow invalid — fall through to localhost
+  }
+  const port = Number(process.env.PORT) || 3001;
   return `http://localhost:${port}`;
 }
 
@@ -714,6 +743,15 @@ export function isNtfyConfiguredAdmin(): boolean {
   return !!(getAppSetting('admin_ntfy_topic'));
 }
 
+function encodeHeaderValue(value: string): string {
+  for (let i = 0; i < value.length; i++) {
+    if (value.charCodeAt(i) > 0xFF) {
+      return `=?UTF-8?B?${Buffer.from(value, 'utf8').toString('base64')}?=`;
+    }
+  }
+  return value;
+}
+
 export async function sendNtfy(
   url: string,
   token: string | null,
@@ -731,11 +769,11 @@ export async function sendNtfy(
 
   // ntfy header-based API: POST to topic URL, body = plain text message, metadata in headers
   const headers: Record<string, string> = {
-    'Title': payload.title,
+    'Title': encodeHeaderValue(payload.title),
     'Priority': String(meta.priority),
   };
   if (meta.tags.length > 0) headers['Tags'] = meta.tags.join(',');
-  if (payload.link) headers['Click'] = payload.link;
+  if (payload.link) headers['Click'] = encodeHeaderValue(payload.link);
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   try {
