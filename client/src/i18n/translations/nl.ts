@@ -2774,6 +2774,7 @@ const nl: Record<string, string> = {
   'explore.mollieTransactionCost': 'Transactiekosten',
   'explore.pricingNet': 'Netto voor jou',
   'explore.costsVia': 'Kosten via',
+  'explore.perPaymentMethod': 'Per betaalmethode',
   'explore.submitNote': 'Je listing wordt ter beoordeling ingediend. Admins reviewen binnen 48 uur.',
 
   // Creator profiel

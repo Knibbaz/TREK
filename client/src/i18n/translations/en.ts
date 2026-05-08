@@ -2891,6 +2891,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.mollieTransactionCost': 'Transaction cost',
   'explore.pricingNet': 'Net for you',
   'explore.costsVia': 'Costs via',
+  'explore.perPaymentMethod': 'Per payment method',
   'explore.submitNote': 'Your listing will be submitted for review. Admins review within 48 hours.',
   'explore.ownTrip': 'This is your trip',
 

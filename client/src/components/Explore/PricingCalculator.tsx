@@ -71,7 +71,7 @@ export function PricingCalculator({ priceCents, commissionPct, mollieMethods }: 
             onClick={() => setShowBreakdown(!showBreakdown)}
             className="w-full flex items-center justify-between text-xs font-medium text-gray-700 hover:text-gray-900"
           >
-            <span>Per betaalmethode</span>
+            <span>{t('explore.perPaymentMethod')}</span>
             {showBreakdown ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
           </button>
 
