@@ -1146,7 +1146,7 @@ export default function ExplorePage(): React.ReactElement {
 
           {/* Filter pills */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {(['all', 'curated', 'community'] as const).map(f => (
+            {(['all', 'curated'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => { setExploreFilter(f); setPage(1) }}
