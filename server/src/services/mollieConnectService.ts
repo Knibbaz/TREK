@@ -30,7 +30,7 @@ export async function createPlatformPayment(
   // Dev mode: return mock payment instead of calling Mollie
   if (isDevMode) {
     console.warn('[Mollie] Dev mode: returning mock payment (webhook URL unreachable from localhost)');
-    return {
+    const mockPayment = {
       id: `tr_DEV_${Date.now()}`,
       mode: 'test',
       createdAt: new Date(),
@@ -49,7 +49,9 @@ export async function createPlatformPayment(
       links: {
         checkout: { href: redirectUrl },
       },
+      getCheckoutUrl: () => redirectUrl,
     } as any as Payment;
+    return mockPayment;
   }
 
   const payment = await getMollieClient().payments.create({
@@ -72,7 +74,7 @@ export async function getPaymentFromMollie(molliePaymentId: string): Promise<Pay
   // Dev mode: return mock paid payment
   if (isDevMode) {
     console.warn('[Mollie] Dev mode: returning mock paid payment for', molliePaymentId);
-    return {
+    const mockPayment = {
       id: molliePaymentId,
       mode: 'test',
       createdAt: new Date(),
@@ -85,7 +87,9 @@ export async function getPaymentFromMollie(molliePaymentId: string): Promise<Pay
       redirectUrl: APP_URL,
       webhookUrl: `${APP_URL}/webhooks/mollie`,
       metadata: {},
+      getCheckoutUrl: () => APP_URL,
     } as any as Payment;
+    return mockPayment;
   }
 
   return await getMollieClient().payments.get(molliePaymentId);
