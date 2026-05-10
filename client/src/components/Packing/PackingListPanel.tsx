@@ -7,7 +7,7 @@ import { packingApi, tripsApi, adminApi } from '../../api/client'
 import ReactDOM from 'react-dom'
 import {
   CheckSquare, Square, Trash2, Plus, ChevronDown, ChevronRight,
-  X, Pencil, Check, MoreHorizontal, CheckCheck, RotateCcw, Luggage, UserPlus, Package, FolderPlus, Upload,
+  X, Pencil, Check, MoreHorizontal, CheckCheck, RotateCcw, Luggage, UserPlus, Package, FolderPlus, Upload, Download,
 } from 'lucide-react'
 import type { PackingItem } from '../../types'
 
@@ -1041,6 +1041,21 @@ export default function PackingListPanel({ tripId, items, openImportSignal = 0, 
     reader.readAsText(file)
   }
 
+  const handleExport = () => {
+    const csv = items.map(item => {
+      const parts = [item.category || '', item.name, item.weight_grams || '', item.bag || '', item.checked ? 'checked' : 'unchecked']
+      return parts.join(',')
+    }).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `packing-list-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(t('packing.exportSuccess'))
+  }
+
   const font = { fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" }
 
   return (
@@ -1081,6 +1096,15 @@ export default function PackingListPanel({ tripId, items, openImportSignal = 0, 
                 fontFamily: 'inherit', background: 'var(--bg-card)', color: 'var(--text-muted)',
               }}>
                 <Upload size={12} /> <span className="hidden sm:inline">{t('packing.import')}</span>
+              </button>
+            )}
+            {inlineHeader && items.length > 0 && (
+              <button onClick={handleExport} style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 99,
+                border: '1px solid var(--border-primary)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                fontFamily: 'inherit', background: 'var(--bg-card)', color: 'var(--text-muted)',
+              }}>
+                <Download size={12} /> <span className="hidden sm:inline">{t('packing.export')}</span>
               </button>
             )}
             {inlineHeader && canEdit && abgehakt > 0 && (

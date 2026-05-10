@@ -2002,6 +2002,8 @@ const nl: Record<string, string> = {
   'todo.detail.priority': 'Prioriteit',
   'todo.detail.noPriority': 'Geen',
   'todo.sortByPrio': 'Prioriteit',
+  'todo.export': 'Exporteren',
+  'todo.exportSuccess': 'Lijst geëxporteerd',
 
   // Notification system (added from feat/notification-system)
   'settings.notifyVersionAvailable': 'Nieuwe versie beschikbaar',

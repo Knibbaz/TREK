@@ -1492,6 +1492,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'packing.importSuccess': '{count} items imported',
   'packing.importError': 'Import failed',
   'packing.importEmpty': 'No items to import',
+  'packing.export': 'Export',
+  'packing.exportSuccess': 'List exported',
   'packing.progress': '{packed} of {total} packed ({percent}%)',
   'packing.clearChecked': 'Remove {count} checked',
   'packing.clearCheckedShort': 'Remove {count}',
@@ -2091,6 +2093,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'todo.detail.priority': 'Priority',
   'todo.detail.noPriority': 'None',
   'todo.detail.create': 'Create task',
+  'todo.export': 'Export',
+  'todo.exportSuccess': 'List exported',
 
   // Notifications — dev test events
   'notif.test.title': '[Test] Notification',
