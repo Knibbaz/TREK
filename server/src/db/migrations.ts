@@ -2819,56 +2819,68 @@ function runMigrations(db: Database.Database): void {
     },
     // Migration 157: explore_fork_deltas for tracking changes in forked trips
     () => {
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS explore_fork_deltas (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-          forked_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-          source_version INTEGER NOT NULL,
-          forked_version INTEGER NOT NULL,
-          delta_type TEXT NOT NULL CHECK(delta_type IN ('day_added', 'day_modified', 'day_deleted', 'place_added', 'place_modified', 'place_deleted', 'metadata_changed')),
-          resource_id INTEGER,
-          resource_type TEXT,
-          changes TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(source_trip_id, forked_trip_id, source_version, forked_version, delta_type, resource_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_explore_deltas_source ON explore_fork_deltas(source_trip_id);
-        CREATE INDEX IF NOT EXISTS idx_explore_deltas_forked ON explore_fork_deltas(forked_trip_id);
-        CREATE INDEX IF NOT EXISTS idx_explore_deltas_versions ON explore_fork_deltas(source_version, forked_version);
-      `);
-      console.log('[migrations] Created explore_fork_deltas table');
+      try {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS explore_fork_deltas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            forked_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            source_version INTEGER NOT NULL,
+            forked_version INTEGER NOT NULL,
+            delta_type TEXT NOT NULL CHECK(delta_type IN ('day_added', 'day_modified', 'day_deleted', 'place_added', 'place_modified', 'place_deleted', 'metadata_changed')),
+            resource_id INTEGER,
+            resource_type TEXT,
+            changes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(source_trip_id, forked_trip_id, source_version, forked_version, delta_type, resource_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_explore_deltas_source ON explore_fork_deltas(source_trip_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_deltas_forked ON explore_fork_deltas(forked_trip_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_deltas_versions ON explore_fork_deltas(source_version, forked_version);
+        `);
+        console.log('[migrations] Created explore_fork_deltas table');
+      } catch (err: any) {
+        if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
+          console.warn('[migrations] Warning: explore_fork_deltas creation failed:', err.message);
+        }
+      }
     },
     // Migration 158: explore_reviews and explore_review_helpful tables
     () => {
-      db.exec(`
-        CREATE TABLE IF NOT EXISTS explore_reviews (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
-          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
-          title TEXT,
-          content TEXT NOT NULL,
-          helpful_count INTEGER DEFAULT 0,
-          unhelpful_count INTEGER DEFAULT 0,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(source_trip_id, user_id)
-        );
-        CREATE TABLE IF NOT EXISTS explore_review_helpful (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          review_id INTEGER NOT NULL REFERENCES explore_reviews(id) ON DELETE CASCADE,
-          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-          is_helpful INTEGER NOT NULL DEFAULT 1,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(review_id, user_id)
-        );
-        CREATE INDEX IF NOT EXISTS idx_explore_reviews_trip ON explore_reviews(source_trip_id);
-        CREATE INDEX IF NOT EXISTS idx_explore_reviews_user ON explore_reviews(user_id);
-        CREATE INDEX IF NOT EXISTS idx_explore_reviews_rating ON explore_reviews(rating DESC);
-        CREATE INDEX IF NOT EXISTS idx_explore_review_helpful_review ON explore_review_helpful(review_id);
-      `);
-      console.log('[migrations] Created explore_reviews and explore_review_helpful tables');
+      try {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS explore_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+            title TEXT,
+            content TEXT NOT NULL,
+            helpful_count INTEGER DEFAULT 0,
+            unhelpful_count INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(source_trip_id, user_id)
+          );
+          CREATE TABLE IF NOT EXISTS explore_review_helpful (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            review_id INTEGER NOT NULL REFERENCES explore_reviews(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            is_helpful INTEGER NOT NULL DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(review_id, user_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_explore_reviews_trip ON explore_reviews(source_trip_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_reviews_user ON explore_reviews(user_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_reviews_rating ON explore_reviews(rating DESC);
+          CREATE INDEX IF NOT EXISTS idx_explore_review_helpful_review ON explore_review_helpful(review_id);
+        `);
+        console.log('[migrations] Created explore_reviews and explore_review_helpful tables');
+      } catch (err: any) {
+        if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
+          console.warn('[migrations] Warning: explore_reviews creation failed:', err.message);
+        }
+      }
     },
 
     // Migration 159: Add changelog column to explore_listing_versions
