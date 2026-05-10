@@ -212,13 +212,20 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const { isEnabled: isAddonEnabled } = useAddonStore()
   const exploreEnabled = isAddonEnabled('explore')
   const user = useAuthStore(s => s.user)
-  const isOwner = trip ? trip.owner_id === user?.id : false
+  const isOwner = trip ? trip.user_id === user?.id : false
   const isCreatorOrAdmin = user?.role === 'admin' || user?.role === 'creator'
   const canPublish = exploreEnabled && isOwner && isCreatorOrAdmin
 
   const [pubStatus, setPubStatus] = useState<{ is_published: boolean; status?: string; version?: number } | null>(null)
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const [initialState, setInitialState] = useState<{ days: Day[]; places: Place[] } | null>(null)
+
+  // Detect if trip has unsaved changes (to itinerary or places)
+  const hasChanges = initialState ? (
+    JSON.stringify(days) !== JSON.stringify(initialState.days) ||
+    JSON.stringify(places) !== JSON.stringify(initialState.places)
+  ) : false
 
   const loadAccommodations = useCallback(() => {
     if (tripId) {
@@ -242,10 +249,11 @@ export default function TripPlannerPage(): React.ReactElement | null {
   // Fetch publication status for navbar
   useEffect(() => {
     if (!tripId || !canPublish) return
+
     exploreApi.getPublicationStatus(Number(tripId))
       .then(data => setPubStatus(data))
       .catch(() => {})
-  }, [tripId, canPublish])
+  }, [tripId, canPublish, trip?.user_id, user?.id, user?.role, exploreEnabled])
 
   const TRANSPORT_TYPES = new Set(['flight', 'train', 'car', 'cruise', 'bus'])
 
@@ -350,6 +358,13 @@ export default function TripPlannerPage(): React.ReactElement | null {
       }
     }
   }, [isLoading, places])
+
+  // Set initial state for change detection when trip first loads
+  useEffect(() => {
+    if (!isLoading && days.length > 0 && places.length > 0 && !initialState) {
+      setInitialState({ days: JSON.parse(JSON.stringify(days)), places: JSON.parse(JSON.stringify(places)) })
+    }
+  }, [isLoading, days, places, initialState])
 
   // Load trip + files (needed for place inspector file section)
   useEffect(() => {
@@ -833,7 +848,9 @@ export default function TripPlannerPage(): React.ReactElement | null {
 
   // Derived navbar props for publish
   const isPublished = !!pubStatus?.is_published
-  const handleNavPublish = canPublish
+  const shouldShowPublishBtn = canPublish && !isPublished
+  const shouldShowUpdateBtn = canPublish && isPublished && hasChanges
+  const handleNavPublish = shouldShowPublishBtn || shouldShowUpdateBtn
     ? () => isPublished ? setShowUpdateModal(true) : setShowPublishModal(true)
     : undefined
   const publishLabel = isPublished

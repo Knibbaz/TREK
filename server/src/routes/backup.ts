@@ -104,7 +104,9 @@ router.post('/restore/:filename', async (req: Request, res: Response) => {
     });
     res.json({ success: true });
   } catch (err: unknown) {
-    if (!res.headersSent) res.status(500).json({ error: 'Error restoring backup' });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[backup] restore error:', errMsg);
+    if (!res.headersSent) res.status(500).json({ error: 'Error restoring backup', detail: errMsg });
   }
 });
 
@@ -136,7 +138,11 @@ router.post('/upload-restore', uploadTmp.single('backup'), async (req: Request, 
     });
     res.json({ success: true });
   } catch (err: unknown) {
-    if (!res.headersSent) res.status(500).json({ error: 'Error restoring backup' });
+    const errMsg = err instanceof Error ? err.message : String(err);
+    console.error('[backup] upload-restore error:', errMsg);
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error restoring backup', detail: errMsg });
+    }
   } finally {
     if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
   }
