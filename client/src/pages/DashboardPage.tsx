@@ -15,12 +15,13 @@ import TripFormModal from '../components/Trips/TripFormModal'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
 import CopyTripDialog from '../components/shared/CopyTripDialog'
 import { PublishModal } from '../components/Explore/PublishModal'
+import { PublishUpdateModal } from '../components/Explore/PublishUpdateModal'
 import { useToast } from '../components/shared/Toast'
 import { useCountUp } from '../hooks/useCountUp'
 import {
   Plus, Calendar, Trash2, Edit2, Map, ChevronDown, ChevronUp,
   Archive, ArchiveRestore, Clock, MapPin, Settings, X, ArrowRightLeft, Users,
-  LayoutGrid, List, Copy, Bell, CheckCircle2, Compass,
+  LayoutGrid, List, Copy, Bell, CheckCircle2, Compass, Upload,
 } from 'lucide-react'
 import { useCanDo } from '../store/permissionsStore'
 import { useAddonStore } from '../store/addonStore'
@@ -156,6 +157,7 @@ interface TripCardProps {
   onDelete?: (trip: DashboardTrip) => void
   onArchive?: (id: number) => void
   onPublish?: (trip: DashboardTrip) => void
+  onPushUpdate?: (trip: DashboardTrip) => void
   onClick: (trip: DashboardTrip) => void
   t: (key: string, params?: Record<string, string | number | null>) => string
   locale: string
@@ -185,7 +187,7 @@ function SpotlightStats({ trip, totalDays, t }: { trip: DashboardTrip; totalDays
   )
 }
 
-function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale, dark }: TripCardProps): React.ReactElement {
+function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onClick, t, locale, dark }: TripCardProps): React.ReactElement {
   const status = getTripStatus(trip)
   const days = useCountUp(trip.day_count || 0)
   const places = useCountUp(trip.place_count || 0)
@@ -238,12 +240,13 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
         </div>
 
         {/* Top-right actions */}
-        {(onEdit || onCopy || onArchive || onDelete || onPublish) && (
+        {(onEdit || onCopy || onArchive || onDelete || onPublish || onPushUpdate) && (
         <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 6 }}
           onClick={e => e.stopPropagation()}>
           {onEdit && <IconBtn onClick={() => onEdit(trip)} title={t('common.edit')}><Edit2 size={14} /></IconBtn>}
           {onCopy && <IconBtn onClick={() => onCopy(trip)} title={t('dashboard.copyTrip')}><Copy size={14} /></IconBtn>}
           {onPublish && <IconBtn onClick={() => onPublish(trip)} title={t('dashboard.publishExplore')}><Compass size={14} /></IconBtn>}
+          {onPushUpdate && trip.is_published && <IconBtn onClick={() => onPushUpdate(trip)} title={t('explore.publishUpdate')}><Upload size={14} /></IconBtn>}
           {onArchive && <IconBtn onClick={() => onArchive(trip.id)} title={t('dashboard.archive')}><Archive size={14} /></IconBtn>}
           {onDelete && <IconBtn onClick={() => onDelete(trip)} title={t('common.delete')} danger><Trash2 size={14} /></IconBtn>}
         </div>
@@ -287,7 +290,7 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
 }
 
 // ── Regular Trip Card ────────────────────────────────────────────────────────
-function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
+function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
   const status = getTripStatus(trip)
   const isLive = status === 'ongoing'
   const today = new Date().toISOString().split('T')[0]
@@ -356,6 +359,7 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
             {onEdit && <button title={t('common.edit')} onClick={() => onEdit(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Edit2 size={14} /></button>}
             {onCopy && <button title={t('dashboard.copyTrip')} onClick={() => onCopy(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Copy size={14} /></button>}
             {onPublish && <button title={t('dashboard.publishExplore')} onClick={() => onPublish(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Compass size={14} /></button>}
+            {onPushUpdate && trip.is_published && <button title={t('explore.publishUpdate')} onClick={() => onPushUpdate(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Upload size={14} /></button>}
             {onArchive && <button title={t('dashboard.archive')} onClick={() => onArchive(trip.id)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Archive size={14} /></button>}
             {onDelete && <button title={t('common.delete')} onClick={() => onDelete(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-red-300 hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>}
           </div>
@@ -405,7 +409,7 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
 }
 
 // ── List View Item ──────────────────────────────────────────────────────────
-function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
+function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
   const status = getTripStatus(trip)
   const [hovered, setHovered] = useState(false)
 
@@ -507,11 +511,12 @@ function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, on
       </div>
 
       {/* Actions */}
-      {(onEdit || onCopy || onArchive || onDelete || onPublish) && (
+      {(onEdit || onCopy || onArchive || onDelete || onPublish || onPushUpdate) && (
       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
         {onEdit && <CardAction onClick={() => onEdit(trip)} icon={<Edit2 size={12} />} label="" />}
         {onCopy && <CardAction onClick={() => onCopy(trip)} icon={<Copy size={12} />} label="" />}
         {onPublish && <CardAction onClick={() => onPublish(trip)} icon={<Compass size={12} />} label="" />}
+        {onPushUpdate && trip.is_published && <CardAction onClick={() => onPushUpdate(trip)} icon={<Upload size={12} />} label="" />}
         {onArchive && <CardAction onClick={() => onArchive(trip.id)} icon={<Archive size={12} />} label="" />}
         {onDelete && <CardAction onClick={() => onDelete(trip)} icon={<Trash2 size={12} />} label="" danger />}
       </div>
@@ -783,9 +788,15 @@ export default function DashboardPage(): React.ReactElement {
 
   const [publishingTrip, setPublishingTrip] = useState<DashboardTrip | null>(null)
   const [showPublishModal, setShowPublishModal] = useState(false)
+  const [updateTrip, setUpdateTrip] = useState<DashboardTrip | null>(null)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
   const openPublishModal = (trip: DashboardTrip) => {
     setPublishingTrip(trip)
     setShowPublishModal(true)
+  }
+  const openUpdateModal = (trip: DashboardTrip) => {
+    setUpdateTrip(trip)
+    setShowUpdateModal(true)
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -846,6 +857,8 @@ export default function DashboardPage(): React.ReactElement {
                 onCopy={can('trip_create') ? handleCopy : undefined}
                 onDelete={can('trip_delete', spotlight) ? handleDelete : undefined}
                 onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
+                onPublish={exploreEnabled && spotlight.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
+                onPushUpdate={exploreEnabled && spotlight.is_owner && spotlight.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
                 onClick={tr => navigate(`/trips/${tr.id}`)}
               />
             </div>
@@ -1060,6 +1073,7 @@ export default function DashboardPage(): React.ReactElement {
               onDelete={can('trip_delete', spotlight) ? handleDelete : undefined}
               onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
               onPublish={exploreEnabled && spotlight.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
+              onPushUpdate={exploreEnabled && spotlight.is_owner && spotlight.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
               onClick={tr => navigate(`/trips/${tr.id}`)}
             />
             </div>
@@ -1079,6 +1093,7 @@ export default function DashboardPage(): React.ReactElement {
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
                     onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
+                    onPushUpdate={exploreEnabled && trip.is_owner && trip.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1095,6 +1110,7 @@ export default function DashboardPage(): React.ReactElement {
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
                     onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
+                    onPushUpdate={exploreEnabled && trip.is_owner && trip.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1205,6 +1221,20 @@ export default function DashboardPage(): React.ReactElement {
           loadTrips()
           setShowPublishModal(false)
           setPublishingTrip(null)
+        }}
+      />
+
+      <PublishUpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => {
+          setShowUpdateModal(false)
+          setUpdateTrip(null)
+        }}
+        trip={updateTrip}
+        onUpdatePublished={() => {
+          loadTrips()
+          setShowUpdateModal(false)
+          setUpdateTrip(null)
         }}
       />
 
