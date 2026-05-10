@@ -410,10 +410,11 @@ export default function PlaceInspector({
   }, [onFileUpload, place.id])
 
   // Check if there's any content to display
-  const hasContent = googleDetails?.rating || placePrice > 0 || 
-    place.phone || googleDetails?.phone || 
-    place.description || googleDetails?.summary || 
-    place.notes || 
+  const hasPhoneContent = place.phone !== null && place.phone !== undefined ? place.phone : googleDetails?.phone
+  const hasContent = googleDetails?.rating || placePrice > 0 ||
+    hasPhoneContent ||
+    place.description || googleDetails?.summary ||
+    place.notes ||
     openingHours?.length > 0 || place.route_geometry ||
     (selectedAssignmentId && (reservations.find(r => r.assignment_id === selectedAssignmentId) || tripMembers.length > 1))
 
@@ -603,11 +604,11 @@ export default function PlaceInspector({
             )}
 
           {/* Telefon */}
-          {(place.phone || googleDetails?.phone) && (
+          {(place.phone !== null && place.phone !== undefined ? place.phone : googleDetails?.phone) && (
             <div style={{ display: 'flex', gap: 12 }}>
-              <a href={`tel:${place.phone || googleDetails.phone}`}
+              <a href={`tel:${place.phone !== null && place.phone !== undefined ? place.phone : googleDetails.phone}`}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', textDecoration: 'none' }}>
-                <Phone size={12} /> {place.phone || googleDetails.phone}
+                <Phone size={12} /> {place.phone !== null && place.phone !== undefined ? place.phone : googleDetails.phone}
               </a>
             </div>
           )}
