@@ -1213,6 +1213,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'places.formPriceTypePerDay': 'Per day',
   'places.formCurrency': 'Currency',
   'places.formWebsite': 'Website',
+  'places.formPhone': 'Phone',
+  'places.formPhonePlaceholder': 'e.g., +1 (555) 123-4567',
   'places.formNotes': 'Notes',
   'places.formNotesPlaceholder': 'Personal notes...',
   'places.formReservation': 'Reservation',

@@ -1131,6 +1131,8 @@ const nl: Record<string, string> = {
   'places.formPriceTypePerDay': 'Per dag',
   'places.formCurrency': 'Valuta',
   'places.formWebsite': 'Website',
+  'places.formPhone': 'Telefoonnummer',
+  'places.formPhonePlaceholder': 'bijv. +31 (0)6 12345678',
   'places.formNotes': 'Notities',
   'places.formNotesPlaceholder': 'Persoonlijke notities...',
   'places.formReservation': 'Reservering',
