@@ -2894,6 +2894,82 @@ function runMigrations(db: Database.Database): void {
       try { db.exec('ALTER TABLE explore_published ADD COLUMN snapshot_data TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       console.log('[migrations] Added snapshot_data column to explore_published');
     },
+
+    // Migration 161: backup_history table for granular backup tracking
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS backup_history (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          type            TEXT NOT NULL,
+          initiated_by    TEXT REFERENCES users(id),
+          scope           TEXT NOT NULL,
+          filters         TEXT,
+          status          TEXT NOT NULL DEFAULT 'pending',
+          file_path       TEXT,
+          file_size_bytes INTEGER,
+          checksum        TEXT,
+          stats           TEXT,
+          error_message   TEXT,
+          expires_at      TEXT,
+          started_at      TEXT,
+          completed_at    TEXT,
+          created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_backup_type ON backup_history(type);
+        CREATE INDEX IF NOT EXISTS idx_backup_status ON backup_history(status);
+        CREATE INDEX IF NOT EXISTS idx_backup_user ON backup_history(initiated_by);
+        CREATE INDEX IF NOT EXISTS idx_backup_expires ON backup_history(expires_at);
+      `);
+      console.log('[migrations] Created backup_history table');
+    },
+
+    // Migration 162: backup_schedules table for selective scheduled backups
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS backup_schedules (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          name            TEXT NOT NULL,
+          cron_expression TEXT NOT NULL,
+          timezone        TEXT NOT NULL DEFAULT 'Europe/Amsterdam',
+          is_enabled      INTEGER NOT NULL DEFAULT 1,
+          scope           TEXT NOT NULL,
+          filters         TEXT,
+          include_uploads INTEGER NOT NULL DEFAULT 0,
+          retention_days  INTEGER NOT NULL DEFAULT 30,
+          max_backups     INTEGER NOT NULL DEFAULT 10,
+          last_run_at     TEXT,
+          last_status     TEXT,
+          next_run_at     TEXT,
+          created_by      TEXT NOT NULL REFERENCES users(id),
+          created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      console.log('[migrations] Created backup_schedules table');
+    },
+
+    // Migration 163: gdpr_export_requests table for user self-service exports
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS gdpr_export_requests (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          status          TEXT NOT NULL DEFAULT 'pending',
+          file_path       TEXT,
+          file_size_bytes INTEGER,
+          download_token  TEXT UNIQUE,
+          download_count  INTEGER NOT NULL DEFAULT 0,
+          max_downloads   INTEGER NOT NULL DEFAULT 3,
+          requested_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          ready_at        TEXT,
+          expires_at      TEXT,
+          downloaded_at   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_gdpr_user ON gdpr_export_requests(user_id);
+        CREATE INDEX IF NOT EXISTS idx_gdpr_token ON gdpr_export_requests(download_token);
+      `);
+      console.log('[migrations] Created gdpr_export_requests table');
+    },
   ];
 
   if (currentVersion < migrations.length) {

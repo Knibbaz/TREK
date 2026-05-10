@@ -2812,6 +2812,9 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.publish': 'Publish',
   'explore.publishUpdate': 'Publish update',
   'explore.publishUpdateSuccess': 'Update published! Version {version} — {count} subscribers notified.',
+  'explore.syncTrip': 'Pull updates',
+  'explore.syncSuccess': 'Updates synced! {added_days} days, {added_places} places added.',
+  'explore.syncError': 'Failed to sync updates',
   'explore.liveOnExplore': 'Live on Explore',
   'explore.enableCommunity': 'Enable community contributions',
   // Moderation queue

@@ -366,6 +366,7 @@ export const categoriesApi = {
 
 export const adminApi = {
   users: () => apiClient.get('/admin/users').then(r => r.data),
+  usersTripStats: () => apiClient.get('/admin/users/stats/trips').then(r => r.data),
   createUser: (data: Record<string, unknown>) => apiClient.post('/admin/users', data).then(r => r.data),
   updateUser: (id: number, data: Record<string, unknown>) => apiClient.put(`/admin/users/${id}`, data).then(r => r.data),
   deleteUser: (id: number) => apiClient.delete(`/admin/users/${id}`).then(r => r.data),

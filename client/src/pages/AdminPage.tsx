@@ -21,7 +21,7 @@ import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
 import { CreatorApplicationQueue } from '../components/Admin/CreatorApplicationQueue'
-import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard } from 'lucide-react'
+import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 
@@ -238,6 +238,8 @@ export default function AdminPage(): React.ReactElement {
   const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; creator_auto_approved: boolean; creator_fee_percent: string }>({ username: '', email: '', role: 'user', password: '', creator_auto_approved: false, creator_fee_percent: '' })
   const [showCreateUser, setShowCreateUser] = useState<boolean>(false)
   const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string; send_welcome_email: boolean }>({ username: '', email: '', password: '', role: 'user', send_welcome_email: false })
+  const [expandedUserId, setExpandedUserId] = useState<number | null>(null)
+  const [userTripStats, setUserTripStats] = useState<Record<number, any>>({})
 
   // Explore submissions
   const [submissions, setSubmissions] = useState<ExploreSubmission[]>([])
@@ -409,14 +411,23 @@ export default function AdminPage(): React.ReactElement {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [usersData, statsData, invitesData] = await Promise.all([
+      const [usersData, statsData, invitesData, userStatsData] = await Promise.all([
         adminApi.users(),
         adminApi.stats(),
         adminApi.listInvites().catch(() => ({ invites: [] })),
+        adminApi.usersTripStats().catch(() => ({ users: [] })),
       ])
       setUsers(usersData.users)
       setStats(statsData)
       setInvites(invitesData.invites || [])
+      // Index user trip stats by user ID for quick lookup
+      const statsMap: Record<number, any> = {}
+      if (userStatsData.users) {
+        userStatsData.users.forEach((u: any) => {
+          statsMap[u.id] = u
+        })
+      }
+      setUserTripStats(statsMap)
     } catch (err: unknown) {
       toast.error(t('admin.toast.loadError'))
     } finally {
@@ -803,80 +814,156 @@ export default function AdminPage(): React.ReactElement {
                   <table className="w-full">
                     <thead>
                       <tr className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider border-b border-slate-100 bg-slate-50">
+                        <th className="px-5 py-3 w-8"></th>
                         <th className="px-5 py-3">{t('admin.table.user')}</th>
                         <th className="px-5 py-3">{t('admin.table.email')}</th>
                         <th className="px-5 py-3">{t('admin.table.role')}</th>
                         <th className="px-5 py-3">{t('admin.table.created')}</th>
                         <th className="px-5 py-3">{t('admin.table.lastLogin')}</th>
+                        <th className="px-5 py-3 text-center">Trips</th>
                         <th className="px-5 py-3 text-right">{t('admin.table.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 trek-stagger">
-                      {users.map(u => (
-                        <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.id === currentUser?.id ? 'bg-slate-50/60' : ''}`}>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="relative">
-                                {u.avatar_url ? (
-                                  <img src={u.avatar_url} alt={u.username} className="w-8 h-8 rounded-full object-cover" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-700">
-                                    {u.username.charAt(0).toUpperCase()}
+                      {users.map(u => {
+                        const stats = userTripStats[u.id]
+                        const isExpanded = expandedUserId === u.id
+                        return (
+                          <React.Fragment key={u.id}>
+                            <tr className={`hover:bg-slate-50 transition-colors ${u.id === currentUser?.id ? 'bg-slate-50/60' : ''}`}>
+                              <td className="px-5 py-3">
+                                {stats?.trips && stats.trips.length > 0 && (
+                                  <button
+                                    onClick={() => setExpandedUserId(isExpanded ? null : u.id)}
+                                    className="p-1 hover:bg-slate-200 rounded transition-colors"
+                                    title={isExpanded ? 'Hide trips' : 'Show trips'}
+                                  >
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </button>
+                                )}
+                              </td>
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="relative">
+                                    {u.avatar_url ? (
+                                      <img src={u.avatar_url} alt={u.username} className="w-8 h-8 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-700">
+                                        {u.username.charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ borderColor: 'var(--bg-card)', background: u.online ? '#22c55e' : '#94a3b8' }} />
                                   </div>
-                                )}
-                                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ borderColor: 'var(--bg-card)', background: u.online ? '#22c55e' : '#94a3b8' }} />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">{u.username}</p>
-                                {u.id === currentUser?.id && (
-                                  <span className="text-xs text-slate-500">{t('admin.you')}</span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3 text-sm text-slate-600">{u.email}</td>
-                          <td className="px-5 py-3">
-                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                              u.role === 'admin'
-                                ? 'bg-slate-900 text-white'
-                                : u.role === 'creator'
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {u.role === 'admin' && <Shield className="w-3 h-3" />}
-                              {u.role === 'admin' ? t('settings.roleAdmin') : u.role === 'creator' ? t('settings.roleCreator') : t('settings.roleUser')}
-                            </span>
-                            {u.role === 'creator' && u.creator_auto_approved ? (
-                              <span className="ml-1 text-xs text-green-600 font-medium">{t('admin.explore.autoApprovedBadge')}</span>
-                            ) : null}
-                          </td>
-                          <td className="px-5 py-3 text-sm text-slate-500">
-                            {new Date(u.created_at).toLocaleDateString(locale, { timeZone: serverTimezone })}
-                          </td>
-                          <td className="px-5 py-3 text-sm text-slate-500">
-                            {u.last_login ? new Date(u.last_login).toLocaleDateString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12, timeZone: serverTimezone }) : '—'}
-                          </td>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2 justify-end">
-                              <button
-                                onClick={() => handleEditUser(u)}
-                                className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                                title={t('admin.editUser')}
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(u)}
-                                disabled={u.id === currentUser?.id}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                title={t('admin.deleteUserTitle')}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-900">{u.username}</p>
+                                    {u.id === currentUser?.id && (
+                                      <span className="text-xs text-slate-500">{t('admin.you')}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3 text-sm text-slate-600">{u.email}</td>
+                              <td className="px-5 py-3">
+                                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                                  u.role === 'admin'
+                                    ? 'bg-slate-900 text-white'
+                                    : u.role === 'creator'
+                                    ? 'bg-indigo-100 text-indigo-700'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {u.role === 'admin' && <Shield className="w-3 h-3" />}
+                                  {u.role === 'admin' ? t('settings.roleAdmin') : u.role === 'creator' ? t('settings.roleCreator') : t('settings.roleUser')}
+                                </span>
+                                {u.role === 'creator' && u.creator_auto_approved ? (
+                                  <span className="ml-1 text-xs text-green-600 font-medium">{t('admin.explore.autoApprovedBadge')}</span>
+                                ) : null}
+                              </td>
+                              <td className="px-5 py-3 text-sm text-slate-500">
+                                {new Date(u.created_at).toLocaleDateString(locale, { timeZone: serverTimezone })}
+                              </td>
+                              <td className="px-5 py-3 text-sm text-slate-500">
+                                {u.last_login ? new Date(u.last_login).toLocaleDateString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12, timeZone: serverTimezone }) : '—'}
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold text-white bg-slate-500 rounded-full">
+                                  {stats?.trip_count || 0}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-2 justify-end">
+                                  <button
+                                    onClick={() => handleEditUser(u)}
+                                    className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                                    title={t('admin.editUser')}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(u)}
+                                    disabled={u.id === currentUser?.id}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title={t('admin.deleteUserTitle')}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && stats?.trips && stats.trips.length > 0 && (
+                              <tr className="bg-slate-50/50">
+                                <td colSpan={8} className="px-5 py-4">
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-3 gap-4 mb-4">
+                                      <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Total Trips</p>
+                                        <p className="text-2xl font-bold text-slate-900">{stats.trip_count}</p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Total Days</p>
+                                        <p className="text-2xl font-bold text-slate-900">{stats.total_days}</p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Total Places</p>
+                                        <p className="text-2xl font-bold text-slate-900">{stats.total_places}</p>
+                                      </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                          <thead className="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                              <th className="px-4 py-2 text-left font-medium text-xs text-slate-600">Trip Title</th>
+                                              <th className="px-4 py-2 text-left font-medium text-xs text-slate-600">Dates</th>
+                                              <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Days</th>
+                                              <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Places</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-100">
+                                            {stats.trips.map((trip: any) => (
+                                              <tr key={trip.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-2 font-medium text-slate-900">{trip.title}</td>
+                                                <td className="px-4 py-2 text-slate-600 text-xs">
+                                                  {trip.start_date && trip.end_date
+                                                    ? `${new Date(trip.start_date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' })} - ${new Date(trip.end_date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' })}`
+                                                    : trip.start_date
+                                                    ? new Date(trip.start_date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' })
+                                                    : '—'}
+                                                </td>
+                                                <td className="px-4 py-2 text-center text-slate-600">{trip.day_count || 0}</td>
+                                                <td className="px-4 py-2 text-center text-slate-600">{trip.place_count || 0}</td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>

@@ -2713,6 +2713,9 @@ const nl: Record<string, string> = {
   'explore.publish': 'Publiceren',
   'explore.publishUpdate': 'Update publiceren',
   'explore.publishUpdateSuccess': 'Update gepubliceerd! Versie {version} — {count} abonnees op de hoogte gesteld.',
+  'explore.syncTrip': 'Updates ophalen',
+  'explore.syncSuccess': 'Updates gesynchroniseerd! {added_days} dagen, {added_places} plekken toegevoegd.',
+  'explore.syncError': 'Synchronisatie mislukt',
   'explore.liveOnExplore': 'Live op Explore',
   'explore.enableCommunity': 'Community bijdragen inschakelen',
   // Admin explore indieningen

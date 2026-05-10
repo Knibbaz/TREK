@@ -6,12 +6,14 @@ import { runMigrations } from './migrations';
 import { runSeeds } from './seeds';
 import { Place, Tag } from '../types';
 
-const dataDir = path.join(__dirname, '../../data');
+const dataDir = process.env.TREK_DB_PATH
+  ? path.dirname(process.env.TREK_DB_PATH)
+  : path.join(__dirname, '../../data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'travel.db');
+const dbPath = process.env.TREK_DB_PATH || path.join(dataDir, 'travel.db');
 
 let _db: Database.Database | null = null;
 

@@ -21,7 +21,7 @@ import { useCountUp } from '../hooks/useCountUp'
 import {
   Plus, Calendar, Trash2, Edit2, Map, ChevronDown, ChevronUp,
   Archive, ArchiveRestore, Clock, MapPin, Settings, X, ArrowRightLeft, Users,
-  LayoutGrid, List, Copy, Bell, CheckCircle2, Compass, Upload,
+  LayoutGrid, List, Copy, Bell, Compass, Upload, Download,
 } from 'lucide-react'
 import { useCanDo } from '../store/permissionsStore'
 import { useAddonStore } from '../store/addonStore'
@@ -158,6 +158,8 @@ interface TripCardProps {
   onArchive?: (id: number) => void
   onPublish?: (trip: DashboardTrip) => void
   onPushUpdate?: (trip: DashboardTrip) => void
+  onSync?: (trip: DashboardTrip) => void
+  updateAvailable?: Record<number, boolean>
   onClick: (trip: DashboardTrip) => void
   t: (key: string, params?: Record<string, string | number | null>) => string
   locale: string
@@ -290,7 +292,7 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
 }
 
 // ── Regular Trip Card ────────────────────────────────────────────────────────
-function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
+function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onSync, updateAvailable, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
   const status = getTripStatus(trip)
   const isLive = status === 'ongoing'
   const today = new Date().toISOString().split('T')[0]
@@ -341,6 +343,13 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPush
                 Explore
               </span>
             )}
+            {updateAvailable?.[trip.id] && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                style={{ background: 'rgba(34,197,94,0.25)', borderColor: 'rgba(34,197,94,0.4)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Update Available
+              </span>
+            )}
             {badgeText ? (
               <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
                 style={isConcept ? { background: 'rgba(245,158,11,0.25)', borderColor: 'rgba(245,158,11,0.4)' } : { background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.15)' }}>
@@ -360,6 +369,7 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPush
             {onCopy && <button title={t('dashboard.copyTrip')} onClick={() => onCopy(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Copy size={14} /></button>}
             {onPublish && <button title={t('dashboard.publishExplore')} onClick={() => onPublish(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Compass size={14} /></button>}
             {onPushUpdate && trip.is_published && <button title={t('explore.publishUpdate')} onClick={() => onPushUpdate(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Upload size={14} /></button>}
+            {onSync && updateAvailable?.[trip.id] && <button title={t('explore.syncTrip')} onClick={() => onSync(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-green-500/20 backdrop-blur-sm border border-green-500/40 flex items-center justify-center text-green-300 hover:bg-green-500/30 transition-colors"><Download size={14} /></button>}
             {onArchive && <button title={t('dashboard.archive')} onClick={() => onArchive(trip.id)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Archive size={14} /></button>}
             {onDelete && <button title={t('common.delete')} onClick={() => onDelete(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-red-300 hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>}
           </div>
@@ -409,7 +419,7 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPush
 }
 
 // ── List View Item ──────────────────────────────────────────────────────────
-function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
+function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onSync, updateAvailable, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
   const status = getTripStatus(trip)
   const [hovered, setHovered] = useState(false)
 
@@ -654,6 +664,7 @@ export default function DashboardPage(): React.ReactElement {
   const [filterMode, setFilterMode] = useState<'all' | 'live' | 'upcoming' | 'past' | 'concept'>('all')
   const [deleteTrip, setDeleteTrip] = useState<DashboardTrip | null>(null)
   const [copyTrip, setCopyTrip] = useState<DashboardTrip | null>(null)
+  const [updateAvailable, setUpdateAvailable] = useState<Record<number, boolean>>({})
 
   const toggleViewMode = () => {
     setViewMode(prev => {
@@ -695,6 +706,22 @@ export default function DashboardPage(): React.ReactElement {
   }, [searchParams])
 
   useEffect(() => { loadTrips() }, [])
+
+  // Check sync status for forked trips
+  useEffect(() => {
+    const checkSyncStatus = async () => {
+      const forkedTrips = [...trips, ...archivedTrips].filter(t => t.from_explore === 1)
+      for (const trip of forkedTrips) {
+        try {
+          const status = await exploreApi.getSyncStatus(trip.id)
+          setUpdateAvailable(prev => ({ ...prev, [trip.id]: status.update_available || false }))
+        } catch {
+          // silently fail
+        }
+      }
+    }
+    if (trips.length > 0 || archivedTrips.length > 0) checkSyncStatus()
+  }, [trips, archivedTrips])
 
   const loadTrips = async () => {
     setIsLoading(true)
@@ -784,6 +811,16 @@ export default function DashboardPage(): React.ReactElement {
       toast.error(t('dashboard.toast.copyError'))
     }
     setCopyTrip(null)
+  }
+
+  const handleSyncFork = async (trip: DashboardTrip) => {
+    try {
+      const result = await exploreApi.syncTrip(trip.id)
+      setUpdateAvailable(prev => ({ ...prev, [trip.id]: false }))
+      toast.success(t('explore.syncSuccess', { added_days: result.added_days || 0, added_places: result.added_places || 0 }))
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('explore.syncError')))
+    }
   }
 
   const [publishingTrip, setPublishingTrip] = useState<DashboardTrip | null>(null)
@@ -1094,6 +1131,8 @@ export default function DashboardPage(): React.ReactElement {
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
                     onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
                     onPushUpdate={exploreEnabled && trip.is_owner && trip.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
+                    onSync={exploreEnabled ? handleSyncFork : undefined}
+                    updateAvailable={updateAvailable}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1111,6 +1150,8 @@ export default function DashboardPage(): React.ReactElement {
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
                     onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
                     onPushUpdate={exploreEnabled && trip.is_owner && trip.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
+                    onSync={exploreEnabled ? handleSyncFork : undefined}
+                    updateAvailable={updateAvailable}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}

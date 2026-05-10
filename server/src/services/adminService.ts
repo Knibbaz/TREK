@@ -195,6 +195,43 @@ export function getStats() {
   return { totalUsers, totalTrips, totalPlaces, totalFiles };
 }
 
+/**
+ * Gets trip statistics for each user for admin overview
+ */
+export function getUsersWithTripStats() {
+  const users = db.prepare(
+    'SELECT id, username, email, role, created_at, avatar FROM users ORDER BY created_at DESC'
+  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at'> & { avatar?: string | null })[];
+
+  return users.map(u => {
+    const trips = db.prepare(`
+      SELECT 
+        id, title, start_date, end_date,
+        (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count,
+        (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count
+      FROM trips t
+      WHERE t.user_id = ?
+      ORDER BY t.created_at DESC
+    `).all(u.id) as Array<{
+      id: number;
+      title: string;
+      start_date: string | null;
+      end_date: string | null;
+      day_count: number;
+      place_count: number;
+    }>;
+
+    return {
+      ...u,
+      avatar_url: u.avatar ? `/uploads/avatars/${u.avatar}` : null,
+      trip_count: trips.length,
+      total_days: trips.reduce((sum, t) => sum + (t.day_count || 0), 0),
+      total_places: trips.reduce((sum, t) => sum + (t.place_count || 0), 0),
+      trips: trips,
+    };
+  });
+}
+
 // ── Permissions ────────────────────────────────────────────────────────────
 
 export function getPermissions() {
@@ -313,10 +350,16 @@ export function saveDemoBaseline(): { error?: string; status?: number; message?:
 
 // ── GitHub Integration ─────────────────────────────────────────────────────
 
-export async function getGithubReleases(perPage: string = '10', page: string = '1') {
+const REPOSITORIES_TO_CHECK = [
+  'mauriceboe/TREK',
+  'knibbaz/TREK'
+];
+
+  export async function getGithubReleases(perPage: string = '10', page: string = '1') {
   try {
+    const primaryRepo = REPOSITORIES_TO_CHECK[1]; 
     const resp = await fetch(
-      `https://api.github.com/repos/mauriceboe/TREK/releases?per_page=${perPage}&page=${page}`,
+      `https://api.github.com/repos/${primaryRepo}/releases?per_page=${perPage}&page=${page}`,
       { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
     );
     if (!resp.ok) return [];
@@ -339,7 +382,6 @@ interface VersionInfo {
 const VERSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let _versionCache: { data: VersionInfo; expiresAt: number } | null = null;
 
-/** Test-only: clear the in-memory version cache. */
 export function __clearVersionCacheForTests(): void {
   _versionCache = null;
 }
@@ -352,47 +394,70 @@ export async function checkVersion(): Promise<VersionInfo> {
   const currentVersion: string = process.env.APP_VERSION || require('../../package.json').version;
   const isPrerelease = currentVersion.includes('-pre.');
   const fallback: VersionInfo = { current: currentVersion, latest: currentVersion, update_available: false, is_docker: isDocker, is_prerelease: isPrerelease };
-  let result: VersionInfo;
+  
+  let absoluteLatest = currentVersion;
+  let absoluteReleaseUrl = '';
+  let foundHigherVersion = false;
+
   try {
-    if (isPrerelease) {
-      // Fetch release list and find the newest prerelease
-      const resp = await fetch(
-        'https://api.github.com/repos/mauriceboe/TREK/releases?per_page=100',
-        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
-      );
-      if (!resp.ok) {
-        return fallback;
+    // Loop door beide repositories heen
+    for (const repo of REPOSITORIES_TO_CHECK) {
+      if (isPrerelease) {
+        const resp = await fetch(
+          `https://api.github.com/repos/${repo}/releases?per_page=100`,
+          { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+        );
+        if (!resp.ok) continue;
+
+        const data = await resp.json() as Array<{ tag_name?: string; html_url?: string; prerelease?: boolean }>;
+        const prereleases = Array.isArray(data) ? data.filter(r => r.prerelease) : [];
+        if (!prereleases.length) continue;
+
+        const tagged = prereleases.map(r => ({ r, v: (r.tag_name || '').replace(/^v/, '') }));
+        tagged.sort((a, b) => compareVersions(b.v, a.v));
+        
+        const repoLatest = tagged[0].v;
+        
+        // Als de gevonden versie hoger is dan wat we tot nu toe als 'hoogste' zagen
+        if (repoLatest && compareVersions(repoLatest, absoluteLatest) > 0) {
+          absoluteLatest = repoLatest;
+          absoluteReleaseUrl = tagged[0].r.html_url || '';
+          foundHigherVersion = true;
+        }
+
+      } else {
+        const resp = await fetch(
+          `https://api.github.com/repos/${repo}/releases/latest`,
+          { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+        );
+        if (!resp.ok) continue;
+
+        const data = await resp.json() as { tag_name?: string; html_url?: string };
+        const repoLatest = (data.tag_name || '').replace(/^v/, '');
+        
+        if (repoLatest && compareVersions(repoLatest, absoluteLatest) > 0) {
+          absoluteLatest = repoLatest;
+          absoluteReleaseUrl = data.html_url || '';
+          foundHigherVersion = true;
+        }
       }
-      const data = await resp.json() as Array<{ tag_name?: string; html_url?: string; prerelease?: boolean }>;
-      const prereleases = Array.isArray(data) ? data.filter(r => r.prerelease) : [];
-      if (!prereleases.length) {
-        return fallback;
-      }
-      // Pre-compute stripped versions, then sort descending
-      const tagged = prereleases.map(r => ({ r, v: (r.tag_name || '').replace(/^v/, '') }));
-      tagged.sort((a, b) => compareVersions(b.v, a.v));
-      const latest = tagged[0].v;
-      const update_available = !!latest && latest !== currentVersion && compareVersions(latest, currentVersion) > 0;
-      result = { current: currentVersion, latest, update_available, release_url: tagged[0].r.html_url || '', is_docker: isDocker, is_prerelease: true };
-    } else {
-      const resp = await fetch(
-        'https://api.github.com/repos/mauriceboe/TREK/releases/latest',
-        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
-      );
-      if (!resp.ok) {
-        return fallback;
-      }
-      const data = await resp.json() as { tag_name?: string; html_url?: string };
-      const latest = (data.tag_name || '').replace(/^v/, '');
-      const update_available = !!latest && latest !== currentVersion && compareVersions(latest, currentVersion) > 0;
-      result = { current: currentVersion, latest, update_available, release_url: data.html_url || '', is_docker: isDocker, is_prerelease: false };
     }
+
+    const result = { 
+      current: currentVersion, 
+      latest: absoluteLatest, 
+      update_available: foundHigherVersion, 
+      release_url: absoluteReleaseUrl, 
+      is_docker: isDocker, 
+      is_prerelease: isPrerelease 
+    };
+
+    _versionCache = { data: result, expiresAt: Date.now() + VERSION_CACHE_TTL };
+    return result;
+
   } catch {
     return fallback;
   }
-
-  _versionCache = { data: result, expiresAt: Date.now() + VERSION_CACHE_TTL };
-  return result;
 }
 
 export async function checkAndNotifyVersion(): Promise<void> {

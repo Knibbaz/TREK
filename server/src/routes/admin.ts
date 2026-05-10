@@ -20,6 +20,11 @@ router.get('/users', (_req: Request, res: Response) => {
   res.json({ users: svc.listUsers() });
 });
 
+// Get users with trip statistics
+router.get('/users/stats/trips', (_req: Request, res: Response) => {
+  res.json({ users: svc.getUsersWithTripStats() });
+});
+
 router.post('/users', async (req: Request, res: Response) => {
   const { send_welcome_email, ...bodyRest } = req.body;
   const sendWelcome = !!send_welcome_email;
