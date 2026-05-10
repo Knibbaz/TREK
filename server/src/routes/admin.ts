@@ -627,7 +627,8 @@ router.get('/explore/creators', (req: Request, res: Response) => {
         COUNT(ep.id) as listing_count
       FROM explore_creators ec
       JOIN users u ON u.id = ec.user_id
-      LEFT JOIN explore_published ep ON ep.user_id = ec.user_id AND ep.is_published = 1
+      LEFT JOIN trips t ON t.user_id = ec.user_id
+      LEFT JOIN explore_published ep ON ep.trip_id = t.id AND ep.is_published = 1
       WHERE ec.status = ?
       GROUP BY ec.id
       ORDER BY ec.created_at DESC

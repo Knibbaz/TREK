@@ -220,11 +220,12 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [showPublishModal, setShowPublishModal] = useState(false)
   const [showUpdateModal, setShowUpdateModal] = useState(false)
   const [initialState, setInitialState] = useState<{ days: Day[]; places: Place[] } | null>(null)
+  const [publishedSnapshot, setPublishedSnapshot] = useState<{ days: Day[]; places: Place[] } | null>(null)
 
-  // Detect if trip has unsaved changes (to itinerary or places)
-  const hasChanges = initialState ? (
-    JSON.stringify(days) !== JSON.stringify(initialState.days) ||
-    JSON.stringify(places) !== JSON.stringify(initialState.places)
+  // Detect if trip has changes vs published version (for Publish Update button)
+  const hasChangesVsPublished = publishedSnapshot ? (
+    JSON.stringify(days) !== JSON.stringify(publishedSnapshot.days) ||
+    JSON.stringify(places) !== JSON.stringify(publishedSnapshot.places)
   ) : false
 
   const loadAccommodations = useCallback(() => {
@@ -254,6 +255,19 @@ export default function TripPlannerPage(): React.ReactElement | null {
       .then(data => setPubStatus(data))
       .catch(() => {})
   }, [tripId, canPublish, trip?.user_id, user?.id, user?.role, exploreEnabled])
+
+  // Fetch published snapshot for change detection
+  useEffect(() => {
+    if (!tripId || !canPublish || !pubStatus?.is_published) return
+
+    exploreApi.getPublishedSnapshot(Number(tripId))
+      .then(data => {
+        if (data.snapshot) {
+          setPublishedSnapshot(data.snapshot)
+        }
+      })
+      .catch(() => {})
+  }, [tripId, canPublish, pubStatus?.is_published])
 
   const TRANSPORT_TYPES = new Set(['flight', 'train', 'car', 'cruise', 'bus'])
 
@@ -849,7 +863,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   // Derived navbar props for publish
   const isPublished = !!pubStatus?.is_published
   const shouldShowPublishBtn = canPublish && !isPublished
-  const shouldShowUpdateBtn = canPublish && isPublished && hasChanges
+  const shouldShowUpdateBtn = canPublish && isPublished && hasChangesVsPublished
   const handleNavPublish = shouldShowPublishBtn || shouldShowUpdateBtn
     ? () => isPublished ? setShowUpdateModal(true) : setShowPublishModal(true)
     : undefined

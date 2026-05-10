@@ -2888,6 +2888,12 @@ function runMigrations(db: Database.Database): void {
       try { db.exec('ALTER TABLE explore_listing_versions ADD COLUMN changelog TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name') && !err.message?.includes('no such table')) throw err; }
       console.log('[migrations] Added changelog column to explore_listing_versions');
     },
+
+    // Migration 160: Add snapshot_data to explore_published for change detection
+    () => {
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN snapshot_data TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added snapshot_data column to explore_published');
+    },
   ];
 
   if (currentVersion < migrations.length) {

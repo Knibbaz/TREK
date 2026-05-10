@@ -939,6 +939,11 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
       return res.status(409).json({ error: existing.status === 'approved' ? 'Trip is already published' : 'Trip already has a pending submission' });
     }
 
+    // Capture trip snapshot for change detection
+    const days = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number').all(id) as any[];
+    const places = db.prepare('SELECT * FROM places WHERE trip_id = ?').all(id) as any[];
+    const snapshotData = JSON.stringify({ days, places });
+
     const descriptionsJson = descriptions ? JSON.stringify(descriptions) : '{}';
     const tagsJson = Array.isArray(tags) ? JSON.stringify(tags) : '[]';
     const bestSeasonJson = Array.isArray(best_season) ? JSON.stringify(best_season) : '[]';
@@ -951,8 +956,8 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
     const newVersion = (existingPublished?.version || 0) + 1;
 
     db.prepare(`
-      INSERT INTO explore_published (trip_id, price, is_published, version, descriptions, community_enabled, status, submitted_by, last_published_at, listing_title, tagline, tags, destination, country_code, difficulty, best_season, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      INSERT INTO explore_published (trip_id, price, is_published, version, descriptions, community_enabled, status, submitted_by, last_published_at, listing_title, tagline, tags, destination, country_code, difficulty, best_season, snapshot_data, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ${autoApproved ? "datetime('now')" : 'NULL'}, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
       ON CONFLICT(trip_id) DO UPDATE SET
         price = excluded.price,
         is_published = excluded.is_published,
@@ -968,9 +973,10 @@ router.post('/trips/:id/submit', (req: Request, res: Response) => {
         country_code = excluded.country_code,
         difficulty = excluded.difficulty,
         best_season = excluded.best_season,
+        snapshot_data = excluded.snapshot_data,
         version = version + 1,
         updated_at = datetime('now')
-    `).run(id, price || 0, isPublished, newVersion, descriptionsJson, communityFlag, status, authReq.user.id, listing_title || null, tagline || null, tagsJson, destination || null, country_code || null, difficulty || 'easy', bestSeasonJson);
+    `).run(id, price || 0, isPublished, newVersion, descriptionsJson, communityFlag, status, authReq.user.id, listing_title || null, tagline || null, tagsJson, destination || null, country_code || null, difficulty || 'easy', bestSeasonJson, snapshotData);
 
     // Track version in explore_listing_versions
     db.prepare(`
@@ -1031,12 +1037,17 @@ router.post('/trips/:id/push-update', (req: Request, res: Response) => {
     // Increment version
     const newVersion = (listing.version || 1) + 1;
 
-    // Update listing
+    // Capture updated trip snapshot
+    const days = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number').all(id) as any[];
+    const places = db.prepare('SELECT * FROM places WHERE trip_id = ?').all(id) as any[];
+    const snapshotData = JSON.stringify({ days, places });
+
+    // Update listing with new snapshot
     db.prepare(`
       UPDATE explore_published
-      SET version = ?, updated_at = datetime('now')
+      SET version = ?, snapshot_data = ?, updated_at = datetime('now')
       WHERE trip_id = ?
-    `).run(newVersion, id);
+    `).run(newVersion, snapshotData, id);
 
     // Track version in explore_listing_versions
     db.prepare(`
@@ -1271,6 +1282,39 @@ router.get('/trips/:id/publication-status', (req: Request, res: Response) => {
   } catch (err: unknown) {
     console.error('Error checking publication status:', err);
     res.status(500).json({ error: 'Failed to check publication status' });
+  }
+});
+
+// ── Creator: fetch published snapshot for change detection ────────────────
+router.get('/trips/:id/published-snapshot', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params;
+
+    const listing = db.prepare(`
+      SELECT ep.snapshot_data, t.user_id
+      FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      WHERE ep.trip_id = ? AND t.user_id = ? AND ep.is_published = 1
+    `).get(id, authReq.user.id) as { snapshot_data: string | null; user_id: number } | undefined;
+
+    if (!listing) {
+      return res.json({ snapshot: null });
+    }
+
+    let snapshot = null;
+    if (listing.snapshot_data) {
+      try {
+        snapshot = JSON.parse(listing.snapshot_data);
+      } catch (e) {
+        console.error('Failed to parse snapshot data:', e);
+      }
+    }
+
+    res.json({ snapshot });
+  } catch (err: unknown) {
+    console.error('Error fetching published snapshot:', err);
+    res.status(500).json({ error: 'Failed to fetch published snapshot' });
   }
 });
 

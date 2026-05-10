@@ -798,6 +798,8 @@ export const exploreApi = {
     apiClient.post(`/addons/explore/trips/${id}/resubmit-for-review`, { message }).then(r => r.data),
   getPublicationStatus: (id: number | string) =>
     apiClient.get(`/addons/explore/trips/${id}/publication-status`).then(r => r.data),
+  getPublishedSnapshot: (id: number | string) =>
+    apiClient.get(`/addons/explore/trips/${id}/published-snapshot`).then(r => r.data),
   // Admin submission management
   getSubmissions: (status?: 'pending' | 'approved' | 'rejected') =>
     apiClient.get('/addons/explore/submissions', { params: status ? { status } : undefined }).then(r => r.data),
