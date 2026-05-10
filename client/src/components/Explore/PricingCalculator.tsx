@@ -34,9 +34,13 @@ export function PricingCalculator({ priceCents, commissionPct, mollieMethods }: 
 
   const minNet = Math.min(...netPerMethod.map(m => m.netCents));
   const maxNet = Math.max(...netPerMethod.map(m => m.netCents));
+  const minMollie = Math.min(...netPerMethod.map(m => m.mollieCents));
+  const maxMollie = Math.max(...netPerMethod.map(m => m.mollieCents));
   const singleMethod = methods.length === 1;
   const minNetEuros = minNet / 100;
   const maxNetEuros = maxNet / 100;
+  const minMollieEuros = minMollie / 100;
+  const maxMollieEuros = maxMollie / 100;
 
   return (
     <div className="space-y-3 bg-gray-50 rounded-lg p-4 text-sm">
@@ -53,7 +57,7 @@ export function PricingCalculator({ priceCents, commissionPct, mollieMethods }: 
         {singleMethod ? (
           <span>−€{(netPerMethod[0].mollieCents / 100).toFixed(2)}</span>
         ) : (
-          <span>€{minNetEuros.toFixed(2)} – €{maxNetEuros.toFixed(2)} *</span>
+          <span>−€{minMollieEuros.toFixed(2)} – −€{maxMollieEuros.toFixed(2)} *</span>
         )}
       </div>
       <div className="border-t pt-3 flex justify-between font-semibold text-green-600">
