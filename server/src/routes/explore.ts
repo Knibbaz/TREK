@@ -4,6 +4,8 @@ import { AuthRequest } from '../types';
 import { db } from '../db/database';
 import { copyTripTransaction, mergeTripFromSource } from '../services/tripCopyService';
 import { getPlatformFeePercent } from '../services/mollieConnectService';
+import { getDeltas, getDeltaSummary, getConflictingEntities, clearDeltas } from '../services/deltaTrackingService';
+import { getCreatorBadges, BADGES, recalculateCreatorBadges } from '../services/badgeService';
 
 const router = express.Router();
 router.use(authenticate);
@@ -123,7 +125,10 @@ router.get('/creators/me', (req: AuthRequest, res: Response) => {
       return res.status(404).json({ error: 'No creator profile found' });
     }
 
-    res.json(creator);
+    const badges = getCreatorBadges(db, userId);
+    const badgeDetails = badges.map(b => BADGES[b]);
+
+    res.json({ ...creator, badges: badgeDetails });
   } catch (err: unknown) {
     console.error('Error fetching creator profile:', err);
     res.status(500).json({ error: 'Failed to fetch creator profile' });
@@ -139,6 +144,25 @@ router.get('/creators/check-slug/:slug', (req: Request, res: Response) => {
   } catch (err: unknown) {
     console.error('Error checking slug:', err);
     res.status(500).json({ error: 'Failed to check slug availability' });
+  }
+});
+
+// Get badges for a creator
+router.get('/creators/:slug/badges', (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+    const creator = db.prepare('SELECT user_id FROM explore_creators WHERE slug = ? AND status = ?')
+      .get(slug, 'approved') as { user_id: number } | undefined;
+
+    if (!creator) return res.status(404).json({ error: 'Creator not found' });
+
+    const badges = getCreatorBadges(db, creator.user_id);
+    const badgeDetails = badges.map(b => BADGES[b]);
+
+    res.json({ badges: badgeDetails });
+  } catch (err: unknown) {
+    console.error('Error fetching creator badges:', err);
+    res.status(500).json({ error: 'Failed to fetch badges' });
   }
 });
 
@@ -178,6 +202,9 @@ router.get('/creators/:slug', (req: Request, res: Response) => {
         : 0,
     };
 
+    const badges = getCreatorBadges(db, creator.user_id);
+    const badgeDetails = badges.map(b => BADGES[b]);
+
     res.json({
       creator: {
         slug: creator.slug,
@@ -185,6 +212,7 @@ router.get('/creators/:slug', (req: Request, res: Response) => {
         bio: creator.bio,
         avatar: creator.avatar,
         social_links: JSON.parse(creator.social_links || '{}'),
+        badges: badgeDetails,
       },
       listings,
       stats,
@@ -694,6 +722,9 @@ router.post('/trips/:id/sync', (req: Request, res: Response) => {
     db.prepare('UPDATE explore_user_trips SET snapshot_version = ? WHERE id = ?')
       .run(link.current_version, link.id);
 
+    // Clear deltas after successful sync (user's local changes are now rebased)
+    clearDeltas(db, link.id);
+
     res.json({ success: true, ...result, version: link.current_version });
   } catch (err: unknown) {
     console.error('Error syncing trip:', err);
@@ -728,6 +759,84 @@ router.get('/trips/:id/sync-status', (req: Request, res: Response) => {
   } catch (err: unknown) {
     console.error('Error fetching sync status:', err);
     res.status(500).json({ error: 'Failed to fetch sync status' });
+  }
+});
+
+// ── Get fork deltas (user's local changes) ─────────────────────────────────
+router.get('/fork-deltas/:userTripId', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { userTripId } = req.params;
+
+    // Verify user owns this fork
+    const userTrip = db.prepare('SELECT id, user_id FROM explore_user_trips WHERE id = ?').get(userTripId) as { id: number; user_id: number } | undefined;
+    if (!userTrip || (userTrip.user_id !== authReq.user.id && !isAdmin(authReq.user.id))) {
+      return res.status(403).json({ error: 'Not authorized to view deltas for this fork' });
+    }
+
+    const deltas = getDeltas(db, parseInt(userTripId));
+    const summary = getDeltaSummary(db, parseInt(userTripId));
+
+    res.json({ deltas, summary });
+  } catch (err: unknown) {
+    console.error('Error fetching fork deltas:', err);
+    res.status(500).json({ error: 'Failed to fetch fork deltas' });
+  }
+});
+
+// ── Get delta summary (counts by action) ────────────────────────────────────
+router.get('/fork-deltas/:userTripId/summary', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { userTripId } = req.params;
+
+    // Verify user owns this fork
+    const userTrip = db.prepare('SELECT id, user_id FROM explore_user_trips WHERE id = ?').get(userTripId) as { id: number; user_id: number } | undefined;
+    if (!userTrip || (userTrip.user_id !== authReq.user.id && !isAdmin(authReq.user.id))) {
+      return res.status(403).json({ error: 'Not authorized' });
+    }
+
+    const summary = getDeltaSummary(db, parseInt(userTripId));
+    res.json(summary);
+  } catch (err: unknown) {
+    console.error('Error fetching delta summary:', err);
+    res.status(500).json({ error: 'Failed to fetch delta summary' });
+  }
+});
+
+// ── Get sync preview with conflicts ────────────────────────────────────────
+router.get('/trips/:id/sync-preview', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params; // user's trip_id
+
+    const link = db.prepare(`
+      SELECT eut.id, eut.snapshot_version, ep.version as current_version, eut.source_trip_id
+      FROM explore_user_trips eut
+      JOIN explore_published ep ON ep.trip_id = eut.source_trip_id
+      WHERE eut.trip_id = ? AND eut.user_id = ?
+    `).get(id, authReq.user.id) as { id: number; snapshot_version: number; current_version: number; source_trip_id: number } | undefined;
+
+    if (!link || link.snapshot_version >= link.current_version) {
+      return res.json({ update_available: false });
+    }
+
+    // Get user's local changes
+    const userDeltas = getDeltas(db, link.id);
+    const deltaCount = getDeltaSummary(db, link.id);
+
+    // TODO: Compare with creator changes from source trip updates
+    // For now, just return delta summary
+    res.json({
+      update_available: true,
+      current_version: link.snapshot_version,
+      new_version: link.current_version,
+      user_changes: deltaCount,
+      has_conflicts: Object.keys(userDeltas).length > 0,
+    });
+  } catch (err: unknown) {
+    console.error('Error fetching sync preview:', err);
+    res.status(500).json({ error: 'Failed to fetch sync preview' });
   }
 });
 
@@ -922,6 +1031,83 @@ router.delete('/submissions/:id', (req: Request, res: Response) => {
   }
 });
 
+// ── Admin: approve creator application ─────────────────────────────────────
+router.post('/creators/:id/approve-application', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+    const creator = db.prepare('SELECT id, user_id, status FROM explore_creators WHERE id = ?')
+      .get(id) as { id: number; user_id: number; status: string } | undefined;
+
+    if (!creator) return res.status(404).json({ error: 'Creator not found' });
+    if (creator.status === 'approved') return res.status(409).json({ error: 'Already approved' });
+
+    db.prepare('UPDATE explore_creators SET status = ?, approved_at = datetime("now"), approved_by = ? WHERE id = ?')
+      .run('approved', authReq.user.id, id);
+
+    // Award verified_creator badge
+    recalculateCreatorBadges(db, creator.user_id);
+
+    res.json({ success: true, message: 'Creator approved' });
+  } catch (err: unknown) {
+    console.error('Error approving creator:', err);
+    res.status(500).json({ error: 'Failed to approve creator' });
+  }
+});
+
+// ── Admin: reject creator application ───────────────────────────────────────
+router.post('/creators/:id/reject-application', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+    const { reason } = req.body;
+
+    const creator = db.prepare('SELECT id, status FROM explore_creators WHERE id = ?')
+      .get(id) as { id: number; status: string } | undefined;
+
+    if (!creator) return res.status(404).json({ error: 'Creator not found' });
+    if (creator.status !== 'pending') return res.status(400).json({ error: 'Only pending applications can be rejected' });
+
+    db.prepare('UPDATE explore_creators SET status = ? WHERE id = ?')
+      .run('rejected', id);
+
+    res.json({ success: true, message: 'Creator application rejected' });
+  } catch (err: unknown) {
+    console.error('Error rejecting creator:', err);
+    res.status(500).json({ error: 'Failed to reject creator' });
+  }
+});
+
+// ── Admin: recalculate badges for all creators ─────────────────────────────
+router.post('/admin/recalculate-badges', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const creators = db.prepare('SELECT user_id FROM explore_creators WHERE status = ?')
+      .all('approved') as Array<{ user_id: number }>;
+
+    let updated = 0;
+    for (const creator of creators) {
+      try {
+        recalculateCreatorBadges(db, creator.user_id);
+        updated++;
+      } catch (err) {
+        console.error(`Failed to recalculate badges for creator ${creator.user_id}:`, err);
+      }
+    }
+
+    res.json({ success: true, updated, total: creators.length });
+  } catch (err: unknown) {
+    console.error('Error recalculating badges:', err);
+    res.status(500).json({ error: 'Failed to recalculate badges' });
+  }
+});
+
 // ── Admin: list all submissions (pending / approved / rejected) ────────────
 router.get('/submissions', (req: Request, res: Response) => {
   try {
@@ -976,6 +1162,11 @@ router.post('/submissions/:id/approve', (req: Request, res: Response) => {
 
     if (auto_approve && submission.submitted_by) {
       db.prepare('UPDATE users SET creator_auto_approved = 1 WHERE id = ?').run(submission.submitted_by);
+    }
+
+    // Recalculate creator badges after approval (might earn new badges)
+    if (submission.submitted_by) {
+      try { recalculateCreatorBadges(db, submission.submitted_by); } catch {}
     }
 
     res.json({ success: true });
@@ -1285,6 +1476,13 @@ router.post('/trips/:sourceTripId/reviews', (req: AuthRequest, res: Response) =>
       INSERT INTO explore_reviews (source_trip_id, user_id, rating, title, content, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).run(sourceTripId, userId, rating, title || null, content);
+
+    // Recalculate creator badges (might earn highly_rated badge)
+    const creator = db.prepare('SELECT submitted_by FROM explore_published WHERE trip_id = ?')
+      .get(sourceTripId) as { submitted_by: number } | undefined;
+    if (creator) {
+      try { recalculateCreatorBadges(db, creator.submitted_by); } catch {}
+    }
 
     res.status(201).json({ success: true, review_id: result.lastInsertRowid, created: true });
   } catch (err: unknown) {

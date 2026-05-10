@@ -514,6 +514,30 @@ function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_explore_user_trips_source ON explore_user_trips(source_trip_id);
     CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
 
+    CREATE TABLE IF NOT EXISTS explore_fork_deltas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_trip_id INTEGER NOT NULL REFERENCES explore_user_trips(id) ON DELETE CASCADE,
+      entity_type TEXT NOT NULL CHECK(entity_type IN ('place', 'day', 'budget_item', 'reservation', 'note')),
+      entity_id INTEGER NOT NULL,
+      action TEXT NOT NULL CHECK(action IN ('added', 'removed', 'modified')),
+      original_data TEXT,
+      modified_data TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_fork_deltas_user_trip ON explore_fork_deltas(user_trip_id);
+    CREATE INDEX IF NOT EXISTS idx_fork_deltas_entity ON explore_fork_deltas(entity_type, entity_id);
+
+    CREATE TABLE IF NOT EXISTS creator_badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      badge_type TEXT NOT NULL CHECK(badge_type IN ('verified_creator', 'top_seller', 'highly_rated', 'globe_trotter', 'trending', 'consistent')),
+      awarded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      revoked_at DATETIME,
+      UNIQUE(creator_user_id, badge_type)
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_badges_user ON creator_badges(creator_user_id);
+    CREATE INDEX IF NOT EXISTS idx_creator_badges_type ON creator_badges(badge_type);
+
     CREATE TABLE IF NOT EXISTS creator_mollie_accounts (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
