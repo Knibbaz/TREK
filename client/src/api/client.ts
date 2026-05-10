@@ -370,6 +370,8 @@ export const adminApi = {
   createUser: (data: Record<string, unknown>) => apiClient.post('/admin/users', data).then(r => r.data),
   updateUser: (id: number, data: Record<string, unknown>) => apiClient.put(`/admin/users/${id}`, data).then(r => r.data),
   deleteUser: (id: number) => apiClient.delete(`/admin/users/${id}`).then(r => r.data),
+  transferTrip: (tripId: number, newUserId: number) =>
+    apiClient.patch(`/admin/trips/${tripId}/owner`, { new_user_id: newUserId }).then(r => r.data),
   stats: () => apiClient.get('/admin/stats').then(r => r.data),
   getPlatformFee: () => apiClient.get('/admin/platform-fee').then(r => r.data),
   setPlatformFee: (platform_fee_percent: number | null) => apiClient.put('/admin/platform-fee', { platform_fee_percent }).then(r => r.data),

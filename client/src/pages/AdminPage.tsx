@@ -397,6 +397,8 @@ export default function AdminPage(): React.ReactElement {
 
   const [showRotateJwtModal, setShowRotateJwtModal] = useState<boolean>(false)
   const [rotatingJwt, setRotatingJwt] = useState<boolean>(false)
+  const [transferring, setTransferring] = useState<{ tripId: number; tripTitle: string } | null>(null)
+  const [selectedNewOwner, setSelectedNewOwner] = useState<number | null>(null)
 
   useEffect(() => {
     loadData()
@@ -656,6 +658,19 @@ export default function AdminPage(): React.ReactElement {
       toast.success(t('admin.toast.userDeleted'))
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t('admin.toast.deleteError')))
+    }
+  }
+
+  const handleTransferTrip = async () => {
+    if (!transferring || !selectedNewOwner) return
+    try {
+      await adminApi.transferTrip(transferring.tripId, selectedNewOwner)
+      toast.success(t('admin.toast.tripTransferred'))
+      loadData() // Reload user stats
+      setTransferring(null)
+      setSelectedNewOwner(null)
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('admin.toast.transferError')))
     }
   }
 
@@ -936,6 +951,7 @@ export default function AdminPage(): React.ReactElement {
                                               <th className="px-4 py-2 text-left font-medium text-xs text-slate-600">Dates</th>
                                               <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Days</th>
                                               <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Places</th>
+                                              <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Actions</th>
                                             </tr>
                                           </thead>
                                           <tbody className="divide-y divide-slate-100">
@@ -951,6 +967,14 @@ export default function AdminPage(): React.ReactElement {
                                                 </td>
                                                 <td className="px-4 py-2 text-center text-slate-600">{trip.day_count || 0}</td>
                                                 <td className="px-4 py-2 text-center text-slate-600">{trip.place_count || 0}</td>
+                                                <td className="px-4 py-2 text-center">
+                                                  <button
+                                                    onClick={() => setTransferring({ tripId: trip.id, tripTitle: trip.title })}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                                                  >
+                                                    Transfer
+                                                  </button>
+                                                </td>
                                               </tr>
                                             ))}
                                           </tbody>
@@ -2821,6 +2845,51 @@ docker run -d --name trek \\
             </div>
           </div>
         </div>
+      )}
+
+      {/* Transfer Trip Modal */}
+      {transferring && (
+        <Modal
+          isOpen={true}
+          onClose={() => { setTransferring(null); setSelectedNewOwner(null) }}
+          title={`Transfer Trip: ${transferring.tripTitle}`}
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setTransferring(null); setSelectedNewOwner(null) }}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleTransferTrip}
+                disabled={!selectedNewOwner}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {t('common.transfer')}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Select the user who will become the new owner of this trip.
+            </p>
+            <select
+              value={selectedNewOwner || ''}
+              onChange={e => setSelectedNewOwner(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            >
+              <option value="">Choose new owner...</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.username} ({u.email})
+                </option>
+              ))}
+            </select>
+          </div>
+        </Modal>
       )}
     </div>
   )

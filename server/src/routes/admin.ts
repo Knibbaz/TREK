@@ -619,6 +619,57 @@ router.put('/mollie-fees', (req: Request, res: Response) => {
   }
 });
 
+// ── Trip ownership transfer ────────────────────────────────────────────────
+
+router.patch('/trips/:tripId/owner', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { tripId } = req.params;
+    const { new_user_id } = req.body;
+
+    if (!new_user_id) {
+      return res.status(400).json({ error: 'new_user_id is required' });
+    }
+
+    // Validate trip exists
+    const trip = db.prepare('SELECT id, user_id, title FROM trips WHERE id = ?').get(tripId) as { id: number; user_id: number; title: string } | undefined;
+    if (!trip) {
+      return res.status(404).json({ error: 'Trip not found' });
+    }
+
+    // Validate new owner exists
+    const newOwner = db.prepare('SELECT id FROM users WHERE id = ?').get(new_user_id) as { id: number } | undefined;
+    if (!newOwner) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // No-op if transferring to same user
+    if (trip.user_id === new_user_id) {
+      return res.json({ success: true, message: 'Trip already owned by this user' });
+    }
+
+    // Remove new owner from trip_members if they were a collaborator (avoid unique constraint violation)
+    db.prepare('DELETE FROM trip_members WHERE trip_id = ? AND user_id = ?').run(tripId, new_user_id);
+
+    // Update trip owner
+    db.prepare('UPDATE trips SET user_id = ?, updated_at = datetime(\'now\') WHERE id = ?').run(new_user_id, tripId);
+
+    // Write audit log
+    writeAudit({
+      userId: authReq.user.id,
+      action: 'admin.trip_transfer',
+      resource: String(tripId),
+      ip: getClientIp(req),
+      details: { trip_title: trip.title, from_user_id: trip.user_id, to_user_id: new_user_id },
+    });
+
+    res.json({ success: true, message: `Trip transferred to new owner` });
+  } catch (err: unknown) {
+    console.error('Error transferring trip:', err);
+    res.status(500).json({ error: 'Failed to transfer trip' });
+  }
+});
+
 // ── Creator profile management ──────────────────────────────────────────────
 
 // List pending creator applications
