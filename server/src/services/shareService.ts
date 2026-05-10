@@ -152,12 +152,17 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     dayNotes = {};
   }
 
-  // Places
-  const places = db.prepare(`
+  // Places (restructure to match day_assignments format with category object)
+  const placesRaw = db.prepare(`
     SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM places p LEFT JOIN categories c ON p.category_id = c.id
     WHERE p.trip_id = ? ORDER BY p.created_at DESC
-  `).all(tripId);
+  `).all(tripId) as any[];
+
+  const places = placesRaw.map(p => ({
+    ...p,
+    category: p.category_id ? { id: p.category_id, name: p.category_name, color: p.category_color, icon: p.category_icon } : null,
+  }));
 
   // Reservations
   const reservations = db.prepare('SELECT * FROM reservations WHERE trip_id = ? ORDER BY reservation_time ASC').all(tripId);
