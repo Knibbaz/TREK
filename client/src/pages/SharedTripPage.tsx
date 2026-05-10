@@ -310,7 +310,7 @@ export default function SharedTripPage() {
 
     Promise.all([
       Promise.all(segments.map(seg =>
-        calculateRoute(seg.map(([lat, lng]) => ({ lat, lng })), 'driving', { signal: controller.signal })
+        calculateRoute(seg.map(([lat, lng]) => ({ lat, lng })), 'auto', { signal: controller.signal })
           .then(r => r.coordinates)
           .catch(() => seg)
       )),

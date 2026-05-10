@@ -52,7 +52,7 @@ async function fetchRoadSegments(
     segments.map(seg =>
       calculateRoute(
         seg.map(([lat, lng]) => ({ lat, lng })),
-        'driving',
+        'auto',
         { signal }
       )
         .then(r => r.coordinates)
