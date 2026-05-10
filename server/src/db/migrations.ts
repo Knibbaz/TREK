@@ -2873,9 +2873,7 @@ function runMigrations(db: Database.Database): void {
 
     // Migration 159: Add changelog column to explore_listing_versions
     () => {
-      db.exec(`
-        ALTER TABLE explore_listing_versions ADD COLUMN changelog TEXT;
-      `);
+      try { db.exec('ALTER TABLE explore_listing_versions ADD COLUMN changelog TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name') && !err.message?.includes('no such table')) throw err; }
       console.log('[migrations] Added changelog column to explore_listing_versions');
     },
   ];
