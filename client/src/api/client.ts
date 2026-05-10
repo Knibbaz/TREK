@@ -791,6 +791,13 @@ export const exploreApi = {
     apiClient.post(`/addons/explore/trips/${id}/submit`, data).then(r => r.data),
   getMySubmissions: () => apiClient.get('/addons/explore/my-submissions').then(r => r.data),
   withdrawSubmission: (submissionId: number | string) => apiClient.delete(`/addons/explore/submissions/${submissionId}`).then(r => r.data),
+  // Creator updates to published listings
+  pushUpdate: (id: number | string, changelog?: string) =>
+    apiClient.post(`/addons/explore/trips/${id}/push-update`, { changelog }).then(r => r.data),
+  resubmitForReview: (id: number | string, message?: string) =>
+    apiClient.post(`/addons/explore/trips/${id}/resubmit-for-review`, { message }).then(r => r.data),
+  getPublicationStatus: (id: number | string) =>
+    apiClient.get(`/addons/explore/trips/${id}/publication-status`).then(r => r.data),
   // Admin submission management
   getSubmissions: (status?: 'pending' | 'approved' | 'rejected') =>
     apiClient.get('/addons/explore/submissions', { params: status ? { status } : undefined }).then(r => r.data),

@@ -2892,6 +2892,14 @@ const nl: Record<string, string> = {
   'explore.categoryDeleted': 'Categorie verwijderd',
   'explore.categoryDeleteError': 'Verwijderen mislukt',
   'explore.deleteCategoryConfirm': 'Categorie verwijderen?',
+  'explore.updateMode': 'Kies hoe je je wijzigingen publiceert',
+  'explore.pushDirect': 'Update direct pushen',
+  'explore.pushDirectDesc': 'Updates gaan direct live naar alle kopieën',
+  'explore.requestReview': 'Admin review aanvragen',
+  'explore.requestReviewDesc': 'Indienen voor admin goedkeuring (optioneel, voor grote wijzigingen)',
+  'explore.changelogMessage': 'Wat is er veranderd?',
+  'explore.changelogPlaceholder': 'Bijv. 3 nieuwe restaurants toegevoegd, openingstijden bijgewerkt...',
+  'explore.changelogOptional': 'Optioneel - helpt kopers begrijpen wat er nieuw is',
 }
 
 export default nl
