@@ -1007,6 +1007,113 @@ router.get('/my-submissions', (req: Request, res: Response) => {
   }
 });
 
+// ── Creator: push direct update to published listing ────────────────────────
+router.post('/trips/:id/push-update', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params;
+    const { changelog } = req.body;
+
+    // Get published listing
+    const listing = db.prepare(`
+      SELECT ep.*, t.user_id FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      WHERE ep.trip_id = ? AND ep.is_published = 1
+    `).get(id) as { trip_id: number; user_id: number; version: number; submitted_by: number } | undefined;
+
+    if (!listing) return res.status(404).json({ error: 'Published listing not found' });
+
+    // Verify creator owns this trip
+    if (listing.user_id !== authReq.user.id && !isAdmin(authReq.user.id)) {
+      return res.status(403).json({ error: 'You can only update your own trips' });
+    }
+
+    // Increment version
+    const newVersion = (listing.version || 1) + 1;
+
+    // Update listing
+    db.prepare(`
+      UPDATE explore_published
+      SET version = ?, updated_at = datetime('now')
+      WHERE trip_id = ?
+    `).run(newVersion, id);
+
+    // Track version in explore_listing_versions
+    db.prepare(`
+      INSERT INTO explore_listing_versions (trip_id, version, changelog)
+      VALUES (?, ?, ?)
+    `).run(id, newVersion, changelog || null);
+
+    // Notify all fork owners that update is available
+    const forkOwners = db.prepare(`
+      SELECT DISTINCT eut.user_id FROM explore_user_trips eut
+      WHERE eut.source_trip_id = ? AND eut.user_id != ?
+    `).all(id, authReq.user.id) as Array<{ user_id: number }>;
+
+    // Send WebSocket notifications (fire-and-forget)
+    import('../services/notificationService').then(({ send }) => {
+      for (const owner of forkOwners) {
+        send({
+          event: 'explore_update_available',
+          actorId: authReq.user.id,
+          scope: 'user',
+          targetId: owner.user_id,
+          params: { tripId: String(id), version: String(newVersion) },
+        }).catch(() => {});
+      }
+    });
+
+    res.json({ success: true, version: newVersion, notified: forkOwners.length });
+  } catch (err: unknown) {
+    console.error('Error pushing update:', err);
+    res.status(500).json({ error: 'Failed to push update' });
+  }
+});
+
+// ── Creator: resubmit published listing for admin review ──────────────────
+router.post('/trips/:id/resubmit-for-review', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params;
+    const { message } = req.body;
+
+    // Get published listing
+    const listing = db.prepare(`
+      SELECT ep.*, t.user_id FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      WHERE ep.trip_id = ? AND ep.is_published = 1
+    `).get(id) as { trip_id: number; user_id: number; version: number; id: number } | undefined;
+
+    if (!listing) return res.status(404).json({ error: 'Published listing not found' });
+
+    // Verify creator owns this trip
+    if (listing.user_id !== authReq.user.id && !isAdmin(authReq.user.id)) {
+      return res.status(403).json({ error: 'You can only resubmit your own trips' });
+    }
+
+    // Update status to pending_review
+    db.prepare(`
+      UPDATE explore_published
+      SET status = 'pending_review', updated_at = datetime('now')
+      WHERE id = ?
+    `).run(listing.id);
+
+    // Notify admins
+    const admins = db.prepare("SELECT id FROM users WHERE role = 'admin'").all() as { id: number }[];
+    for (const admin of admins) {
+      db.prepare(`
+        INSERT INTO notifications (user_id, type, title, message, data, created_at, is_read)
+        VALUES (?, 'explore_resubmission', 'Listing Resubmitted for Review', ?, ?, datetime('now'), 0)
+      `).run(admin.id, `Creator resubmitted listing for review${message ? ': ' + message : ''}`, JSON.stringify({ listing_id: listing.id }));
+    }
+
+    res.json({ success: true, message: 'Listing submitted for admin review' });
+  } catch (err: unknown) {
+    console.error('Error resubmitting listing:', err);
+    res.status(500).json({ error: 'Failed to resubmit listing' });
+  }
+});
+
 // ── Creator: withdraw pending submission ───────────────────────────────────
 router.delete('/submissions/:id', (req: Request, res: Response) => {
   try {
@@ -1139,6 +1246,34 @@ router.get('/submissions', (req: Request, res: Response) => {
   }
 });
 
+// ── Creator: check if trip is published ───────────────────────────────────
+router.get('/trips/:id/publication-status', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    const { id } = req.params;
+
+    const listing = db.prepare(`
+      SELECT ep.is_published, ep.status, ep.version, t.user_id
+      FROM explore_published ep
+      JOIN trips t ON t.id = ep.trip_id
+      WHERE ep.trip_id = ? AND t.user_id = ?
+    `).get(id, authReq.user.id) as { is_published: number; status: string; version: number; user_id: number } | undefined;
+
+    if (!listing) {
+      return res.json({ is_published: false });
+    }
+
+    res.json({
+      is_published: listing.is_published === 1,
+      status: listing.status,
+      version: listing.version,
+    });
+  } catch (err: unknown) {
+    console.error('Error checking publication status:', err);
+    res.status(500).json({ error: 'Failed to check publication status' });
+  }
+});
+
 // ── Admin: approve submission ──────────────────────────────────────────────
 router.post('/submissions/:id/approve', (req: Request, res: Response) => {
   try {
@@ -1148,8 +1283,8 @@ router.post('/submissions/:id/approve', (req: Request, res: Response) => {
     const { id } = req.params;
     const { auto_approve, price, descriptions, community_enabled } = req.body;
 
-    const submission = db.prepare('SELECT id, trip_id, submitted_by FROM explore_published WHERE id = ? AND status = ?').get(id, 'pending') as { id: number; trip_id: number; submitted_by: number } | undefined;
-    if (!submission) return res.status(404).json({ error: 'Pending submission not found' });
+    const submission = db.prepare('SELECT id, trip_id, submitted_by FROM explore_published WHERE id = ? AND (status = ? OR status = ?)').get(id, 'pending', 'pending_review') as { id: number; trip_id: number; submitted_by: number } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
 
     const updates: string[] = ['is_published = 1', "status = 'approved'", "last_published_at = datetime('now')", "updated_at = datetime('now')"];
     const params: (string | number)[] = [];
@@ -1185,8 +1320,8 @@ router.post('/submissions/:id/reject', (req: Request, res: Response) => {
     const { id } = req.params;
     const { notes } = req.body;
 
-    const submission = db.prepare('SELECT id FROM explore_published WHERE id = ? AND status = ?').get(id, 'pending') as { id: number } | undefined;
-    if (!submission) return res.status(404).json({ error: 'Pending submission not found' });
+    const submission = db.prepare('SELECT id FROM explore_published WHERE id = ? AND (status = ? OR status = ?)').get(id, 'pending', 'pending_review') as { id: number } | undefined;
+    if (!submission) return res.status(404).json({ error: 'Submission not found' });
 
     db.prepare("UPDATE explore_published SET status = 'rejected', is_published = 0, moderation_notes = ?, updated_at = datetime('now') WHERE id = ?").run(notes || null, id);
     res.json({ success: true });

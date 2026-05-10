@@ -2870,6 +2870,14 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Created explore_reviews and explore_review_helpful tables');
     },
+
+    // Migration 159: Add changelog column to explore_listing_versions
+    () => {
+      db.exec(`
+        ALTER TABLE explore_listing_versions ADD COLUMN changelog TEXT;
+      `);
+      console.log('[migrations] Added changelog column to explore_listing_versions');
+    },
   ];
 
   if (currentVersion < migrations.length) {
