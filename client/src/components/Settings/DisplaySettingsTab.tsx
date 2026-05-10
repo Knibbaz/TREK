@@ -269,6 +269,67 @@ export default function DisplaySettingsTab(): React.ReactElement {
         </div>
       </div>
 
+      {/* Route Walking Threshold */}
+      {(settings.route_calculation !== false) && (
+        <>
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              {t('settings.routeWalkingThreshold') || 'Wandelen tot'}
+            </label>
+            <input
+              type="range"
+              min={1000}
+              max={100000}
+              step={1000}
+              value={settings.route_walking_threshold ?? 30000}
+              onChange={async (e) => {
+                const val = Number(e.target.value)
+                try { await updateSetting('route_walking_threshold', val) }
+                catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+              }}
+              style={{ width: '100%' }}
+            />
+            <div className="flex justify-between text-xs" style={{ color: 'var(--text-faint)' }}>
+              <span>1 km</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                {(settings.route_walking_threshold ?? 30000) >= 1000
+                  ? `${Math.round((settings.route_walking_threshold ?? 30000) / 1000)} km`
+                  : `${settings.route_walking_threshold ?? 30000} m`}
+              </span>
+              <span>100 km</span>
+            </div>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('settings.routeWalkingThresholdHint') || 'Tot deze afstand wordt wandelen getoond; daarboven auto.'}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+              {t('settings.routeDrivingThreshold') || 'Auto tot'}
+            </label>
+            <input
+              type="range"
+              min={50000}
+              max={2000000}
+              step={10000}
+              value={settings.route_driving_threshold ?? 500000}
+              onChange={async (e) => {
+                const val = Number(e.target.value)
+                try { await updateSetting('route_driving_threshold', val) }
+                catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+              }}
+              style={{ width: '100%' }}
+            />
+            <div className="flex justify-between text-xs" style={{ color: 'var(--text-faint)' }}>
+              <span>50 km</span>
+              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
+                {`${Math.round((settings.route_driving_threshold ?? 500000) / 1000)} km`}
+              </span>
+              <span>2000 km</span>
+            </div>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('settings.routeDrivingThresholdHint') || 'Tot deze afstand wordt auto getoond; daarboven vlucht.'}</p>
+          </div>
+        </>
+      )}
+
       {/* Booking route labels */}
       <div>
         <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{t('settings.bookingLabels')}</label>

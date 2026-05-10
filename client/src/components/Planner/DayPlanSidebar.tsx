@@ -845,9 +845,14 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar({
     const da = getDayAssignments(selectedDayId)
     const waypoints = da.map(a => a.place).filter(p => p?.lat && p?.lng).map(p => ({ lat: p.lat, lng: p.lng }))
     if (waypoints.length < 2) { toast.error(t('dayplan.toast.needTwoPlaces')); return }
+    const s = useSettingsStore.getState().settings
+    const thresholds = {
+      walking: s.route_walking_threshold ?? 30_000,
+      driving: s.route_driving_threshold ?? 500_000,
+    }
     setIsCalculating(true)
     try {
-      const result = await calculateRoute(waypoints, 'auto')
+      const result = await calculateRoute(waypoints, 'auto', { thresholds })
       // Luftlinien zwischen Wegpunkten anzeigen
       const lineCoords = waypoints.map(p => [p.lat, p.lng])
       setRouteInfo({ distance: result.distanceText, duration: result.durationText })

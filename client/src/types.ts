@@ -217,6 +217,8 @@ export interface Settings {
   time_format: string
   show_place_description: boolean
   route_calculation?: boolean
+  route_walking_threshold?: number
+  route_driving_threshold?: number
   blur_booking_codes?: boolean
   map_booking_labels?: boolean
   map_provider?: 'leaflet' | 'mapbox-gl'

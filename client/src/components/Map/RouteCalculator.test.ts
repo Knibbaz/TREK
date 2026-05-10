@@ -109,16 +109,16 @@ describe('calculateRoute', () => {
   })
 
   it('FE-COMP-ROUTECALCULATOR-016: auto profile uses driving for medium distances', async () => {
-    // Waypoints ~25 km apart → auto picks driving
+    // Waypoints ~30 km apart → auto picks driving (>30 km walking threshold)
     const near = { lat: 48.8566, lng: 2.3522 }
     const far = { lat: 49.0000, lng: 2.6000 }
     server.use(
       http.get(`${OSRM_BASE}/driving/:coords`, () =>
-        HttpResponse.json(buildOsrmRouteResponse(25000, 1200))
+        HttpResponse.json(buildOsrmRouteResponse(30100, 1440))
       )
     )
     const result = await calculateRoute([near, far])
-    expect(result.distanceText).toBe('25.0 km')
+    expect(result.distanceText).toBe('30.1 km')
   })
 
   it('FE-COMP-ROUTECALCULATOR-017: auto profile treats >500 km as flight (straight line)', async () => {

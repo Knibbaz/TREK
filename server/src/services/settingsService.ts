@@ -14,6 +14,8 @@ export const DEFAULTABLE_USER_SETTING_KEYS = [
   'blur_booking_codes',
   'map_tile_url',
   'home_country',
+  'route_walking_threshold',
+  'route_driving_threshold',
 ] as const;
 
 type DefaultableKey = typeof DEFAULTABLE_USER_SETTING_KEYS[number];

@@ -45,20 +45,25 @@ function straightLine(
   return coords
 }
 
+export interface RouteThresholds {
+  walking: number // meters (default: 30_000 = 30 km)
+  driving: number // meters (default: 500_000 = 500 km)
+}
+
+const DEFAULT_THRESHOLDS: RouteThresholds = {
+  walking: 30_000,
+  driving: 500_000,
+}
+
 /** Detect whether a segment should be treated as a flight. */
-function isFlightSegment(a: Waypoint, b: Waypoint): boolean {
+function isFlightSegment(a: Waypoint, b: Waypoint, thresholds: RouteThresholds = DEFAULT_THRESHOLDS): boolean {
   const d = haversine(a, b)
-  // Long-distance (>500 km) or crossing a significant body of water
-  // where land routing makes no sense (e.g. Amsterdam → Tenerife).
-  // 500 km is roughly the max sensible high-speed rail / ferry distance.
-  return d > 500_000
+  return d > thresholds.driving
 }
 
 /** Choose the best OSRM profile for a local (non-flight) segment. */
-function autoProfile(distanceMeters: number): 'walking' | 'driving' {
-  // Under 2 km → walking is realistic
-  // 2–500 km → driving (or cycling, but driving covers both)
-  return distanceMeters < 2000 ? 'walking' : 'driving'
+function autoProfile(distanceMeters: number, thresholds: RouteThresholds = DEFAULT_THRESHOLDS): 'walking' | 'driving' {
+  return distanceMeters <= thresholds.walking ? 'walking' : 'driving'
 }
 
 /**
@@ -70,17 +75,21 @@ function autoProfile(distanceMeters: number): 'walking' | 'driving' {
 export async function calculateRoute(
   waypoints: Waypoint[],
   profile?: 'driving' | 'walking' | 'cycling' | 'auto',
-  { signal }: { signal?: AbortSignal } = {}
+  {
+    signal,
+    thresholds,
+  }: { signal?: AbortSignal; thresholds?: RouteThresholds } = {}
 ): Promise<RouteResult> {
   if (!waypoints || waypoints.length < 2) {
     throw new Error('At least 2 waypoints required')
   }
 
   const effectiveProfile = profile ?? 'auto'
+  const t = thresholds ?? DEFAULT_THRESHOLDS
 
   // If auto: split waypoints into clusters separated by flight segments
   if (effectiveProfile === 'auto') {
-    return calculateHybridRoute(waypoints, signal)
+    return calculateHybridRoute(waypoints, signal, t)
   }
 
   // Legacy manual-profile path (used when caller explicitly forces a profile)
@@ -130,7 +139,8 @@ export async function calculateRoute(
 /** Hybrid route: uses OSRM for local segments and straight lines for flights. */
 async function calculateHybridRoute(
   waypoints: Waypoint[],
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  thresholds: RouteThresholds = DEFAULT_THRESHOLDS,
 ): Promise<RouteResult> {
   let allCoordinates: [number, number][] = []
   let totalDistance = 0
@@ -146,7 +156,7 @@ async function calculateHybridRoute(
     const to = waypoints[i + 1]
     const segDist = haversine(from, to)
 
-    if (isFlightSegment(from, to)) {
+    if (isFlightSegment(from, to, thresholds)) {
       // Flight segment: straight line + estimated flight time
       const flightCoords = straightLine(from, to)
       // Skip first point to avoid duplicates
@@ -158,7 +168,7 @@ async function calculateHybridRoute(
       totalDrivingDuration += airTime
     } else {
       // Local segment: OSRM
-      const segProfile = autoProfile(segDist)
+      const segProfile = autoProfile(segDist, thresholds)
       const coordsStr = `${from.lng},${from.lat};${to.lng},${to.lat}`
       const url = `${OSRM_BASE}/${segProfile}/${coordsStr}?overview=full&geometries=geojson&steps=false`
 
@@ -203,6 +213,84 @@ async function calculateHybridRoute(
     walkingText: formatDuration(totalWalkingDuration),
     drivingText: formatDuration(totalDrivingDuration),
   }
+}
+
+/** Fetches per-leg distance/duration from OSRM and returns segment metadata (midpoints, walking/driving times).
+ *  Automatically treats long-distance segments as flights. */
+export async function calculateSegments(
+  waypoints: Waypoint[],
+  { signal, thresholds }: { signal?: AbortSignal; thresholds?: RouteThresholds } = {}
+): Promise<RouteSegment[]> {
+  if (!waypoints || waypoints.length < 2) return []
+
+  const t = thresholds ?? DEFAULT_THRESHOLDS
+  const segments: RouteSegment[] = []
+
+  for (let i = 0; i < waypoints.length - 1; i++) {
+    const from = waypoints[i]
+    const to = waypoints[i + 1]
+    const segDist = haversine(from, to)
+
+    const fromCoord: [number, number] = [from.lat, from.lng]
+    const toCoord: [number, number] = [to.lat, to.lng]
+    const mid: [number, number] = [(fromCoord[0] + toCoord[0]) / 2, (fromCoord[1] + toCoord[1]) / 2]
+
+    if (isFlightSegment(from, to, t)) {
+      const airTime = flightDuration(segDist)
+      segments.push({
+        mid,
+        from: fromCoord,
+        to: toCoord,
+        walkingText: formatDuration(segDist / (5000 / 3600)),
+        drivingText: formatDuration(airTime),
+        distance: segDist,
+        distanceText: formatDistance(segDist),
+      })
+      continue
+    }
+
+    // Local segment via OSRM
+    const segProfile = autoProfile(segDist, t)
+    const coordsStr = `${from.lng},${from.lat};${to.lng},${to.lat}`
+    const url = `${OSRM_BASE}/${segProfile}/${coordsStr}?overview=false&geometries=geojson&steps=false&annotations=distance,duration`
+
+    try {
+      const res = await fetch(url, { signal })
+      if (res.ok) {
+        const data = await res.json()
+        if (data.code === 'Ok' && data.routes?.[0]?.legs?.[0]) {
+          const leg = data.routes[0].legs[0]
+          const walkingDuration = leg.distance / (5000 / 3600)
+          segments.push({
+            mid,
+            from: fromCoord,
+            to: toCoord,
+            walkingText: formatDuration(walkingDuration),
+            drivingText: formatDuration(leg.duration),
+            distance: leg.distance,
+            distanceText: formatDistance(leg.distance),
+          })
+          continue
+        }
+      }
+    } catch {
+      /* OSRM failed */
+    }
+
+    // Fallback
+    const estDuration = segDist / (segProfile === 'walking' ? 5000 / 3600 : 25000 / 3600)
+    segments.push({
+      mid,
+      from: fromCoord,
+      to: toCoord,
+      walkingText: formatDuration(segDist / (5000 / 3600)),
+      drivingText: formatDuration(estDuration),
+      distance: segDist,
+      distanceText: formatDistance(segDist),
+    })
+  }
+
+  return segments
 }
 
 export function generateGoogleMapsUrl(places: Waypoint[]): string | null {
@@ -284,83 +372,6 @@ export function optimizeRoute(
   if (forcedLastIdx !== null) result.push(valid[forcedLastIdx])
 
   return result
-}
-
-/** Fetches per-leg distance/duration from OSRM and returns segment metadata (midpoints, walking/driving times).
- *  Automatically treats long-distance segments as flights. */
-export async function calculateSegments(
-  waypoints: Waypoint[],
-  { signal }: { signal?: AbortSignal } = {}
-): Promise<RouteSegment[]> {
-  if (!waypoints || waypoints.length < 2) return []
-
-  const segments: RouteSegment[] = []
-
-  for (let i = 0; i < waypoints.length - 1; i++) {
-    const from = waypoints[i]
-    const to = waypoints[i + 1]
-    const segDist = haversine(from, to)
-
-    const fromCoord: [number, number] = [from.lat, from.lng]
-    const toCoord: [number, number] = [to.lat, to.lng]
-    const mid: [number, number] = [(fromCoord[0] + toCoord[0]) / 2, (fromCoord[1] + toCoord[1]) / 2]
-
-    if (isFlightSegment(from, to)) {
-      const airTime = flightDuration(segDist)
-      segments.push({
-        mid,
-        from: fromCoord,
-        to: toCoord,
-        walkingText: formatDuration(segDist / (5000 / 3600)),
-        drivingText: formatDuration(airTime),
-        distance: segDist,
-        distanceText: formatDistance(segDist),
-      })
-      continue
-    }
-
-    // Local segment via OSRM
-    const segProfile = autoProfile(segDist)
-    const coordsStr = `${from.lng},${from.lat};${to.lng},${to.lat}`
-    const url = `${OSRM_BASE}/${segProfile}/${coordsStr}?overview=false&geometries=geojson&steps=false&annotations=distance,duration`
-
-    try {
-      const res = await fetch(url, { signal })
-      if (res.ok) {
-        const data = await res.json()
-        if (data.code === 'Ok' && data.routes?.[0]?.legs?.[0]) {
-          const leg = data.routes[0].legs[0]
-          const walkingDuration = leg.distance / (5000 / 3600)
-          segments.push({
-            mid,
-            from: fromCoord,
-            to: toCoord,
-            walkingText: formatDuration(walkingDuration),
-            drivingText: formatDuration(leg.duration),
-            distance: leg.distance,
-            distanceText: formatDistance(leg.distance),
-          })
-          continue
-        }
-      }
-    } catch {
-      /* OSRM failed */
-    }
-
-    // Fallback
-    const estDuration = segDist / (segProfile === 'walking' ? 5000 / 3600 : 25000 / 3600)
-    segments.push({
-      mid,
-      from: fromCoord,
-      to: toCoord,
-      walkingText: formatDuration(segDist / (5000 / 3600)),
-      drivingText: formatDuration(estDuration),
-      distance: segDist,
-      distanceText: formatDistance(segDist),
-    })
-  }
-
-  return segments
 }
 
 function formatDistance(meters: number): string {
