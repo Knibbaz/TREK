@@ -29,10 +29,13 @@ import Navbar from '../components/Layout/Navbar'
 import { useToast } from '../components/shared/Toast'
 import { Map, X, PanelLeftClose, PanelLeftOpen, PanelRightClose, PanelRightOpen, Ticket, PackageCheck, Wallet, FolderOpen, Users, Train } from 'lucide-react'
 import { useTranslation } from '../i18n'
-import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi } from '../api/client'
+import { addonsApi, accommodationsApi, authApi, tripsApi, assignmentsApi, mapsApi, exploreApi } from '../api/client'
 import { accommodationRepo } from '../repo/accommodationRepo'
 import { offlineDb } from '../db/offlineDb'
 import { useAuthStore } from '../store/authStore'
+import { useAddonStore } from '../store/addonStore'
+import { PublishModal } from '../components/Explore/PublishModal'
+import { PublishUpdateModal } from '../components/Explore/PublishUpdateModal'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
 import { useResizablePanels } from '../hooks/useResizablePanels'
 import { useTripWebSocket } from '../hooks/useTripWebSocket'
@@ -205,6 +208,18 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const [tripMembers, setTripMembers] = useState<TripMember[]>([])
   const [sharedWithGroup, setSharedWithGroup] = useState(false)
 
+  // Explore publication state
+  const { isEnabled: isAddonEnabled } = useAddonStore()
+  const exploreEnabled = isAddonEnabled('explore')
+  const user = useAuthStore(s => s.user)
+  const isOwner = trip ? trip.owner_id === user?.id : false
+  const isCreatorOrAdmin = user?.role === 'admin' || user?.role === 'creator'
+  const canPublish = exploreEnabled && isOwner && isCreatorOrAdmin
+
+  const [pubStatus, setPubStatus] = useState<{ is_published: boolean; status?: string; version?: number } | null>(null)
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+
   const loadAccommodations = useCallback(() => {
     if (tripId) {
       accommodationRepo.list(tripId).then(d => setTripAccommodations(d.accommodations || [])).catch(() => {})
@@ -223,6 +238,14 @@ export default function TripPlannerPage(): React.ReactElement | null {
       if (config.allowed_file_types) setAllowedFileTypes(config.allowed_file_types)
     }).catch(() => {})
   }, [])
+
+  // Fetch publication status for navbar
+  useEffect(() => {
+    if (!tripId || !canPublish) return
+    exploreApi.getPublicationStatus(Number(tripId))
+      .then(data => setPubStatus(data))
+      .catch(() => {})
+  }, [tripId, canPublish])
 
   const TRANSPORT_TYPES = new Set(['flight', 'train', 'car', 'cruise', 'bus'])
 
@@ -808,9 +831,19 @@ export default function TripPlannerPage(): React.ReactElement | null {
   }
   if (!trip) return null
 
+  // Derived navbar props for publish
+  const isPublished = !!pubStatus?.is_published
+  const handleNavPublish = canPublish
+    ? () => isPublished ? setShowUpdateModal(true) : setShowPublishModal(true)
+    : undefined
+  const publishLabel = isPublished
+    ? (t('explore.publishUpdate') || 'Push Update')
+    : (t('explore.publish') || 'Publish')
+  const exploreLink = canPublish && isPublished ? '/explore' : undefined
+
   return (
     <div style={{ position: 'fixed', inset: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', ...fontStyle }}>
-      <Navbar tripTitle={trip.title} tripId={tripId} showBack onBack={() => navigate('/dashboard')} onShare={() => setShowMembersModal(true)} />
+      <Navbar tripTitle={trip.title} tripId={tripId} showBack onBack={() => navigate('/dashboard')} onShare={() => setShowMembersModal(true)} onPublish={handleNavPublish} onPublishLabel={publishLabel} onExploreLink={exploreLink} />
 
       <div style={{
         position: 'fixed', top: 'var(--nav-h)', left: 0, right: 0, zIndex: 40,
@@ -1263,6 +1296,30 @@ export default function TripPlannerPage(): React.ReactElement | null {
       <TripMembersModal isOpen={showMembersModal} onClose={() => setShowMembersModal(false)} tripId={tripId} tripTitle={trip?.title} />
       <ReservationModal isOpen={showReservationModal} onClose={() => { setShowReservationModal(false); setEditingReservation(null); setBookingForAssignmentId(null) }} onSave={handleSaveReservation} reservation={editingReservation} days={days} places={places} assignments={assignments} selectedDayId={selectedDayId} files={files} onFileUpload={canUploadFiles ? (fd) => tripActions.addFile(tripId, fd) : undefined} onFileDelete={(id) => tripActions.deleteFile(tripId, id)} accommodations={tripAccommodations} defaultAssignmentId={bookingForAssignmentId} />
       {showTransportModal && <TransportModal isOpen={showTransportModal} onClose={() => { setShowTransportModal(false); setEditingTransport(null); setTransportModalDayId(null) }} onSave={handleSaveTransport} reservation={editingTransport} days={days} selectedDayId={transportModalDayId} files={files} onFileUpload={canUploadFiles ? (fd) => tripActions.addFile(tripId, fd) : undefined} onFileDelete={(id) => tripActions.deleteFile(tripId, id)} />}
+
+      {/* Explore publish modals */}
+      {canPublish && trip && (
+        <>
+          <PublishModal
+            isOpen={showPublishModal}
+            onClose={() => setShowPublishModal(false)}
+            trips={[{ id: trip.id, title: trip.title }]}
+            onSubmitted={() => {
+              setShowPublishModal(false)
+              exploreApi.getPublicationStatus(Number(tripId))
+                .then(data => setPubStatus(data))
+                .catch(() => {})
+            }}
+          />
+          <PublishUpdateModal
+            isOpen={showUpdateModal}
+            onClose={() => setShowUpdateModal(false)}
+            trip={{ id: trip.id, title: trip.title }}
+            onUpdatePublished={() => setShowUpdateModal(false)}
+          />
+        </>
+      )}
+
       <ConfirmDialog
         isOpen={!!deletePlaceId}
         onClose={() => setDeletePlaceId(null)}

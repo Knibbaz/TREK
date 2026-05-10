@@ -2805,8 +2805,10 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'explore.descriptions': 'Descriptions',
   'explore.addLanguage': 'Add language',
   'explore.removeLanguage': 'Remove',
+  'explore.publish': 'Publish',
   'explore.publishUpdate': 'Publish update',
   'explore.publishUpdateSuccess': 'Update published! Version {version} — {count} subscribers notified.',
+  'explore.liveOnExplore': 'Live on Explore',
   'explore.enableCommunity': 'Enable community contributions',
   // Moderation queue
   'explore.moderation.noSubmissions': 'No submissions',

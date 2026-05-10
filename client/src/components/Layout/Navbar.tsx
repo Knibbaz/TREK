@@ -5,7 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useAddonStore } from '../../store/addonStore'
 import { useTranslation } from '../../i18n'
-import { Plane, LogOut, Settings, ChevronDown, Shield, ArrowLeft, Users, Moon, Sun, Monitor, CalendarDays, Briefcase, Globe, Compass } from 'lucide-react'
+import { Plane, LogOut, Settings, ChevronDown, Shield, ArrowLeft, Users, Moon, Sun, Monitor, CalendarDays, Briefcase, Globe, Compass, Upload, ExternalLink } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import InAppNotificationBell from './InAppNotificationBell.tsx'
 
@@ -17,6 +17,9 @@ interface NavbarProps {
   onBack?: () => void
   showBack?: boolean
   onShare?: () => void
+  onPublish?: () => void
+  onPublishLabel?: string
+  onExploreLink?: string
 }
 
 interface Addon {
@@ -26,7 +29,7 @@ interface Addon {
   type: string
 }
 
-export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }: NavbarProps): React.ReactElement {
+export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, onPublish, onPublishLabel, onExploreLink }: NavbarProps): React.ReactElement {
   const { user, logout, isPrerelease, appVersion } = useAuthStore()
   const { settings, updateSetting } = useSettingsStore()
   const { addons: allAddons, loadAddons } = useAddonStore()
@@ -171,6 +174,31 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare }:
 
       {/* Spacer */}
       <div className="flex-1" />
+
+      {/* Explore "Live" badge — appears when trip is published */}
+      {onExploreLink && (
+        <a href={onExploreLink} target="_blank" rel="noopener noreferrer"
+          className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-lg text-sm font-medium flex-shrink-0 transition-colors"
+          style={{ borderColor: 'rgba(34,197,94,0.4)', color: '#16a34a', background: 'rgba(34,197,94,0.08)', border: '1px solid' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'rgba(34,197,94,0.14)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'rgba(34,197,94,0.08)'}>
+          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: '#22c55e' }} />
+          {t('explore.liveOnExplore') || 'Live on Explore'}
+          <ExternalLink className="w-3 h-3" />
+        </a>
+      )}
+
+      {/* Publish / Push Update button */}
+      {onPublish && (
+        <button onClick={onPublish}
+          className="hidden sm:flex items-center gap-1.5 py-1.5 px-3 rounded-lg border transition-colors text-sm font-medium flex-shrink-0"
+          style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)', background: 'var(--bg-card)' }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-card)'}>
+          <Upload className="w-4 h-4" />
+          <span className="hidden sm:inline">{onPublishLabel || t('explore.publish') || 'Publish'}</span>
+        </button>
+      )}
 
       {/* Share button */}
       {onShare && (

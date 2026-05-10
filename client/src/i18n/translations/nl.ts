@@ -2706,8 +2706,10 @@ const nl: Record<string, string> = {
   'explore.descriptions': 'Beschrijvingen',
   'explore.addLanguage': 'Taal toevoegen',
   'explore.removeLanguage': 'Verwijderen',
+  'explore.publish': 'Publiceren',
   'explore.publishUpdate': 'Update publiceren',
   'explore.publishUpdateSuccess': 'Update gepubliceerd! Versie {version} — {count} abonnees op de hoogte gesteld.',
+  'explore.liveOnExplore': 'Live op Explore',
   'explore.enableCommunity': 'Community bijdragen inschakelen',
   // Admin explore indieningen
   'admin.explore.title': 'Explore indieningen',
