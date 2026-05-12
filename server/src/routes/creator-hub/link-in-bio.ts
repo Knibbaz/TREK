@@ -1,5 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { authenticate } from '../../middleware/auth';
+import { AuthRequest } from '../../types';
 import { db } from '../../db/database';
 
 const router = Router();
@@ -46,9 +47,9 @@ router.get('/:slug', (req: Request, res: Response) => {
 router.use(authenticate);
 
 // GET /config — haal LiB config op
-router.get('/config', (req: Request, res: Response) => {
+router.get('/config', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
@@ -77,9 +78,9 @@ router.get('/config', (req: Request, res: Response) => {
 });
 
 // PATCH /config — update config
-router.patch('/config', (req: Request, res: Response) => {
+router.patch('/config', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
@@ -144,9 +145,9 @@ router.patch('/config', (req: Request, res: Response) => {
 });
 
 // GET /blocks — haal alle blocks op
-router.get('/blocks', (req: Request, res: Response) => {
+router.get('/blocks', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
@@ -171,9 +172,9 @@ router.get('/blocks', (req: Request, res: Response) => {
 });
 
 // POST /blocks — maak nieuw block
-router.post('/blocks', (req: Request, res: Response) => {
+router.post('/blocks', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
@@ -210,9 +211,9 @@ router.post('/blocks', (req: Request, res: Response) => {
 });
 
 // PATCH /blocks/:blockId — update block
-router.patch('/blocks/:blockId', (req: Request, res: Response) => {
+router.patch('/blocks/:blockId', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
@@ -254,9 +255,9 @@ router.patch('/blocks/:blockId', (req: Request, res: Response) => {
 });
 
 // DELETE /blocks/:blockId — verwijder block
-router.delete('/blocks/:blockId', (req: Request, res: Response) => {
+router.delete('/blocks/:blockId', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
@@ -286,9 +287,9 @@ router.delete('/blocks/:blockId', (req: Request, res: Response) => {
 });
 
 // PATCH /blocks/reorder — hersorteer blocks
-router.patch('/blocks/reorder', (req: Request, res: Response) => {
+router.patch('/blocks/reorder', (req: AuthRequest, res: Response) => {
   try {
-    const user = req.user as any;
+    const user = req.user;
     if (!user || (user.role !== 'creator' && user.role !== 'admin')) {
       return res.status(403).json({ error: 'Not a creator' });
     }
