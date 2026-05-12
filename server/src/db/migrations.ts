@@ -3020,6 +3020,63 @@ function runMigrations(db: Database.Database): void {
         }
       }
     },
+
+    // Migration 168: Creator Hub — Link-in-Bio tables
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_lib_config (
+          creator_id      INTEGER PRIMARY KEY REFERENCES explore_creators(id) ON DELETE CASCADE,
+          slug            TEXT NOT NULL UNIQUE,
+
+          -- Theming
+          theme           TEXT NOT NULL DEFAULT 'minimal',
+          custom_css      TEXT,
+          background_type TEXT DEFAULT 'solid',
+          background_value TEXT DEFAULT '#ffffff',
+          accent_color    TEXT DEFAULT '#0066cc',
+          font_family     TEXT DEFAULT 'Inter',
+
+          -- Header
+          tagline         TEXT,
+          show_country_count INTEGER NOT NULL DEFAULT 1,
+          show_location   INTEGER NOT NULL DEFAULT 1,
+
+          -- Sections visibility
+          show_listings   INTEGER NOT NULL DEFAULT 1,
+          show_guides     INTEGER NOT NULL DEFAULT 1,
+          show_group_trips INTEGER NOT NULL DEFAULT 1,
+          show_affiliate_links INTEGER NOT NULL DEFAULT 1,
+          show_tip_jar    INTEGER NOT NULL DEFAULT 1,
+
+          -- Analytics
+          view_count      INTEGER NOT NULL DEFAULT 0,
+
+          updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('[migrations] Created creator_lib_config table');
+    },
+
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_lib_blocks (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          creator_id      INTEGER NOT NULL REFERENCES explore_creators(id) ON DELETE CASCADE,
+          type            TEXT NOT NULL,
+          title           TEXT,
+          url             TEXT,
+          icon            TEXT,
+          thumbnail_url   TEXT,
+          content         TEXT,
+          is_visible      INTEGER NOT NULL DEFAULT 1,
+          sort_order      INTEGER NOT NULL DEFAULT 0,
+          clicks          INTEGER NOT NULL DEFAULT 0,
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_lib_blocks_creator ON creator_lib_blocks(creator_id);
+      `);
+      console.log('[migrations] Created creator_lib_blocks table');
+    },
   ];
 
   if (currentVersion < migrations.length) {

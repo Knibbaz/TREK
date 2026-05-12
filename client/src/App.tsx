@@ -23,6 +23,8 @@ import GuestPollPage from './pages/GuestPollPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
 import ExplorePage from './pages/ExplorePage'
 import { CreatorStorefrontPage } from './pages/CreatorStorefrontPage'
+import CreatorHubPage from './pages/CreatorHubPage'
+import { LinkInBioPage } from './pages/LinkInBioPage'
 import WorldMapPage from './pages/WorldMapPage'
 import SharedTripPage from './pages/SharedTripPage'
 import TripInvitePage from './pages/TripInvitePage'
@@ -224,6 +226,7 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shared/:token" element={<SharedTripPage />} />
+        <Route path="/@:slug" element={<LinkInBioPage />} />
         <Route path="/creator/:slug" element={<CreatorStorefrontPage />} />
         <Route path="/invite/trip/:token" element={<TripInvitePage />} />
         <Route path="/public/journey/:token" element={<JourneyPublicPage />} />
@@ -320,6 +323,14 @@ export default function App() {
           element={
             <ProtectedRoute>
               <ExplorePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/creator-hub"
+          element={
+            <ProtectedRoute>
+              <CreatorHubPage />
             </ProtectedRoute>
           }
         />

@@ -1288,14 +1288,26 @@ router.post('/creators/:id/approve-application', (req: Request, res: Response) =
     if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
 
     const { id } = req.params;
-    const creator = db.prepare('SELECT id, user_id, status FROM explore_creators WHERE id = ?')
-      .get(id) as { id: number; user_id: number; status: string } | undefined;
+    const creator = db.prepare('SELECT id, user_id, slug, status FROM explore_creators WHERE id = ?')
+      .get(id) as { id: number; user_id: number; slug: string; status: string } | undefined;
 
     if (!creator) return res.status(404).json({ error: 'Creator not found' });
     if (creator.status === 'approved') return res.status(409).json({ error: 'Already approved' });
 
     db.prepare('UPDATE explore_creators SET status = ?, approved_at = datetime("now"), approved_by = ? WHERE id = ?')
       .run('approved', authReq.user.id, id);
+
+    // Initialize Link-in-Bio config
+    try {
+      db.prepare(`
+        INSERT INTO creator_lib_config (creator_id, slug)
+        VALUES (?, ?)
+      `).run(id, creator.slug);
+    } catch (err: any) {
+      if (!err.message?.includes('UNIQUE constraint failed')) {
+        console.warn('[Creator Hub] Failed to initialize LiB config:', err);
+      }
+    }
 
     // Award verified_creator badge
     recalculateCreatorBadges(db, creator.user_id);

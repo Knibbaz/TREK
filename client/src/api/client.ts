@@ -939,4 +939,23 @@ export const atlasApi = {
   deleteVolunteering: (id: number) => apiClient.delete(`/addons/atlas/volunteering/${id}`).then(r => r.data),
 }
 
+export const creatorHubApi = {
+  // Link-in-Bio config
+  getLibConfig: () => apiClient.get('/addons/explore/creator-hub/lib/config').then(r => r.data),
+  updateLibConfig: (data: Record<string, unknown>) =>
+    apiClient.patch('/addons/explore/creator-hub/lib/config', data).then(r => r.data),
+  // Blocks
+  getBlocks: () => apiClient.get('/addons/explore/creator-hub/lib/blocks').then(r => r.data),
+  createBlock: (data: Record<string, unknown>) =>
+    apiClient.post('/addons/explore/creator-hub/lib/blocks', data).then(r => r.data),
+  updateBlock: (id: string, data: Record<string, unknown>) =>
+    apiClient.patch(`/addons/explore/creator-hub/lib/blocks/${id}`, data).then(r => r.data),
+  deleteBlock: (id: string) =>
+    apiClient.delete(`/addons/explore/creator-hub/lib/blocks/${id}`).then(r => r.data),
+  reorderBlocks: (order: Array<{ id: string; sort_order: number }>) =>
+    apiClient.patch('/addons/explore/creator-hub/lib/blocks/reorder', { order }).then(r => r.data),
+  // Public
+  getPublicLib: (slug: string) => apiClient.get(`/public/lib/${slug}`).then(r => r.data),
+}
+
 export default apiClient

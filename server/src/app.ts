@@ -42,6 +42,7 @@ import atlasRoutes from './routes/atlas';
 import groupsRoutes from './routes/groups';
 import exploreRoutes from './routes/explore';
 import explorePaymentsRoutes from './routes/payments';
+import creatorHubLibRoutes from './routes/creator-hub/link-in-bio';
 import mollieWebhookRoutes from './routes/mollieWebhook';
 import mollieConnectRoutes from './routes/mollieConnect';
 import worldmapRoutes from './routes/worldmap';
@@ -346,6 +347,8 @@ export function createApp(): express.Application {
   app.use('/api/addons/groups', groupsRoutes);
   app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/addons/explore/payments', explorePaymentsRoutes);
+  app.use('/api/addons/explore/creator-hub/lib', creatorHubLibRoutes);
+  app.use('/api/public/lib', creatorHubLibRoutes);
   app.use('/api/mollie', mollieConnectRoutes);
   app.use('/webhooks/mollie', mollieWebhookRoutes);
   app.use('/api/addons/worldmap', worldmapRoutes);
