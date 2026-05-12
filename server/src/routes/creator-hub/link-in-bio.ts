@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
-import { authenticate, optionalAuth } from '../../middleware/auth';
-import { getDb } from '../../db';
+import { authenticate } from '../../middleware/auth';
+import { db } from '../../db/database';
 
 const router = Router();
 
@@ -8,7 +8,6 @@ const router = Router();
 router.get('/:slug', (req: Request, res: Response) => {
   try {
     const { slug } = req.params;
-    const db = getDb();
 
     // Get creator by slug
     const creator = db
@@ -54,7 +53,6 @@ router.get('/config', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
@@ -86,7 +84,6 @@ router.patch('/config', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
@@ -154,7 +151,6 @@ router.get('/blocks', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
@@ -182,7 +178,6 @@ router.post('/blocks', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
@@ -222,7 +217,6 @@ router.patch('/blocks/:blockId', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
@@ -267,7 +261,6 @@ router.delete('/blocks/:blockId', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
@@ -300,7 +293,6 @@ router.patch('/blocks/reorder', (req: Request, res: Response) => {
       return res.status(403).json({ error: 'Not a creator' });
     }
 
-    const db = getDb();
     const creatorRow = db
       .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
       .get(user.id) as { id: number } | undefined;
