@@ -102,7 +102,7 @@ apiClient.interceptors.request.use(
 
 export function isAuthPublicPath(pathname: string): boolean {
   const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password']
-  const publicPrefixes = ['/shared/', '/public/', '/invite/']
+  const publicPrefixes = ['/shared/', '/public/', '/invite/', '/guest/']
   return publicPaths.includes(pathname) || publicPrefixes.some((p) => pathname.startsWith(p))
 }
 
@@ -652,10 +652,49 @@ export const backupApi = {
   setAutoSettings: (settings: Record<string, unknown>) => apiClient.put('/backup/auto-settings', settings).then(r => r.data),
 }
 
+export const userExportApi = {
+  preview: () => apiClient.get('/user/export/preview').then(r => r.data),
+  start: () => apiClient.post('/user/export').then(r => r.data),
+  status: () => apiClient.get('/user/export/status').then(r => r.data),
+  downloadUrl: (token: string) => `/api/user/export/download/${token}`,
+  import: (file: File) => {
+    const fd = new FormData()
+    fd.append('trek', file)
+    return apiClient.post('/user/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
+}
+
+export const gdprApi = {
+  requestDeletion: () => apiClient.post('/user/delete-account').then(r => r.data),
+  cancelDeletion: () => apiClient.post('/user/cancel-deletion').then(r => r.data),
+  exports: () => apiClient.get('/admin/gdpr/exports').then(r => r.data),
+  deletions: () => apiClient.get('/admin/gdpr/deletions').then(r => r.data),
+}
+
+export const adminRestoreApi = {
+  upload: (file: File) => {
+    const fd = new FormData()
+    fd.append('trek', file)
+    return apiClient.post('/admin/backup-v2/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
+  preview: (uploadId: string) => apiClient.get(`/admin/backup-v2/upload/${uploadId}/preview`).then(r => r.data),
+  restore: (uploadId: string, strategy: string, scopes?: string[], dryRun?: boolean) =>
+    apiClient.post(`/admin/backup-v2/upload/${uploadId}/restore`, { strategy, scopes, dryRun }).then(r => r.data),
+}
+
+export const backupScheduleApi = {
+  list: () => apiClient.get('/admin/backup-v2/schedules').then(r => r.data),
+  create: (data: Record<string, unknown>) => apiClient.post('/admin/backup-v2/schedules', data).then(r => r.data),
+  update: (id: string, data: Record<string, unknown>) => apiClient.put(`/admin/backup-v2/schedules/${id}`, data).then(r => r.data),
+  delete: (id: string) => apiClient.delete(`/admin/backup-v2/schedules/${id}`).then(r => r.data),
+  run: (id: string) => apiClient.post(`/admin/backup-v2/schedules/${id}/run`).then(r => r.data),
+}
+
 export const shareApi = {
   getLink: (tripId: number | string) => apiClient.get(`/trips/${tripId}/share-link`).then(r => r.data),
   createLink: (tripId: number | string, perms?: Record<string, boolean>) => apiClient.post(`/trips/${tripId}/share-link`, perms || {}).then(r => r.data),
   deleteLink: (tripId: number | string) => apiClient.delete(`/trips/${tripId}/share-link`).then(r => r.data),
+  getVisits: (tripId: number | string) => apiClient.get(`/trips/${tripId}/share-visits`).then(r => r.data),
   getSharedTrip: (token: string) => apiClient.get(`/shared/${token}`).then(r => r.data),
   cloneTrip: (token: string) => apiClient.post(`/shared/${token}/clone`).then(r => r.data),
   getCollabInvite: (tripId: number | string) => apiClient.get(`/trips/${tripId}/collab-invite`).then(r => r.data),
@@ -733,6 +772,8 @@ export const groupsApi = {
     apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/options`, data).then(r => r.data),
   deletePollOption: (tripId: number | string, pollId: string, optionId: string) =>
     apiClient.delete(`/addons/groups/polls/${tripId}/${pollId}/options/${optionId}`).then(r => r.data),
+  updatePollOptionOrder: (tripId: number | string, pollId: string, options: Array<{ option_id: string; sort_order: number }>) =>
+    apiClient.patch(`/addons/groups/polls/${tripId}/${pollId}/options`, { options }).then(r => r.data),
   vote: (tripId: number | string, pollId: string, optionId: string) =>
     apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/vote`, { option_id: optionId }).then(r => r.data),
   closePoll: (tripId: number | string, pollId: string, status: 'closed' | 'decided', decidedOptionId?: string) =>
@@ -859,6 +900,21 @@ export const exploreApi = {
   // Admin
   toggleFeatured: (listingId: number | string, is_featured: boolean) =>
     apiClient.patch(`/admin/explore/listings/${listingId}/featured`, { is_featured }).then(r => r.data),
+  // Creator earnings
+  getCreatorEarnings: () =>
+    apiClient.get('/addons/explore/creators/me/earnings').then(r => r.data),
+  getCreatorPayouts: () =>
+    apiClient.get('/addons/explore/creators/me/payouts').then(r => r.data),
+  // Creator customization
+  updateCreatorProfile: (data: {
+    display_name?: string;
+    bio?: string;
+    avatar_url?: string;
+    cover_image_url?: string;
+    social_links?: Record<string, string>;
+    tagline?: string;
+  }) =>
+    apiClient.patch('/addons/explore/creators/me', data).then(r => r.data),
 }
 
 export const mollieApi = {

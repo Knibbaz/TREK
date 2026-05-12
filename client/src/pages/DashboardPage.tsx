@@ -940,6 +940,30 @@ export default function DashboardPage(): React.ReactElement {
             </button>
           </div>
 
+          {/* Mobile: Filter tabs */}
+          {trips.length > 0 && (
+            <div className="md:hidden mb-4 overflow-x-auto">
+              <div style={{ display: 'inline-flex', gap: 2, background: 'var(--bg-secondary)', padding: '3px', borderRadius: 10, width: '100%' }}>
+                {(['all', 'live', 'upcoming', 'past', 'concept'] as const).map(mode => (
+                  <button key={mode} onClick={() => setFilterMode(mode)} style={{
+                    appearance: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    padding: '4px 10px', borderRadius: 7, fontSize: 11, fontWeight: 500,
+                    display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+                    background: filterMode === mode ? 'var(--bg-card)' : 'transparent',
+                    color: filterMode === mode
+                      ? (mode === 'live' ? '#ef4444' : mode === 'concept' ? '#d97706' : 'var(--text-primary)')
+                      : 'var(--text-muted)',
+                    boxShadow: filterMode === mode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s',
+                  }}>
+                    {mode === 'live' && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0, animation: filterMode === 'live' ? 'blink 1s ease-in-out infinite' : undefined }} />}
+                    {t(`dashboard.filter.${mode}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           {/* Desktop header — unified toolbar */}
           <div className="hidden md:block" style={{ marginBottom: 20 }}>
             <div style={{
@@ -1097,6 +1121,26 @@ export default function DashboardPage(): React.ReactElement {
               >
                 <Plus size={16} /> {t('dashboard.emptyButton')}
               </button>}
+            </div>
+          )}
+
+          {/* Mobile: All trips (excluding spotlight which was shown above) */}
+          {!isLoading && (
+            <div className="md:hidden flex flex-col gap-3 mb-6">
+              {filteredTrips.filter(t => t.id !== spotlight?.id).map(trip => (
+                <TripListItem
+                  key={trip.id}
+                  trip={trip}
+                  t={t} locale={locale}
+                  onEdit={(can('trip_edit', trip) || can('trip_cover_upload', trip)) ? tr => { setEditingTrip(tr); setShowForm(true) } : undefined}
+                  onCopy={can('trip_create') ? handleCopy : undefined}
+                  onDelete={can('trip_delete', trip) ? handleDelete : undefined}
+                  onArchive={can('trip_archive', trip) ? handleArchive : undefined}
+                  onSync={exploreEnabled ? handleSyncFork : undefined}
+                  updateAvailable={updateAvailable}
+                  onClick={tr => navigate(`/trips/${tr.id}`)}
+                />
+              ))}
             </div>
           )}
 

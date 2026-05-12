@@ -2970,6 +2970,56 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Created gdpr_export_requests table');
     },
+
+    // Migration 164: share_visits table for tracking shared trip visitors
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS share_visits (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          token TEXT NOT NULL REFERENCES share_tokens(token) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          user_agent_hash TEXT,
+          ip_address TEXT,
+          visited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(token, session_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_share_visits_token ON share_visits(token);
+        CREATE INDEX IF NOT EXISTS idx_share_visits_visited_at ON share_visits(visited_at);
+      `);
+      console.log('[migrations] Created share_visits table');
+    },
+
+    // Migration 165: GDPR compliance — pending deletion with grace period
+    () => {
+      try { db.exec('ALTER TABLE users ADD COLUMN pending_deletion INTEGER NOT NULL DEFAULT 0;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec('ALTER TABLE users ADD COLUMN deletion_requested_at TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added pending_deletion columns to users');
+    },
+
+    // Migration 166: Explore feature — continent column for globe_trotter badge
+    () => {
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN continent TEXT'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added continent column to explore_published');
+    },
+
+    // Migration 167: Explore feature — add missing columns to explore_fork_deltas
+    () => {
+      try {
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN source_trip_id TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN forked_trip_id TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN source_version INTEGER');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN forked_version INTEGER');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN delta_type TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN resource_id TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN resource_type TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN changes TEXT');
+        console.log('[migrations] Added migration-157 columns to explore_fork_deltas for backward compatibility');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) {
+          console.warn('[migrations] Non-fatal migration step failed:', err);
+        }
+      }
+    },
   ];
 
   if (currentVersion < migrations.length) {

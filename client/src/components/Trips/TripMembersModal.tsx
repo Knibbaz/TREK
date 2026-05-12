@@ -5,7 +5,7 @@ import { useToast } from '../shared/Toast'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useTripStore } from '../../store/tripStore'
-import { Crown, UserMinus, UserPlus, Users, LogOut, Link2, Trash2, Copy, Check, UsersRound } from 'lucide-react'
+import { Crown, UserMinus, UserPlus, Users, LogOut, Link2, Trash2, Copy, Check, UsersRound, Eye } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 
 interface AvatarProps {
@@ -37,12 +37,19 @@ function ShareLinkSection({ tripId, t, enabledAddons }: { tripId: number; t: (ke
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
   const [perms, setPerms] = useState({ share_map: true, share_plan: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false, allow_clone: false, share_description: false })
+  const [visitorCount, setVisitorCount] = useState<number | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const { user } = useAuthStore()
   const toast = useToast()
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
     return () => { if (copyTimerRef.current) clearTimeout(copyTimerRef.current) }
   }, [])
+
+  useEffect(() => {
+    setIsAdmin(user?.role === 'admin')
+  }, [user])
 
   useEffect(() => {
     shareApi.getLink(tripId).then(d => {
@@ -68,10 +75,17 @@ function ShareLinkSection({ tripId, t, enabledAddons }: { tripId: number; t: (ke
         }
 
         setPerms(permsFromServer)
+
+        // Fetch visitor stats for admins
+        if (isAdmin) {
+          shareApi.getVisits(tripId).then(stats => {
+            setVisitorCount(stats.uniqueVisitors || 0)
+          }).catch(() => setVisitorCount(0))
+        }
       }
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [tripId, enabledAddons])
+  }, [tripId, enabledAddons, isAdmin])
 
   const shareUrl = shareToken ? `${window.location.origin}/shared/${shareToken}` : null
 
@@ -94,6 +108,7 @@ function ShareLinkSection({ tripId, t, enabledAddons }: { tripId: number; t: (ke
     try {
       await shareApi.deleteLink(tripId)
       setShareToken(null)
+      setVisitorCount(null)
     } catch {}
   }
 
@@ -163,6 +178,19 @@ function ShareLinkSection({ tripId, t, enabledAddons }: { tripId: number; t: (ke
               {copied ? <><Check size={10} /> {t('common.copied')}</> : <><Copy size={10} /> {t('common.copy')}</>}
             </button>
           </div>
+
+          {isAdmin && visitorCount !== null && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+              background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.2)',
+            }}>
+              <Eye size={12} style={{ color: '#3b82f6' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-primary)' }}>
+                <strong>{visitorCount}</strong> unieke bezoekers
+              </span>
+            </div>
+          )}
+
           <button onClick={handleDelete} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
             padding: '6px 0', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)',

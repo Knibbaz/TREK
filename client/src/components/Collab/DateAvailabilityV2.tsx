@@ -62,12 +62,15 @@ interface TooltipProps {
   y: number
   overlays: DayOverlay[]
   availability: DateAvailabilityEntry[]
+  guestAvailability?: Array<{ date: string; status: string; note: string | null; guest_token_id: number; guest_name: string | null }>
   members: DateProposal['members']
 }
 
-function Tooltip({ date, x, y, overlays, availability, members }: TooltipProps) {
+function Tooltip({ date, x, y, overlays, availability, guestAvailability, members }: TooltipProps) {
   const { t, locale } = useTranslation()
-  const entries = availability.filter(a => a.date === date)
+  const memberEntries = availability.filter(a => a.date === date)
+  const guestEntries = guestAvailability?.filter(g => g.date === date) || []
+  const entries = [...memberEntries, ...guestEntries]
   return createPortal(
     <div style={{
       position: 'fixed',
@@ -100,14 +103,14 @@ function Tooltip({ date, x, y, overlays, availability, members }: TooltipProps) 
       {entries.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border-faint)', paddingTop: 6 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', marginBottom: 4 }}>{t('dateAvail.groupResponses') || 'Group responses'}</div>
-          {entries.map(e => (
-            <div key={e.user_id} style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
+          {entries.map((e: any) => (
+            <div key={e.user_id || e.guest_token_id} style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
                 <span style={{
                   fontWeight: 900, fontSize: 12,
                   color: e.status === 'yes' ? '#16a34a' : e.status === 'maybe' ? '#f59e0b' : '#dc2626',
                 }}>{e.status === 'yes' ? '✓' : e.status === 'maybe' ? '?' : '✕'}</span>
-                <span style={{ color: 'var(--text-primary)' }}>{e.username}</span>
+                <span style={{ color: 'var(--text-primary)' }}>{e.username || e.guest_name || (t('dateAvail.unnamedGuest') || 'Gast')}</span>
               </div>
               {e.note && (
                 <div style={{ fontSize: 10, color: 'var(--text-faint)', paddingLeft: 17, fontStyle: 'italic' }}>{e.note}</div>
@@ -335,11 +338,13 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
               const isToday = dateStr === todayStr
               const overlays = getOverlays(dateStr)
               const mine = myStatus[dateStr]
-              const entries = proposal.availability.filter(a => a.date === dateStr)
+              const memberEntries = proposal.availability.filter(a => a.date === dateStr)
+              const guestEntries = proposal.guestAvailability?.filter(g => g.date === dateStr) || []
+              const entries = [...memberEntries, ...guestEntries]
               const yesCount  = entries.filter(e => e.status === 'yes').length
               const maybeCount = entries.filter(e => e.status === 'maybe').length
               const noCount   = entries.filter(e => e.status === 'no').length
-              const total     = proposal.members.length
+              const total     = proposal.members.length + (new Set(guestEntries.map(g => g.guest_token_id)).size || 0)
               const notYet    = total - entries.length
 
               const hasNote = !!myNotes[dateStr]
@@ -463,6 +468,7 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
         <Tooltip
           {...tooltip}
           availability={proposal.availability}
+          guestAvailability={proposal.guestAvailability}
           members={proposal.members}
         />
       )}

@@ -30,6 +30,11 @@ import settingsRoutes from './routes/settings';
 import budgetRoutes from './routes/budget';
 import collabRoutes from './routes/collab';
 import backupRoutes from './routes/backup';
+import adminImportRouter from './routes/backup/admin-import';
+import userExportRouter from './routes/backup/user-export';
+import schedulesRouter from './routes/backup/schedules';
+import userGdprRouter from './routes/user-gdpr';
+import adminGdprRouter from './routes/admin-gdpr';
 import oidcRoutes from './routes/oidc';
 import { oauthPublicRouter, oauthApiRouter } from './routes/oauth';
 import vacayRoutes from './routes/vacay';
@@ -357,6 +362,11 @@ export function createApp(): express.Application {
   app.use('/api/settings', settingsRoutes);
   app.use('/api/system-notices', systemNoticesRoutes);
   app.use('/api/backup', backupRoutes);
+  app.use('/api/admin/backup-v2', adminImportRouter);
+  app.use('/api/admin/backup-v2', schedulesRouter);
+  app.use('/api/user', userExportRouter);
+  app.use('/api/user', userGdprRouter);
+  app.use('/api/admin/gdpr', adminGdprRouter);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api', shareRoutes);
 

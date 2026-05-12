@@ -43,10 +43,6 @@ export function createPaymentRecord(data: {
   return db.prepare('SELECT * FROM explore_payments WHERE id = ?').get(result.lastInsertRowid) as PaymentRecord;
 }
 
-export function getPaymentByMollieId(molliePaymentId: string): PaymentRecord | undefined {
-  return db.prepare('SELECT * FROM explore_payments WHERE mollie_payment_id = ?').get(molliePaymentId) as PaymentRecord | undefined;
-}
-
 export function updatePaymentStatus(molliePaymentId: string, status: string, paidAt?: string): void {
   db.prepare(`
     UPDATE explore_payments SET

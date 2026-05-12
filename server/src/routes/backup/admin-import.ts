@@ -153,48 +153,6 @@ router.post('/upload/:id/restore', async (req: Request, res: Response) => {
   }
 });
 
-// POST /api/user/import — user self-import
-router.post('/user-import', authenticate, upload.single('trek'), async (req: Request, res: Response) => {
-  if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
-
-  const filePath = req.file.path;
-
-  try {
-    const validation = await validateTrek(filePath);
-    if (!validation.valid) {
-      fs.unlinkSync(filePath);
-      return res.status(400).json({ error: validation.error });
-    }
-
-    // Force duplicate strategy for user imports
-    const result = importFromTrek(validation.extractDir, validation.manifest, 'duplicate');
-
-    const authReq = req as any;
-    writeAudit({
-      userId: authReq.user.id,
-      action: 'backup.user_import',
-      resource: filePath,
-      ip: getClientIp(req),
-      details: { imported: result.imported },
-    });
-
-    cleanupExtractDir(validation.extractDir);
-    fs.unlinkSync(filePath);
-
-    res.json({
-      success: result.success,
-      imported: result.imported,
-      errors: result.errors,
-    });
-  } catch (err: unknown) {
-    fs.unlinkSync(filePath);
-    const msg = err instanceof Error ? err.message : String(err);
-    res.status(500).json({ error: 'Import failed', detail: msg });
-  }
-});
-
 // Cleanup old upload sessions
 setInterval(() => {
   const now = Date.now();

@@ -278,3 +278,47 @@ export function joinTripWithCollabToken(token: string, userId: number): { tripId
   db.prepare('INSERT INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)').run(info.tripId, userId, info.ownerId);
   return { tripId: info.tripId };
 }
+
+/**
+ * Logs a visitor to a shared trip. Uses session-based tracking via cookies.
+ * Session ID should be derived from a persistent session cookie.
+ */
+export function logShareVisit(token: string, sessionId: string, userAgent?: string, ipAddress?: string): void {
+  try {
+    const userAgentHash = userAgent ? crypto.createHash('sha256').update(userAgent).digest('hex') : null;
+    db.prepare(`
+      INSERT OR IGNORE INTO share_visits (token, session_id, user_agent_hash, ip_address, visited_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).run(token, sessionId, userAgentHash, ipAddress);
+  } catch (err) {
+    console.error('[shareService] Failed to log share visit:', err);
+  }
+}
+
+/**
+ * Gets visitor statistics for a shared trip (admin only).
+ * Returns unique visitor count and list of recent visits.
+ */
+export function getShareVisitStats(token: string): { uniqueVisitors: number; recentVisits: Array<{ visitedAt: string; userAgentHash?: string }> } | null {
+  const share = db.prepare('SELECT trip_id FROM share_tokens WHERE token = ?').get(token) as { trip_id: number } | undefined;
+  if (!share) return null;
+
+  const stats = db.prepare(`
+    SELECT COUNT(DISTINCT session_id) as unique_count
+    FROM share_visits
+    WHERE token = ?
+  `).get(token) as { unique_count: number } | undefined;
+
+  const recent = db.prepare(`
+    SELECT visited_at, user_agent_hash
+    FROM share_visits
+    WHERE token = ?
+    ORDER BY visited_at DESC
+    LIMIT 100
+  `).all(token) as Array<{ visited_at: string; user_agent_hash?: string }>;
+
+  return {
+    uniqueVisitors: stats?.unique_count || 0,
+    recentVisits: recent,
+  };
+}

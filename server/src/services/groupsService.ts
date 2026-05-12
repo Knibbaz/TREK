@@ -618,6 +618,34 @@ export function deletePollOption(
   return { success: true };
 }
 
+export function updatePollOptionOrder(
+  pollId: string,
+  userId: number,
+  optionOrders: Array<{ option_id: string; sort_order: number }>
+): { success: boolean; error?: string } {
+  const poll = db.prepare('SELECT * FROM group_polls WHERE id = ?').get(pollId) as Record<string, unknown> | undefined;
+  if (!poll) return { success: false, error: 'Poll not found' };
+  if (poll.status !== 'open') return { success: false, error: 'Poll is closed' };
+
+  // Access check: only creator or trip owner
+  const isCreator = poll.created_by === userId;
+  const isOwner = db.prepare(`
+    SELECT 1 FROM trips WHERE id = ? AND user_id = ?
+  `).get(poll.trip_id, userId);
+  if (!isCreator && !isOwner) return { success: false, error: 'Forbidden' };
+
+  // Update sort_order for each option
+  for (const { option_id, sort_order } of optionOrders) {
+    db.prepare('UPDATE group_poll_options SET sort_order = ? WHERE id = ? AND poll_id = ?').run(
+      sort_order,
+      option_id,
+      pollId
+    );
+  }
+
+  return { success: true };
+}
+
 // ── Voting ───────────────────────────────────────────────────────────────────
 export function castVote(
   pollId: string,

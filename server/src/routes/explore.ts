@@ -135,6 +135,138 @@ router.get('/creators/me', (req: AuthRequest, res: Response) => {
   }
 });
 
+// ── Update creator profile (customization) ────────────────────────────────
+router.patch('/creators/me', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const { display_name, bio, avatar_url, cover_image_url, social_links, tagline } = req.body;
+
+    const creator = db.prepare('SELECT id FROM explore_creators WHERE user_id = ?').get(userId) as { id: number } | undefined;
+    if (!creator) return res.status(404).json({ error: 'No creator profile found' });
+
+    const updates: string[] = [];
+    const params: (string | number | null)[] = [];
+
+    if (display_name !== undefined) {
+      updates.push('display_name = ?');
+      params.push(display_name);
+    }
+    if (bio !== undefined) {
+      updates.push('bio = ?');
+      params.push(bio);
+    }
+    if (avatar_url !== undefined) {
+      updates.push('avatar = ?');
+      params.push(avatar_url);
+    }
+    if (cover_image_url !== undefined) {
+      try {
+        db.prepare('ALTER TABLE explore_creators ADD COLUMN cover_image_url TEXT');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) throw err;
+      }
+      updates.push('cover_image_url = ?');
+      params.push(cover_image_url);
+    }
+    if (social_links !== undefined) {
+      updates.push('social_links = ?');
+      params.push(JSON.stringify(social_links));
+    }
+    if (tagline !== undefined) {
+      try {
+        db.prepare('ALTER TABLE explore_creators ADD COLUMN tagline TEXT');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) throw err;
+      }
+      updates.push('tagline = ?');
+      params.push(tagline);
+    }
+
+    if (updates.length === 0) {
+      return res.status(400).json({ error: 'No fields to update' });
+    }
+
+    params.push(userId);
+    updates.push('updated_at = datetime(\'now\')');
+
+    const updateQuery = `UPDATE explore_creators SET ${updates.join(', ')} WHERE user_id = ?`;
+    db.prepare(updateQuery).run(...params);
+
+    // Fetch updated creator
+    const updated = db.prepare('SELECT * FROM explore_creators WHERE user_id = ?').get(userId);
+    const badges = getCreatorBadges(db, userId);
+    const badgeDetails = badges.map(b => BADGES[b]);
+
+    res.json({ ...updated, badges: badgeDetails });
+  } catch (err: unknown) {
+    console.error('Error updating creator profile:', err);
+    res.status(500).json({ error: 'Failed to update creator profile' });
+  }
+});
+
+// ── Creator earnings dashboard ────────────────────────────────────────────
+router.get('/creators/me/earnings', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const earnings = getCreatorEarnings(userId);
+
+    // Get earnings per listing
+    const perListing = db.prepare(`
+      SELECT
+        ep.trip_id,
+        ep.listing_title,
+        COUNT(ep2.trip_id) as sales_count,
+        COALESCE(SUM(eep.amount_cents), 0) as total_gross,
+        COALESCE(SUM(eep.platform_fee_cents), 0) as total_fees,
+        COALESCE(SUM(eep.creator_payout_cents), 0) as total_net
+      FROM explore_published ep
+      LEFT JOIN explore_payments eep ON eep.source_trip_id = ep.trip_id AND eep.status = 'paid'
+      LEFT JOIN explore_published ep2 ON ep2.trip_id = eep.source_trip_id
+      WHERE ep.submitted_by = ? AND ep.is_published = 1
+      GROUP BY ep.trip_id
+      ORDER BY total_net DESC
+    `).all(userId) as any[];
+
+    res.json({
+      earnings,
+      per_listing: perListing.map(p => ({
+        trip_id: p.trip_id,
+        listing_title: p.listing_title,
+        sales_count: p.sales_count || 0,
+        total_gross_cents: p.total_gross || 0,
+        total_fees_cents: p.total_fees || 0,
+        total_net_cents: p.total_net || 0,
+      })),
+    });
+  } catch (err: unknown) {
+    console.error('Error fetching creator earnings:', err);
+    res.status(500).json({ error: 'Failed to fetch earnings' });
+  }
+});
+
+// ── Creator payout history ────────────────────────────────────────────────
+router.get('/creators/me/payouts', (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+    const payouts = db.prepare(`
+      SELECT * FROM creator_payouts
+      WHERE creator_user_id = (SELECT id FROM explore_creators WHERE user_id = ?)
+      ORDER BY created_at DESC
+    `).all(userId) as any[];
+
+    res.json({ payouts });
+  } catch (err: unknown) {
+    console.error('Error fetching creator payouts:', err);
+    res.status(500).json({ error: 'Failed to fetch payouts' });
+  }
+});
+
 // Check slug availability
 router.get('/creators/check-slug/:slug', (req: Request, res: Response) => {
   try {
@@ -1536,6 +1668,38 @@ router.post('/creators/:id/unsuspend', (req: Request, res: Response) => {
   } catch (err: unknown) {
     console.error('Error unsuspending creator:', err);
     res.status(500).json({ error: 'Failed to unsuspend creator' });
+  }
+});
+
+// ── Admin: toggle featured listing ─────────────────────────────────────────
+router.patch('/trips/:id/featured', (req: Request, res: Response) => {
+  try {
+    const authReq = req as AuthRequest;
+    if (!isAdmin(authReq.user.id)) return res.status(403).json({ error: 'Admin only' });
+
+    const { id } = req.params;
+    const { featured } = req.body;
+
+    if (typeof featured !== 'boolean') {
+      return res.status(400).json({ error: 'featured must be a boolean' });
+    }
+
+    const listing = db.prepare('SELECT id FROM explore_published WHERE trip_id = ?').get(id) as { id: number } | undefined;
+    if (!listing) return res.status(404).json({ error: 'Listing not found' });
+
+    try {
+      db.prepare('UPDATE explore_published SET is_featured = ?, updated_at = datetime(\'now\') WHERE trip_id = ?')
+        .run(featured ? 1 : 0, id);
+    } catch (err: any) {
+      if (!err.message?.includes('no such column')) throw err;
+      // is_featured column may not exist yet in migration-based schemas
+      console.warn('[explore] is_featured column does not exist, skipping update');
+    }
+
+    res.json({ success: true, featured });
+  } catch (err: unknown) {
+    console.error('Error toggling featured listing:', err);
+    res.status(500).json({ error: 'Failed to toggle featured status' });
   }
 });
 

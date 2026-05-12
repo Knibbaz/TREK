@@ -273,6 +273,19 @@ router.delete('/polls/:tripId/:pollId/options/:optionId', (req: Request, res: Re
   res.json({ success: true });
 });
 
+// ── Update option order (for swipe/ranked) ───────────────────────────────────
+router.patch('/polls/:tripId/:pollId/options', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { options } = req.body;
+  if (!Array.isArray(options)) return res.status(400).json({ error: 'options must be an array' });
+  const result = svc.updatePollOptionOrder(req.params.pollId, userId, options);
+  if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+
+  broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, pollId: req.params.pollId },
+    req.headers['x-socket-id'] as string);
+  res.json({ success: true });
+});
+
 // ── Vote ─────────────────────────────────────────────────────────────────────
 router.post('/polls/:tripId/:pollId/vote', (req: Request, res: Response) => {
   const userId = (req as AuthRequest).user.id;

@@ -111,6 +111,10 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
   const [rankedOrders, setRankedOrders] = useState<Record<string, string[]>>({})
   const [submittingRank, setSubmittingRank] = useState<string | null>(null)
 
+  // Swipe: local order state per poll
+  const [swipeOrders, setSwipeOrders] = useState<Record<string, string[]>>({})
+  const [submittingSwipeOrder, setSubmittingSwipeOrder] = useState<string | null>(null)
+
   // Decide modal
   const [decidingPoll, setDecidingPoll] = useState<Poll | null>(null)
 
@@ -155,6 +159,22 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
           } else {
             next[poll.id] = poll.options.map(o => o.id)
           }
+        }
+      }
+      return next
+    })
+  }, [polls])
+
+  // Init/update swipe order from server data (by sort_order)
+  useEffect(() => {
+    setSwipeOrders(prev => {
+      const next = { ...prev }
+      for (const poll of polls) {
+        if (poll.type === 'swipe') {
+          const sorted = [...poll.options].sort((a, b) => (a as any).sort_order - (b as any).sort_order)
+          const newOrder = sorted.map(o => o.id)
+          // Always update to ensure new options are included
+          next[poll.id] = newOrder
         }
       }
       return next
@@ -288,6 +308,32 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
       ;[order[idx], order[target]] = [order[target], order[idx]]
       return { ...prev, [pollId]: order }
     })
+  }
+
+  const moveSwipeItem = (pollId: string, idx: number, dir: -1 | 1) => {
+    setSwipeOrders(prev => {
+      const order = [...(prev[pollId] || [])]
+      const target = idx + dir
+      if (target < 0 || target >= order.length) return prev
+      ;[order[idx], order[target]] = [order[target], order[idx]]
+      return { ...prev, [pollId]: order }
+    })
+  }
+
+  const handleSubmitSwipeOrder = async (poll: Poll) => {
+    const order = swipeOrders[poll.id]
+    if (!order?.length) return
+    setSubmittingSwipeOrder(poll.id)
+    try {
+      const options = order.map((optId, idx) => ({ option_id: optId, sort_order: idx }))
+      await groupsApi.updatePollOptionOrder(tripId, poll.id, options)
+      toast.success(t('groups.polls.orderSaved') || 'Volgorde opgeslagen')
+      await load()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err.message)
+    } finally {
+      setSubmittingSwipeOrder(null)
+    }
   }
 
   const handleDeleteOption = async (poll: Poll, optionId: string) => {
@@ -589,6 +635,55 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                     </button>
                   )}
 
+                  {/* ── Swipe type: reorder options ── */}
+                  {poll.type === 'swipe' && isOpen && isCreator && (
+                    <div className="mb-3">
+                      <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
+                        {t('groups.polls.reorderSwipe') || 'Verander volgorde van opties:'}
+                      </p>
+                      <div className="space-y-1">
+                        {(swipeOrders[poll.id] || poll.options.map(o => o.id)).map((optId, idx) => {
+                          const opt = poll.options.find(o => o.id === optId)
+                          if (!opt) return null
+                          return (
+                            <div
+                              key={optId}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+                              style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                            >
+                              <span className="w-5 text-center text-xs font-bold" style={{ color: 'var(--accent)' }}>{idx + 1}</span>
+                              <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
+                              <button
+                                disabled={idx === 0}
+                                onClick={() => moveSwipeItem(poll.id, idx, -1)}
+                                className="p-1 rounded disabled:opacity-20"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
+                                <ArrowUp size={13} />
+                              </button>
+                              <button
+                                disabled={idx === (swipeOrders[poll.id]?.length ?? poll.options.length) - 1}
+                                onClick={() => moveSwipeItem(poll.id, idx, 1)}
+                                className="p-1 rounded disabled:opacity-20"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
+                                <ArrowDown size={13} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <button
+                        onClick={() => handleSubmitSwipeOrder(poll)}
+                        disabled={submittingSwipeOrder === poll.id}
+                        className="mt-2 w-full py-2 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--accent)' }}
+                      >
+                        {submittingSwipeOrder === poll.id ? '...' : t('groups.polls.submitRanking') || 'Volgorde opslaan'}
+                      </button>
+                    </div>
+                  )}
+
                   {/* ── Ranked type: drag order ── */}
                   {poll.type === 'ranked' && isOpen && (
                     <div className="mb-3">
@@ -740,7 +835,7 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                   )}
 
                   {/* Add option form */}
-                  {isOpen && poll.type !== 'swipe' && (addingOptionTo === poll.id ? (
+                  {isOpen && (addingOptionTo === poll.id ? (
                     <div className="mt-3" ref={locRef}>
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex-1 relative">
@@ -906,26 +1001,28 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                         {t('groups.polls.close') || 'Sluiten'}
                       </button>
                       {/* Guest link */}
-                      {guestLinkPollId !== poll.id ? (
-                        <button
-                          onClick={() => handleGenerateGuestLink(poll.id)}
-                          disabled={guestLinkLoading}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                          style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
-                        >
-                          <Link2 size={12} />
-                          {t('groups.polls.shareLink') || 'Deellink'}
-                        </button>
-                      ) : (
-                        guestLinkToken && (
+                      {poll.allow_guest_votes && (
+                        guestLinkPollId !== poll.id ? (
                           <button
-                            onClick={() => copyGuestLink(guestLinkToken)}
+                            onClick={() => handleGenerateGuestLink(poll.id)}
+                            disabled={guestLinkLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                            style={{ background: 'var(--bg-success-soft, #dcfce7)', color: '#15803d' }}
+                            style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
                           >
-                            <Copy size={12} />
-                            {t('groups.polls.copyLink') || 'Link kopiëren'}
+                            <Link2 size={12} />
+                            {t('groups.polls.shareLink') || 'Deellink'}
                           </button>
+                        ) : (
+                          guestLinkToken && (
+                            <button
+                              onClick={() => copyGuestLink(guestLinkToken)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                              style={{ background: 'var(--bg-success-soft, #dcfce7)', color: '#15803d' }}
+                            >
+                              <Copy size={12} />
+                              {t('groups.polls.copyLink') || 'Link kopiëren'}
+                            </button>
+                          )
                         )
                       )}
                     </div>

@@ -1,15 +1,28 @@
 import express, { Request, Response } from 'express';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
 import { authenticate } from '../../middleware/auth';
 import { AuthRequest } from '../../types';
 import { db } from '../../db/database';
 import { runExport, deleteExportFile } from '../../services/backup-v2/exporter';
-import { sha256String } from '../../services/backup-v2/checksum';
+import { validateTrek, importFromTrek, cleanupExtractDir } from '../../services/backup-v2/importer';
+import { writeAudit, getClientIp } from '../../services/auditLog';
 
 const router = express.Router();
 
 const exportsDir = path.join(__dirname, '../../../data/exports');
+const uploadsDir = path.join(__dirname, '../../../data/uploads-v2');
+if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+const importUpload = multer({
+  dest: uploadsDir,
+  limits: { fileSize: 500 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.originalname.endsWith('.trek')) cb(null, true);
+    else cb(new Error('Only .trek files allowed'));
+  },
+});
 
 // Rate limiter: max 1 export per user per 24 hours
 const exportAttempts = new Map<string, { count: number; first: number }>();
@@ -77,6 +90,14 @@ router.post('/export', authenticate, async (req: Request, res: Response) => {
       VALUES (?, 'pending')
       RETURNING id
     `).get(userId) as { id: string }).id;
+
+    // Audit log export request
+    writeAudit({
+      userId,
+      action: 'gdpr.export_requested',
+      resource: exportId,
+      ip: getClientIp(req),
+    });
 
     // Update to processing
     db.prepare("UPDATE gdpr_export_requests SET status = 'processing' WHERE id = ?").run(exportId);
@@ -314,6 +335,48 @@ router.get('/export/preview', authenticate, (req: Request, res: Response) => {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     res.status(500).json({ error: 'Could not generate preview', detail: msg });
+  }
+});
+
+// POST /api/user/import — user self-import
+router.post('/import', authenticate, importUpload.single('trek'), async (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  const filePath = req.file.path;
+
+  try {
+    const validation = await validateTrek(filePath);
+    if (!validation.valid) {
+      fs.unlinkSync(filePath);
+      return res.status(400).json({ error: validation.error });
+    }
+
+    // Force duplicate strategy for user imports
+    const result = importFromTrek(validation.extractDir, validation.manifest, 'duplicate');
+
+    const authReq = req as AuthRequest;
+    writeAudit({
+      userId: authReq.user.id,
+      action: 'backup.user_import',
+      resource: filePath,
+      ip: getClientIp(req),
+      details: { imported: result.imported },
+    });
+
+    cleanupExtractDir(validation.extractDir);
+    fs.unlinkSync(filePath);
+
+    res.json({
+      success: result.success,
+      imported: result.imported,
+      errors: result.errors,
+    });
+  } catch (err: unknown) {
+    fs.unlinkSync(filePath);
+    const msg = err instanceof Error ? err.message : String(err);
+    res.status(500).json({ error: 'Import failed', detail: msg });
   }
 });
 

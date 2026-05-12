@@ -20,6 +20,7 @@ import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
+import GdprAdminPanel from '../components/Admin/GdprAdminPanel'
 import { CreatorApplicationQueue } from '../components/Admin/CreatorApplicationQueue'
 import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
@@ -225,6 +226,7 @@ export default function AdminPage(): React.ReactElement {
     { id: 'notifications', label: t('admin.tabs.notifications'), icon: Bell },
     { id: 'backup', label: t('admin.tabs.backup'), icon: Database },
     { id: 'audit', label: t('admin.tabs.audit'), icon: ScrollText },
+    { id: 'gdpr', label: t('admin.tabs.gdpr'), icon: Shield },
     ...(mcpEnabled ? [{ id: 'mcp-tokens', label: t('admin.tabs.mcpTokens'), icon: KeyRound }] : []),
     { id: 'github', label: t('admin.tabs.github'), icon: GitBranch },
     ...(devMode ? [{ id: 'dev-notifications', label: 'Dev: Notifications', icon: Bug }] : []),
@@ -2457,6 +2459,8 @@ export default function AdminPage(): React.ReactElement {
           {activeTab === 'backup' && <BackupPanel />}
 
           {activeTab === 'audit' && <AuditLogPanel serverTimezone={serverTimezone} />}
+
+          {activeTab === 'gdpr' && <GdprAdminPanel />}
 
           {activeTab === 'mcp-tokens' && <AdminMcpTokensPanel />}
 

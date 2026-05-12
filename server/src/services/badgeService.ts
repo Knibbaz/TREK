@@ -118,23 +118,29 @@ function isEligibleGlobeTrotter(db: Database.Database, creatorUserId: number): b
 
 /**
  * Check if creator is eligible for trending badge.
+ * Creator has at least one listing in the global top 10 most-viewed this month.
  */
 function isEligibleTrending(db: Database.Database, creatorUserId: number): boolean {
-  // Top 10 most viewed listings this month
+  // Top 10 most viewed listings globally, updated in last 30 days
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
   const cutoffDate = thirtyDaysAgo.toISOString().split('T')[0];
 
   const result = db.prepare(`
     SELECT COUNT(*) as count FROM (
-      SELECT ep.trip_id
+      SELECT 1
       FROM explore_published ep
       WHERE ep.submitted_by = ?
       AND ep.updated_at >= ?
-      ORDER BY ep.view_count DESC
-      LIMIT 10
+      AND ep.trip_id IN (
+        SELECT trip_id FROM explore_published
+        WHERE updated_at >= ?
+        AND is_published = 1
+        ORDER BY view_count DESC
+        LIMIT 10
+      )
     )
-  `).get(creatorUserId, cutoffDate) as { count: number } | undefined;
+  `).get(creatorUserId, cutoffDate, cutoffDate) as { count: number } | undefined;
 
   return (result?.count || 0) > 0;
 }

@@ -277,6 +277,7 @@ export interface DateProposal {
   confirmed_start?: string | null
   confirmed_end?: string | null
   availability: DateAvailabilityEntry[]
+  guestAvailability?: Array<{ date: string; status: string; note: string | null; guest_token_id: number; guest_name: string | null }>
   members: DateProposalMember[]
   memberRegions?: Record<number, string>
   vacationDays?: VacationDay[]
