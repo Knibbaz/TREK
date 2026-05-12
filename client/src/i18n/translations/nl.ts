@@ -2799,6 +2799,10 @@ const nl: Record<string, string> = {
   'admin.explore.communityOn': 'Community aan',
   'admin.explore.submittedOn': 'Ingediend',
   'admin.explore.loading': 'Laden...',
+  'admin.explore.creator-hub.title': 'Creator Hub',
+  'admin.explore.creator-hub.subtitle': 'Link-in-bio, media kit, mini-gids',
+  'admin.explore.payout-payments.title': 'Betalingen & Payouts',
+  'admin.explore.payout-payments.subtitle': 'Reisverkopen en creator uitbetalingen',
 
   // Explore publish flow
   'explore.publishStep1': 'Listing info',
