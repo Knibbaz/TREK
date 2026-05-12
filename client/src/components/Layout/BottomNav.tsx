@@ -17,6 +17,7 @@ const ADDON_NAV: Record<string, { to: string; label: string; icon: LucideIcon }>
   journey: { to: '/journey', label: 'Journey', icon: Compass },
   groups: { to: '/groups', label: 'Groups', icon: Users },
   worldmap: { to: '/worldmap', label: 'World Map', icon: Globe2 },
+  creator_hub: { to: '/creator-hub', label: 'Creator Hub', icon: Compass },
 }
 
 export default function BottomNav() {
@@ -31,7 +32,7 @@ export default function BottomNav() {
     { to: '/trips', label: t('nav.myTrips'), icon: Plane },
     ...globalAddons.flatMap(addon => {
       const nav = ADDON_NAV[addon.id]
-      return nav ? [{ to: `/${addon.id}`, label: t(nav.labelKey), icon: nav.icon }] : []
+      return nav ? [{ to: nav.to, label: nav.label, icon: nav.icon }] : []
     }),
   ]
 
