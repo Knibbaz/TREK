@@ -17,9 +17,9 @@ router.post('/trips/:tripId/share-link', authenticate, (req: Request, res: Respo
   if (!checkPermission('share_manage', authReq.user.role, access.user_id, authReq.user.id, access.user_id !== authReq.user.id))
     return res.status(403).json({ error: 'No permission' });
 
-  const { share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone } = req.body || {};
+  const { share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, share_description } = req.body || {};
   const result = shareService.createOrUpdateShareLink(tripId, authReq.user.id, {
-    share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone,
+    share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, share_description,
   });
 
   if (result.created) {
@@ -36,6 +36,25 @@ router.get('/trips/:tripId/share-link', authenticate, (req: Request, res: Respon
 
   const info = shareService.getShareLinks(tripId);
   res.json(info ? info : { token: null });
+});
+
+// Get share visit statistics (admin only)
+router.get('/trips/:tripId/share-visits', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const { tripId } = req.params;
+
+  // Only admins can see visitor stats
+  if (authReq.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Only admins can view visitor statistics' });
+  }
+
+  if (!canAccessTrip(tripId, authReq.user.id)) return res.status(404).json({ error: 'Trip not found' });
+
+  const shareLinks = shareService.getShareLinks(tripId);
+  if (!shareLinks?.token) return res.status(404).json({ error: 'No share link found' });
+
+  const stats = shareService.getShareVisitStats(shareLinks.token);
+  res.json(stats || { uniqueVisitors: 0, recentVisits: [] });
 });
 
 // Delete share link
@@ -56,6 +75,24 @@ router.get('/shared/:token', (req: Request, res: Response) => {
   const { token } = req.params;
   const data = shareService.getSharedTripData(token);
   if (!data) return res.status(404).json({ error: 'Invalid or expired link' });
+
+  // Log visitor with session-based tracking
+  let sessionId = req.cookies?.['__trek_session_id'];
+  if (!sessionId) {
+    const crypto = require('crypto');
+    sessionId = crypto.randomBytes(16).toString('hex');
+    res.cookie('__trek_session_id', sessionId, {
+      maxAge: 90 * 24 * 60 * 60 * 1000, // 90 days
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    });
+  }
+
+  const userAgent = req.get('user-agent') || '';
+  const ipAddress = req.ip || req.connection.remoteAddress || '';
+  shareService.logShareVisit(token, sessionId, userAgent, ipAddress);
+
   res.json(data);
 });
 

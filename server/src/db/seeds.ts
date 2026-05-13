@@ -1,5 +1,7 @@
 import Database from 'better-sqlite3';
 import crypto from 'crypto';
+import { GOOGLE_PLACES_API_KEY, UNSPLASH_API_KEY } from '../config';
+import { maybe_encrypt_api_key } from '../services/apiKeyCrypto';
 
 // Seeds run at startup before the DB admin panel can be used, so only env vars
 // are checked here. The granular password_login/password_registration DB toggles
@@ -37,7 +39,7 @@ function seedAdminAccount(db: Database.Database): void {
       email = env_admin_email;
     } else {
       password = crypto.randomBytes(12).toString('base64url');
-      email = 'admin@routd.local';
+      email = 'admin@trek.local';
     }
 
     const hash = bcrypt.hashSync(password, 12);
@@ -99,8 +101,15 @@ function seedAddons(db: Database.Database): void {
       { id: 'journey', name: 'Journey', description: 'Trip tracking & travel journal — check-ins, photos, daily stories', type: 'global', icon: 'Compass', enabled: 0, sort_order: 35 },
       { id: 'worldmap', name: 'World Map', description: 'Collaborative world map — everyone adds places per country', type: 'global', icon: 'Globe2', enabled: 1, sort_order: 15 },
     ];
-    const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
-    for (const a of defaultAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order);
+    const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
+    for (const a of defaultAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order, null);
+
+    // Sub-addons (children of existing addons)
+    const subAddons = [
+      { id: 'creator_hub', name: 'Creator Hub', description: 'Link-in-bio, media kit, mini-guides', type: 'global', icon: 'Sparkles', enabled: 0, sort_order: 20, parent_id: 'explore' },
+      { id: 'explore_payments', name: 'Payments & Payouts', description: 'Trip purchases and creator payouts (requires Mollie API key)', type: 'global', icon: 'CreditCard', enabled: 0, sort_order: 21, parent_id: 'explore' },
+    ];
+    for (const a of subAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order, a.parent_id);
 
     const providerRows = [
       {
@@ -142,10 +151,36 @@ function seedAddons(db: Database.Database): void {
   }
 }
 
+function seedApiKeys(db: Database.Database): void {
+  try {
+    if (GOOGLE_PLACES_API_KEY) {
+      const admin = db.prepare("SELECT id, maps_api_key FROM users WHERE role = 'admin' ORDER BY id ASC LIMIT 1").get() as { id: number; maps_api_key: string | null } | undefined;
+      if (admin) {
+        const existing = admin.maps_api_key ? (() => { try { const { decrypt_api_key } = require('../services/apiKeyCrypto'); return decrypt_api_key(admin.maps_api_key); } catch { return null; } })() : null;
+        if (!existing) {
+          db.prepare('UPDATE users SET maps_api_key = ? WHERE id = ?').run(maybe_encrypt_api_key(GOOGLE_PLACES_API_KEY), admin.id);
+          console.log('Seeded GOOGLE_PLACES_API_KEY from env to admin account');
+        }
+      }
+    }
+
+    if (UNSPLASH_API_KEY) {
+      const existing = db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined;
+      if (!existing?.value) {
+        db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('unsplash_api_key', ?)").run(maybe_encrypt_api_key(UNSPLASH_API_KEY));
+        console.log('Seeded UNSPLASH_API_KEY from env to app_settings');
+      }
+    }
+  } catch (err: unknown) {
+    console.error('Error seeding API keys from env:', err instanceof Error ? err.message : err);
+  }
+}
+
 function runSeeds(db: Database.Database): void {
   seedAdminAccount(db);
   seedCategories(db);
   seedAddons(db);
+  seedApiKeys(db);
 }
 
 export { runSeeds };

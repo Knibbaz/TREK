@@ -1,5 +1,6 @@
 import { db } from '../db/database';
 import { decrypt_api_key } from './apiKeyCrypto';
+import { GOOGLE_PLACES_API_KEY } from '../config';
 import { checkSsrf } from '../utils/ssrfGuard';
 
 // ── Google API call counter ───────────────────────────────────────────────────
@@ -104,7 +105,7 @@ export function getMapsKey(userId: number): string | null {
   const admin = db.prepare("SELECT maps_api_key FROM users WHERE role = 'admin' AND maps_api_key IS NOT NULL AND maps_api_key != '' LIMIT 1").get() as { maps_api_key: string } | undefined;
   const admin_key = decrypt_api_key(admin?.maps_api_key);
   if (admin_key) return admin_key;
-  return process.env.GOOGLE_PLACES_API_KEY || null;
+  return GOOGLE_PLACES_API_KEY || null;
 }
 
 // ── Nominatim search ─────────────────────────────────────────────────────────

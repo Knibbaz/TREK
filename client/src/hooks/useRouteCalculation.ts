@@ -1,7 +1,7 @@
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react'
 import { useSettingsStore } from '../store/settingsStore'
 import { useTripStore } from '../store/tripStore'
-import { calculateSegments, calculateRoute } from '../components/Map/RouteCalculator'
+import { calculateSegments, calculateRoute, type RouteThresholds } from '../components/Map/RouteCalculator'
 import type { TripStoreState } from '../store/tripStore'
 import type { RouteSegment, RouteResult } from '../types'
 
@@ -52,13 +52,21 @@ async function fetchRoadSegments(
     segments.map(seg =>
       calculateRoute(
         seg.map(([lat, lng]) => ({ lat, lng })),
-        'driving',
+        'auto',
         { signal }
       )
         .then(r => r.coordinates)
         .catch(() => seg)
     )
   )
+}
+
+function useRouteThresholds(): RouteThresholds {
+  const settings = useSettingsStore((s) => s.settings)
+  return {
+    walking: (settings.route_walking_threshold ?? 30_000),
+    driving: (settings.route_driving_threshold ?? 500_000),
+  }
 }
 
 /**
@@ -74,6 +82,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
   const [routeSegments, setRouteSegments] = useState<RouteSegment[]>([])
   const [isCalculating, setIsCalculating] = useState(false)
   const routeCalcEnabled = useSettingsStore((s) => s.settings.route_calculation) !== false
+  const thresholds = useRouteThresholds()
   const routeAbortRef = useRef<AbortController | null>(null)
   const calcGenRef = useRef(0)
   const reservationsForSignature = useTripStore((s) => s.reservations)
@@ -161,7 +170,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
         const [roadSegs, calcSegs] = await Promise.all([
           fetchRoadSegments(segments, controller.signal),
           allWaypoints.length >= 2
-            ? calculateSegments(allWaypoints, { signal: controller.signal })
+            ? calculateSegments(allWaypoints, { signal: controller.signal, thresholds })
             : Promise.resolve([] as RouteSegment[]),
         ])
         if (!controller.signal.aborted) {
@@ -223,7 +232,7 @@ export function useRouteCalculation(tripStore: TripStoreState, selectedDayId: nu
     try {
       const [roadSegs, calcSegs] = await Promise.all([
         fetchRoadSegments(segments, controller.signal),
-        calculateSegments(geocodedWaypoints, { signal: controller.signal }),
+        calculateSegments(geocodedWaypoints, { signal: controller.signal, thresholds }),
       ])
       if (!controller.signal.aborted) {
         setRoute([...(roadSegs.length > 0 ? roadSegs : segments), ...gpxSegs].length > 0

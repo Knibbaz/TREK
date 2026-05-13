@@ -129,7 +129,7 @@ router.put('/:id/members/:userId/role', (req: Request, res: Response) => {
   const groupId = parseInt(req.params.id);
   const memberUserId = parseInt(req.params.userId);
   const { role } = req.body;
-  if (!role || (role !== 'admin' && role !== 'member')) return res.status(400).json({ error: 'role must be admin or member' });
+  if (!role || (role !== 'admin' && role !== 'member' && role !== 'viewer')) return res.status(400).json({ error: 'role must be admin, member, or viewer' });
   const result = svc.updateMemberRole(groupId, memberUserId, userId, role);
   if (!result.success) return res.status(result.error?.includes('owner') ? 403 : 400).json({ error: result.error });
   broadcastToGroup(groupId, 'group:memberRoleUpdated', {
@@ -270,6 +270,19 @@ router.delete('/polls/:tripId/:pollId/options/:optionId', (req: Request, res: Re
   const userId = (req as AuthRequest).user.id;
   const result = svc.deletePollOption(req.params.optionId, userId);
   if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  res.json({ success: true });
+});
+
+// ── Update option order (for swipe/ranked) ───────────────────────────────────
+router.patch('/polls/:tripId/:pollId/options', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { options } = req.body;
+  if (!Array.isArray(options)) return res.status(400).json({ error: 'options must be an array' });
+  const result = svc.updatePollOptionOrder(req.params.pollId, userId, options);
+  if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+
+  broadcast(req.params.tripId, 'groups:poll:updated', { tripId: req.params.tripId, pollId: req.params.pollId },
+    req.headers['x-socket-id'] as string);
   res.json({ success: true });
 });
 

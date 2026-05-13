@@ -338,14 +338,162 @@ function stop(): void {
   if (currentTask) { currentTask.stop(); currentTask = null; }
   if (demoTask) { demoTask.stop(); demoTask = null; }
   if (reminderTask) { reminderTask.stop(); reminderTask = null; }
+  if (todoReminderTask) { todoReminderTask.stop(); todoReminderTask = null; }
   if (versionCheckTask) { versionCheckTask.stop(); versionCheckTask = null; }
   if (idempotencyCleanupTask) { idempotencyCleanupTask.stop(); idempotencyCleanupTask = null; }
   if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
+  if (scheduledBackupsTask) { scheduledBackupsTask.stop(); scheduledBackupsTask = null; }
+  if (gdprCleanupTask) { gdprCleanupTask.stop(); gdprCleanupTask = null; }
   if (dateProposalReminderTask) { dateProposalReminderTask.stop(); dateProposalReminderTask = null; }
 }
 
 // Date proposal deadline reminders: daily 9 AM, send email to group members who
 // haven't filled in their availability, when the deadline is within reminder_days.
+let scheduledBackupsTask: ScheduledTask | null = null;
+
+function startScheduledBackups(): void {
+  if (scheduledBackupsTask) { scheduledBackupsTask.stop(); scheduledBackupsTask = null; }
+
+  const tz = process.env.TZ || 'UTC';
+  scheduledBackupsTask = cron.schedule('* * * * *', async () => {
+    try {
+      const { db } = require('./db/database');
+      const { runExport } = require('./services/backup-v2/exporter');
+      const { cleanupExpiredExports } = require('./routes/backup/user-export');
+
+      // Check for due schedules
+      const now = new Date().toISOString();
+      const schedules = db.prepare(`
+        SELECT id, name, scope, include_uploads, retention_days, max_backups, created_by
+        FROM backup_schedules
+        WHERE is_enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?)
+      `).all(now) as Array<{
+        id: string;
+        name: string;
+        scope: string;
+        include_uploads: number;
+        retention_days: number;
+        max_backups: number;
+        created_by: string;
+      }>;
+
+      for (const schedule of schedules) {
+        try {
+          const scopeObj = JSON.parse(schedule.scope);
+          scopeObj.uploads = schedule.include_uploads === 1;
+
+          // Run export
+          const result = await runExport({
+            id: `schedule-${schedule.id}-${Date.now()}`,
+            exportType: 'scheduled',
+            scope: scopeObj,
+            initiatedBy: schedule.created_by,
+            userRole: 'admin',
+          });
+
+          // Compute next run using naive daily offset (real impl would parse cron_expression)
+          const nextRunAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          db.prepare(`
+            UPDATE backup_schedules
+            SET last_run_at = datetime('now'), last_status = 'success', next_run_at = ?
+            WHERE id = ?
+          `).run(nextRunAt, schedule.id);
+
+          logInfo(`[scheduled-backup] Ran schedule "${schedule.name}" (id=${schedule.id}), file size: ${result.fileSize}`);
+
+          // Enforce retention
+          const backupsV2Dir = path.join(dataDir, 'backups-v2');
+          if (fs.existsSync(backupsV2Dir)) {
+            const files = fs.readdirSync(backupsV2Dir).filter(f => f.startsWith('scheduled-') && f.endsWith('.trek'));
+            files.sort();
+
+            // Delete oldest if exceeding max_backups
+            while (files.length > schedule.max_backups) {
+              const toDelete = files.shift();
+              if (toDelete) {
+                const filePath = path.join(backupsV2Dir, toDelete);
+                fs.unlinkSync(filePath);
+                logInfo(`[scheduled-backup] Deleted old backup: ${toDelete}`);
+              }
+            }
+
+            // Delete if older than retention_days
+            const cutoff = Date.now() - schedule.retention_days * 24 * 60 * 60 * 1000;
+            for (const file of files) {
+              const filePath = path.join(backupsV2Dir, file);
+              const stat = fs.statSync(filePath);
+              if (stat.mtimeMs < cutoff) {
+                fs.unlinkSync(filePath);
+                logInfo(`[scheduled-backup] Deleted expired backup: ${file}`);
+              }
+            }
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logError(`[scheduled-backup] Schedule "${schedule.name}" failed: ${msg}`);
+          db.prepare(`
+            UPDATE backup_schedules
+            SET last_run_at = datetime('now'), last_status = ?
+            WHERE id = ?
+          `).run(`failed: ${msg}`, schedule.id);
+        }
+      }
+
+      // Daily cleanup of expired user exports (run once per day at minute 0 of hour 3)
+      const hour = new Date(now).getHours();
+      const minute = new Date(now).getMinutes();
+      if (hour === 3 && minute === 0) {
+        cleanupExpiredExports();
+      }
+    } catch (err: unknown) {
+      logError(`[scheduled-backup] Task error: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+
+  logInfo('[scheduled-backup] Started (runs every minute)');
+}
+
+let gdprCleanupTask: ScheduledTask | null = null;
+
+function startGdprCleanup(): void {
+  if (gdprCleanupTask) { gdprCleanupTask.stop(); gdprCleanupTask = null; }
+
+  const tz = process.env.TZ || 'UTC';
+  gdprCleanupTask = cron.schedule('30 3 * * *', async () => {
+    try {
+      const { db } = require('./db/database');
+      const { executeGdprDeletion } = require('./services/gdprService');
+      const { logInfo, logError } = require('./services/auditLog');
+
+      // Execute GDPR deletions for accounts where grace period has expired (14+ days)
+      const now = new Date().toISOString();
+      const pendingDeletions = db.prepare(`
+        SELECT id, username, email
+        FROM users
+        WHERE pending_deletion = 1 AND deletion_requested_at <= datetime('now', '-14 days')
+      `).all() as Array<{ id: number; username: string; email: string }>;
+
+      for (const user of pendingDeletions) {
+        try {
+          executeGdprDeletion(user.id);
+          logInfo(`[GDPR] Completed deletion for user ${user.username} (id=${user.id})`);
+        } catch (err: unknown) {
+          logError(`[GDPR] Failed to delete user ${user.id}: ${err instanceof Error ? err.message : err}`);
+        }
+      }
+
+      if (pendingDeletions.length > 0) {
+        logInfo(`[GDPR] Executed ${pendingDeletions.length} account deletion(s)`);
+      }
+    } catch (err: unknown) {
+      const { logError: le } = require('./services/auditLog');
+      le(`[GDPR] Cleanup task failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+
+  logInfo('[GDPR] Cleanup task started (runs daily at 3:30 AM)');
+}
+
 let dateProposalReminderTask: ScheduledTask | null = null;
 
 function startDateProposalReminders(): void {
@@ -422,4 +570,4 @@ function startDateProposalReminders(): void {
   }, { timezone: tz });
 }
 
-export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, startTrekPhotoCacheCleanup, startDateProposalReminders, loadSettings, saveSettings, VALID_INTERVALS };
+export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, startTrekPhotoCacheCleanup, startScheduledBackups, startDateProposalReminders, startGdprCleanup, loadSettings, saveSettings, VALID_INTERVALS };

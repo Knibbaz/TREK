@@ -1,6 +1,6 @@
 {
-  "name": "trek-client",
-  "version": "0.0.1",
+  "name": "roam-client",
+  "version": "3.0.18",
   "private": true,
   "type": "module",
   "scripts": {
@@ -18,11 +18,13 @@
     "@react-pdf/renderer": "^4.3.2",
     "axios": "^1.6.7",
     "dexie": "^4.4.2",
+    "framer-motion": "^11.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.344.0",
     "mapbox-gl": "^3.22.0",
     "marked": "^18.0.0",
     "react": "^18.2.0",
+    "react-confetti": "^6.1.0",
     "react-dom": "^18.2.0",
     "react-dropzone": "^14.4.1",
     "react-leaflet": "^4.2.1",

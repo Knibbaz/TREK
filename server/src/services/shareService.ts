@@ -10,6 +10,7 @@ interface SharePermissions {
   share_budget?: boolean;
   share_collab?: boolean;
   allow_clone?: boolean;
+  share_description?: boolean;
 }
 
 interface ShareTokenInfo {
@@ -22,6 +23,7 @@ interface ShareTokenInfo {
   share_budget: boolean;
   share_collab: boolean;
   allow_clone: boolean;
+  share_description: boolean;
 }
 
 /**
@@ -41,20 +43,21 @@ export function createOrUpdateShareLink(
     share_budget = false,
     share_collab = false,
     allow_clone = false,
+    share_description = false,
   } = permissions;
 
   const existing = db.prepare('SELECT token FROM share_tokens WHERE trip_id = ?').get(tripId) as { token: string } | undefined;
   if (existing) {
-    db.prepare('UPDATE share_tokens SET share_map = ?, share_plan = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ?, allow_clone = ? WHERE trip_id = ?')
-      .run(share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, tripId);
+    db.prepare('UPDATE share_tokens SET share_map = ?, share_plan = ?, share_bookings = ?, share_packing = ?, share_budget = ?, share_collab = ?, allow_clone = ?, share_description = ? WHERE trip_id = ?')
+      .run(share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, share_description ? 1 : 0, tripId);
     return { token: existing.token, created: false };
   }
 
   // New share links default to a 90-day TTL.
   const token = crypto.randomBytes(24).toString('base64url');
   const expiresAt = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString();
-  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(tripId, token, createdBy, share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, expiresAt);
+  db.prepare('INSERT INTO share_tokens (trip_id, token, created_by, share_map, share_plan, share_bookings, share_packing, share_budget, share_collab, allow_clone, share_description, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(tripId, token, createdBy, share_map ? 1 : 0, share_plan ? 1 : 0, share_bookings ? 1 : 0, share_packing ? 1 : 0, share_budget ? 1 : 0, share_collab ? 1 : 0, allow_clone ? 1 : 0, share_description ? 1 : 0, expiresAt);
   return { token, created: true };
 }
 
@@ -74,6 +77,7 @@ export function getShareLinks(tripId: string): ShareTokenInfo | null {
     share_budget: !!row.share_budget,
     share_collab: !!row.share_collab,
     allow_clone: !!row.allow_clone,
+    share_description: !!row.share_description,
   };
 }
 
@@ -144,21 +148,21 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     }
     assignments = byDay;
 
-    const allNotes = db.prepare(`SELECT * FROM day_notes WHERE day_id IN (${ph}) ORDER BY sort_order ASC`).all(...dayIds);
-    const notesByDay: Record<number, any[]> = {};
-    for (const n of allNotes as any[]) {
-      if (!notesByDay[n.day_id]) notesByDay[n.day_id] = [];
-      notesByDay[n.day_id].push(n);
-    }
-    dayNotes = notesByDay;
+    // Personal notes are never shared — filtered out in shared view
+    dayNotes = {};
   }
 
-  // Places
-  const places = db.prepare(`
+  // Places (restructure to match day_assignments format with category object)
+  const placesRaw = db.prepare(`
     SELECT p.*, c.name as category_name, c.color as category_color, c.icon as category_icon
     FROM places p LEFT JOIN categories c ON p.category_id = c.id
     WHERE p.trip_id = ? ORDER BY p.created_at DESC
-  `).all(tripId);
+  `).all(tripId) as any[];
+
+  const places = placesRaw.map(p => ({
+    ...p,
+    category: p.category_id ? { id: p.category_id, name: p.category_name, color: p.category_color, icon: p.category_icon } : null,
+  }));
 
   // Reservations
   const reservations = db.prepare('SELECT * FROM reservations WHERE trip_id = ? ORDER BY reservation_time ASC').all(tripId);
@@ -187,6 +191,7 @@ export function getSharedTripData(token: string): Record<string, any> | null {
     share_budget: !!shareRow.share_budget,
     share_collab: !!shareRow.share_collab,
     allow_clone: !!shareRow.allow_clone,
+    share_description: !!shareRow.share_description,
   };
 
   // Collab messages (only if owner chose to share)
@@ -272,4 +277,48 @@ export function joinTripWithCollabToken(token: string, userId: number): { tripId
 
   db.prepare('INSERT INTO trip_members (trip_id, user_id, invited_by) VALUES (?, ?, ?)').run(info.tripId, userId, info.ownerId);
   return { tripId: info.tripId };
+}
+
+/**
+ * Logs a visitor to a shared trip. Uses session-based tracking via cookies.
+ * Session ID should be derived from a persistent session cookie.
+ */
+export function logShareVisit(token: string, sessionId: string, userAgent?: string, ipAddress?: string): void {
+  try {
+    const userAgentHash = userAgent ? crypto.createHash('sha256').update(userAgent).digest('hex') : null;
+    db.prepare(`
+      INSERT OR IGNORE INTO share_visits (token, session_id, user_agent_hash, ip_address, visited_at)
+      VALUES (?, ?, ?, ?, datetime('now'))
+    `).run(token, sessionId, userAgentHash, ipAddress);
+  } catch (err) {
+    console.error('[shareService] Failed to log share visit:', err);
+  }
+}
+
+/**
+ * Gets visitor statistics for a shared trip (admin only).
+ * Returns unique visitor count and list of recent visits.
+ */
+export function getShareVisitStats(token: string): { uniqueVisitors: number; recentVisits: Array<{ visitedAt: string; userAgentHash?: string }> } | null {
+  const share = db.prepare('SELECT trip_id FROM share_tokens WHERE token = ?').get(token) as { trip_id: number } | undefined;
+  if (!share) return null;
+
+  const stats = db.prepare(`
+    SELECT COUNT(DISTINCT session_id) as unique_count
+    FROM share_visits
+    WHERE token = ?
+  `).get(token) as { unique_count: number } | undefined;
+
+  const recent = db.prepare(`
+    SELECT visited_at, user_agent_hash
+    FROM share_visits
+    WHERE token = ?
+    ORDER BY visited_at DESC
+    LIMIT 100
+  `).all(token) as Array<{ visited_at: string; user_agent_hash?: string }>;
+
+  return {
+    uniqueVisitors: stats?.unique_count || 0,
+    recentVisits: recent,
+  };
 }

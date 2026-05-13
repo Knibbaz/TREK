@@ -17,7 +17,10 @@ export type NotifEventType =
   | 'version_available'
   | 'synology_session_cleared'
   | 'explore_update'
-  | 'date_proposal_deadline';
+  | 'date_proposal_created'
+  | 'date_proposal_confirmed'
+  | 'date_proposal_deadline'
+  | 'date_proposal_ping';
 
 export interface AvailableChannels {
   email: boolean;
@@ -40,7 +43,10 @@ const IMPLEMENTED_COMBOS: Record<NotifEventType, NotifChannel[]> = {
   version_available: ['inapp', 'email', 'webhook', 'ntfy'],
   explore_update:    ['inapp', 'email', 'webhook'],
   synology_session_cleared: ['inapp'],
+  date_proposal_created: ['email'],
+  date_proposal_confirmed: ['email'],
   date_proposal_deadline: ['email'],
+  date_proposal_ping: ['inapp', 'email'],
 };
 
 /** Events that target admins only (shown in admin panel, not in user settings). */

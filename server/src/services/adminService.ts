@@ -55,8 +55,8 @@ export const isDocker = (() => {
 
 export function listUsers() {
   const users = db.prepare(
-    'SELECT id, username, email, role, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
-  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null })[];
+    'SELECT id, username, email, role, creator_auto_approved, creator_fee_percent, avatar, created_at, updated_at, last_login FROM users ORDER BY created_at DESC'
+  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at' | 'updated_at' | 'last_login'> & { avatar?: string | null; creator_auto_approved?: number; creator_fee_percent?: number | null })[];
   let onlineUserIds = new Set<number>();
   try {
     const { getOnlineUserIds } = require('../websocket');
@@ -111,10 +111,8 @@ export function createUser(data: { username: string; email: string; password: st
   };
 }
 
-export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string }) {
-  const username = typeof data.username === 'string' ? data.username.trim() : data.username;
-  const email = typeof data.email === 'string' ? data.email.trim() : data.email;
-  const { role, password } = data;
+export function updateUser(id: string, data: { username?: string; email?: string; role?: string; password?: string; creator_auto_approved?: boolean; creator_fee_percent?: number | null }) {
+  const { username, email, role, password, creator_auto_approved, creator_fee_percent } = data;
   const user = db.prepare('SELECT * FROM users WHERE id = ?').get(id) as User | undefined;
 
   if (!user) return { error: 'User not found', status: 404 };
@@ -144,12 +142,19 @@ export function updateUser(id: string, data: { username?: string; email?: string
       email = COALESCE(?, email),
       role = COALESCE(?, role),
       password_hash = COALESCE(?, password_hash),
+      creator_auto_approved = CASE WHEN ? IS NOT NULL THEN ? ELSE creator_auto_approved END,
+      creator_fee_percent = CASE WHEN ? IS NOT NULL THEN ? ELSE creator_fee_percent END,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(username || null, email || null, role || null, passwordHash, id);
+  `).run(username || null, email || null, role || null, passwordHash,
+    creator_auto_approved !== undefined ? 1 : null,
+    creator_auto_approved !== undefined ? (creator_auto_approved ? 1 : 0) : null,
+    creator_fee_percent !== undefined ? 1 : null,
+    creator_fee_percent !== undefined ? creator_fee_percent : null,
+    id);
 
   const updated = db.prepare(
-    'SELECT id, username, email, role, created_at, updated_at FROM users WHERE id = ?'
+    'SELECT id, username, email, role, creator_auto_approved, creator_fee_percent, created_at, updated_at FROM users WHERE id = ?'
   ).get(id);
 
   const changed: string[] = [];
@@ -157,6 +162,8 @@ export function updateUser(id: string, data: { username?: string; email?: string
   if (email) changed.push('email');
   if (role) changed.push('role');
   if (password) changed.push('password');
+  if (creator_auto_approved !== undefined) changed.push('creator_auto_approved');
+  if (creator_fee_percent !== undefined) changed.push('creator_fee_percent');
 
   return {
     user: updated,
@@ -185,6 +192,43 @@ export function getStats() {
   const totalPlaces = (db.prepare('SELECT COUNT(*) as count FROM places').get() as { count: number }).count;
   const totalFiles = (db.prepare('SELECT COUNT(*) as count FROM trip_files').get() as { count: number }).count;
   return { totalUsers, totalTrips, totalPlaces, totalFiles };
+}
+
+/**
+ * Gets trip statistics for each user for admin overview
+ */
+export function getUsersWithTripStats() {
+  const users = db.prepare(
+    'SELECT id, username, email, role, created_at, avatar FROM users ORDER BY created_at DESC'
+  ).all() as (Pick<User, 'id' | 'username' | 'email' | 'role' | 'created_at'> & { avatar?: string | null })[];
+
+  return users.map(u => {
+    const trips = db.prepare(`
+      SELECT 
+        id, title, start_date, end_date,
+        (SELECT COUNT(*) FROM days d WHERE d.trip_id = t.id) as day_count,
+        (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count
+      FROM trips t
+      WHERE t.user_id = ?
+      ORDER BY t.created_at DESC
+    `).all(u.id) as Array<{
+      id: number;
+      title: string;
+      start_date: string | null;
+      end_date: string | null;
+      day_count: number;
+      place_count: number;
+    }>;
+
+    return {
+      ...u,
+      avatar_url: u.avatar ? `/uploads/avatars/${u.avatar}` : null,
+      trip_count: trips.length,
+      total_days: trips.reduce((sum, t) => sum + (t.day_count || 0), 0),
+      total_places: trips.reduce((sum, t) => sum + (t.place_count || 0), 0),
+      trips: trips,
+    };
+  });
 }
 
 // ── Permissions ────────────────────────────────────────────────────────────
@@ -305,11 +349,17 @@ export function saveDemoBaseline(): { error?: string; status?: number; message?:
 
 // ── GitHub Integration ─────────────────────────────────────────────────────
 
-export async function getGithubReleases(perPage: string = '10', page: string = '1') {
+const REPOSITORIES_TO_CHECK = [
+  'mauriceboe/TREK',
+  'knibbaz/TREK'
+];
+
+  export async function getGithubReleases(perPage: string = '10', page: string = '1') {
   try {
+    const primaryRepo = REPOSITORIES_TO_CHECK[1]; 
     const resp = await fetch(
-      `https://api.github.com/repos/mauriceboe/TREK/releases?per_page=${perPage}&page=${page}`,
-      { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'TREK-Server' } }
+      `https://api.github.com/repos/${primaryRepo}/releases?per_page=${perPage}&page=${page}`,
+      { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
     );
     if (!resp.ok) return [];
     const data = await resp.json();
@@ -331,7 +381,6 @@ interface VersionInfo {
 const VERSION_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 let _versionCache: { data: VersionInfo; expiresAt: number } | null = null;
 
-/** Test-only: clear the in-memory version cache. */
 export function __clearVersionCacheForTests(): void {
   _versionCache = null;
 }
@@ -344,47 +393,70 @@ export async function checkVersion(): Promise<VersionInfo> {
   const currentVersion: string = process.env.APP_VERSION || require('../../package.json').version;
   const isPrerelease = currentVersion.includes('-pre.');
   const fallback: VersionInfo = { current: currentVersion, latest: currentVersion, update_available: false, is_docker: isDocker, is_prerelease: isPrerelease };
-  let result: VersionInfo;
+  
+  let absoluteLatest = currentVersion;
+  let absoluteReleaseUrl = '';
+  let foundHigherVersion = false;
+
   try {
-    if (isPrerelease) {
-      // Fetch release list and find the newest prerelease
-      const resp = await fetch(
-        'https://api.github.com/repos/mauriceboe/TREK/releases?per_page=100',
-        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'TREK-Server' } }
-      );
-      if (!resp.ok) {
-        return fallback;
+    // Loop door beide repositories heen
+    for (const repo of REPOSITORIES_TO_CHECK) {
+      if (isPrerelease) {
+        const resp = await fetch(
+          `https://api.github.com/repos/${repo}/releases?per_page=100`,
+          { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+        );
+        if (!resp.ok) continue;
+
+        const data = await resp.json() as Array<{ tag_name?: string; html_url?: string; prerelease?: boolean }>;
+        const prereleases = Array.isArray(data) ? data.filter(r => r.prerelease) : [];
+        if (!prereleases.length) continue;
+
+        const tagged = prereleases.map(r => ({ r, v: (r.tag_name || '').replace(/^v/, '') }));
+        tagged.sort((a, b) => compareVersions(b.v, a.v));
+        
+        const repoLatest = tagged[0].v;
+        
+        // Als de gevonden versie hoger is dan wat we tot nu toe als 'hoogste' zagen
+        if (repoLatest && compareVersions(repoLatest, absoluteLatest) > 0) {
+          absoluteLatest = repoLatest;
+          absoluteReleaseUrl = tagged[0].r.html_url || '';
+          foundHigherVersion = true;
+        }
+
+      } else {
+        const resp = await fetch(
+          `https://api.github.com/repos/${repo}/releases/latest`,
+          { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'ROUTD-Server' } }
+        );
+        if (!resp.ok) continue;
+
+        const data = await resp.json() as { tag_name?: string; html_url?: string };
+        const repoLatest = (data.tag_name || '').replace(/^v/, '');
+        
+        if (repoLatest && compareVersions(repoLatest, absoluteLatest) > 0) {
+          absoluteLatest = repoLatest;
+          absoluteReleaseUrl = data.html_url || '';
+          foundHigherVersion = true;
+        }
       }
-      const data = await resp.json() as Array<{ tag_name?: string; html_url?: string; prerelease?: boolean }>;
-      const prereleases = Array.isArray(data) ? data.filter(r => r.prerelease) : [];
-      if (!prereleases.length) {
-        return fallback;
-      }
-      // Pre-compute stripped versions, then sort descending
-      const tagged = prereleases.map(r => ({ r, v: (r.tag_name || '').replace(/^v/, '') }));
-      tagged.sort((a, b) => compareVersions(b.v, a.v));
-      const latest = tagged[0].v;
-      const update_available = !!latest && latest !== currentVersion && compareVersions(latest, currentVersion) > 0;
-      result = { current: currentVersion, latest, update_available, release_url: tagged[0].r.html_url || '', is_docker: isDocker, is_prerelease: true };
-    } else {
-      const resp = await fetch(
-        'https://api.github.com/repos/mauriceboe/TREK/releases/latest',
-        { headers: { 'Accept': 'application/vnd.github.v3+json', 'User-Agent': 'TREK-Server' } }
-      );
-      if (!resp.ok) {
-        return fallback;
-      }
-      const data = await resp.json() as { tag_name?: string; html_url?: string };
-      const latest = (data.tag_name || '').replace(/^v/, '');
-      const update_available = !!latest && latest !== currentVersion && compareVersions(latest, currentVersion) > 0;
-      result = { current: currentVersion, latest, update_available, release_url: data.html_url || '', is_docker: isDocker, is_prerelease: false };
     }
+
+    const result = { 
+      current: currentVersion, 
+      latest: absoluteLatest, 
+      update_available: foundHigherVersion, 
+      release_url: absoluteReleaseUrl, 
+      is_docker: isDocker, 
+      is_prerelease: isPrerelease 
+    };
+
+    _versionCache = { data: result, expiresAt: Date.now() + VERSION_CACHE_TTL };
+    return result;
+
   } catch {
     return fallback;
   }
-
-  _versionCache = { data: result, expiresAt: Date.now() + VERSION_CACHE_TTL };
-  return result;
 }
 
 export async function checkAndNotifyVersion(): Promise<void> {
@@ -774,4 +846,60 @@ export function rotateJwtSecret(): { error?: string; status?: number } {
   }
   updateJwtSecret(newSecret);
   return {};
+}
+
+// ── Unsplash API key (admin-managed) ──────────────────────────────────────
+
+export function getUnsplashApiKeyRaw(): string | null {
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined;
+  if (!row?.value) return null;
+  return decrypt_api_key(row.value) || null;
+}
+
+export function getUnsplashApiKey(): { configured: boolean } {
+  return { configured: !!getUnsplashApiKeyRaw() };
+}
+
+export function setUnsplashApiKey(key: string): { configured: boolean } {
+  const trimmed = key.trim();
+  if (trimmed) {
+    db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('unsplash_api_key', ?)").run(maybe_encrypt_api_key(trimmed));
+  } else {
+    db.prepare("DELETE FROM app_settings WHERE key = 'unsplash_api_key'").run();
+  }
+  return { configured: !!trimmed };
+}
+
+// ── Group welcome notice ───────────────────────────────────────────────────
+
+const DEFAULT_GROUP_WELCOME = {
+  title: 'Welcome to the group!',
+  body: "You're now a member. Start exploring shared trips and availability together.",
+  icon: 'Users',
+};
+
+export function getGroupWelcomeNotice(): { title: string; body: string; icon: string } {
+  const row = db.prepare("SELECT value FROM app_settings WHERE key = 'group_welcome_notice'").get() as { value: string } | undefined;
+  if (!row?.value) return { ...DEFAULT_GROUP_WELCOME };
+  try {
+    const stored = JSON.parse(row.value) as Partial<typeof DEFAULT_GROUP_WELCOME>;
+    return {
+      title: stored.title ?? DEFAULT_GROUP_WELCOME.title,
+      body:  stored.body  ?? DEFAULT_GROUP_WELCOME.body,
+      icon:  stored.icon  ?? DEFAULT_GROUP_WELCOME.icon,
+    };
+  } catch {
+    return { ...DEFAULT_GROUP_WELCOME };
+  }
+}
+
+export function setGroupWelcomeNotice(data: { title?: string; body?: string; icon?: string }): { title: string; body: string; icon: string } {
+  const current = getGroupWelcomeNotice();
+  const updated = {
+    title: (data.title ?? current.title).trim() || current.title,
+    body:  (data.body  ?? current.body ).trim() || current.body,
+    icon:  (data.icon  ?? current.icon ).trim() || current.icon,
+  };
+  db.prepare("INSERT OR REPLACE INTO app_settings (key, value) VALUES ('group_welcome_notice', ?)").run(JSON.stringify(updated));
+  return updated;
 }

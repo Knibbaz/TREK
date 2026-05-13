@@ -20,7 +20,9 @@ import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
-import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock } from 'lucide-react'
+import GdprAdminPanel from '../components/Admin/GdprAdminPanel'
+import { CreatorApplicationQueue } from '../components/Admin/CreatorApplicationQueue'
+import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 
@@ -30,6 +32,7 @@ interface AdminUser {
   email: string
   role: 'admin' | 'user' | 'creator'
   creator_auto_approved?: number
+  creator_fee_percent?: number | null
   created_at: string
   last_login?: string | null
   online?: boolean
@@ -46,11 +49,14 @@ interface ExploreSubmission {
   description: string | null
   start_date: string | null
   end_date: string | null
+  cover_image: string | null
   submitter_name: string
   submitter_email: string
   creator_auto_approved: number
   community_enabled: number
   created_at: string
+  day_count?: number
+  place_count?: number
 }
 
 interface AdminStats {
@@ -76,6 +82,12 @@ interface UpdateInfo {
   release_url?: string
   is_docker?: boolean
   is_prerelease?: boolean
+}
+
+interface MollieMethod {
+  name: string
+  fixed_cents: number
+  variable_pct: number
 }
 
 const ADMIN_EVENT_LABEL_KEYS: Record<string, string> = {
@@ -201,10 +213,12 @@ export default function AdminPage(): React.ReactElement {
   const hour12 = useSettingsStore(s => s.settings.time_format) === '12h'
   const loadSettings = useSettingsStore(s => s.loadSettings)
   const mcpEnabled = useAddonStore(s => s.isEnabled('mcp'))
+  const exploreEnabled = useAddonStore(s => s.isEnabled('explore'))
   const devMode = useAuthStore(s => s.devMode)
   const TABS: PageSidebarTab[] = [
     { id: 'users', label: t('admin.tabs.users'), icon: Users },
-    { id: 'explore', label: 'Explore', icon: Compass },
+    ...(exploreEnabled ? [{ id: 'explore', label: 'Explore', icon: Compass }] : []),
+    ...(exploreEnabled ? [{ id: 'payouts', label: t('admin.tabs.payouts') || 'Payouts', icon: CreditCard }] : []),
     { id: 'config', label: t('admin.tabs.config'), icon: SlidersHorizontal },
     { id: 'defaults', label: t('admin.tabs.defaults'), icon: UserCog },
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
@@ -212,6 +226,7 @@ export default function AdminPage(): React.ReactElement {
     { id: 'notifications', label: t('admin.tabs.notifications'), icon: Bell },
     { id: 'backup', label: t('admin.tabs.backup'), icon: Database },
     { id: 'audit', label: t('admin.tabs.audit'), icon: ScrollText },
+    { id: 'gdpr', label: t('admin.tabs.gdpr'), icon: Shield },
     ...(mcpEnabled ? [{ id: 'mcp-tokens', label: t('admin.tabs.mcpTokens'), icon: KeyRound }] : []),
     { id: 'github', label: t('admin.tabs.github'), icon: GitBranch },
     ...(devMode ? [{ id: 'dev-notifications', label: 'Dev: Notifications', icon: Bug }] : []),
@@ -222,9 +237,11 @@ export default function AdminPage(): React.ReactElement {
   const [stats, setStats] = useState<AdminStats | null>(null)
   const [isLoading, setIsLoading] = useState<boolean>(true)
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null)
-  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; creator_auto_approved: boolean }>({ username: '', email: '', role: 'user', password: '', creator_auto_approved: false })
+  const [editForm, setEditForm] = useState<{ username: string; email: string; role: string; password: string; creator_auto_approved: boolean; creator_fee_percent: string }>({ username: '', email: '', role: 'user', password: '', creator_auto_approved: false, creator_fee_percent: '' })
   const [showCreateUser, setShowCreateUser] = useState<boolean>(false)
   const [createForm, setCreateForm] = useState<{ username: string; email: string; password: string; role: string; send_welcome_email: boolean }>({ username: '', email: '', password: '', role: 'user', send_welcome_email: false })
+  const [expandedUserId, setExpandedUserId] = useState<number | null>(null)
+  const [userTripStats, setUserTripStats] = useState<Record<number, any>>({})
 
   // Explore submissions
   const [submissions, setSubmissions] = useState<ExploreSubmission[]>([])
@@ -232,6 +249,8 @@ export default function AdminPage(): React.ReactElement {
   const [submissionFilter, setSubmissionFilter] = useState<'pending' | 'approved' | 'rejected'>('pending')
   const [approvingId, setApprovingId] = useState<number | null>(null)
   const [autoApproveMap, setAutoApproveMap] = useState<Record<number, boolean>>({})
+  const [previewSubmission, setPreviewSubmission] = useState<ExploreSubmission | null>(null)
+  const [exploreSubtab, setExploreSubtab] = useState<'submissions' | 'creators'>('submissions')
 
   const loadSubmissions = async () => {
     setSubmissionsLoading(true)
@@ -244,6 +263,7 @@ export default function AdminPage(): React.ReactElement {
 
   useEffect(() => {
     if (activeTab === 'explore') loadSubmissions()
+    if (activeTab === 'payouts') loadPayouts()
   }, [activeTab, submissionFilter])
 
   const handleApprove = async (s: ExploreSubmission) => {
@@ -320,6 +340,20 @@ export default function AdminPage(): React.ReactElement {
   const [bookingAffiliateId, setBookingAffiliateId] = useState<string>('')
   const [savingBookingAffiliate, setSavingBookingAffiliate] = useState<boolean>(false)
 
+  // Platform fee
+  const [platformFee, setPlatformFee] = useState<string>('')
+  const [savingPlatformFee, setSavingPlatformFee] = useState<boolean>(false)
+
+  // Mollie fees
+  const [mollieMethods, setMollieMethods] = useState<MollieMethod[]>([])
+  const [savingMollie, setSavingMollie] = useState<boolean>(false)
+
+  // Payouts
+  const [payoutData, setPayoutData] = useState<any>(null)
+  const [payoutsLoading, setPayoutsLoading] = useState(false)
+  const [payoutForm, setPayoutForm] = useState<{ creatorId: number | ''; amount: string; description: string }>({ creatorId: '', amount: '', description: '' })
+  const [savingPayout, setSavingPayout] = useState(false)
+
   // SMTP settings
   const [smtpValues, setSmtpValues] = useState<Record<string, string>>({})
   const [smtpLoaded, setSmtpLoaded] = useState(false)
@@ -330,6 +364,20 @@ export default function AdminPage(): React.ReactElement {
       if (r.data?.booking_affiliate_id) setBookingAffiliateId(r.data.booking_affiliate_id)
     }).catch(() => setSmtpLoaded(true))
   }, [])
+
+  // Load platform fee
+  useEffect(() => {
+    adminApi.getPlatformFee().then(r => {
+      setPlatformFee(r.platform_fee_percent != null ? String(r.platform_fee_percent) : '')
+    }).catch(() => {})
+  }, [])
+
+  // Load Mollie fees when config tab is active
+  useEffect(() => {
+    if (activeTab === 'config') {
+      adminApi.getMollieFees().then(d => setMollieMethods(d.methods || [])).catch(() => {})
+    }
+  }, [activeTab])
 
   // API Keys
   const [mapsKey, setMapsKey] = useState<string>('')
@@ -351,6 +399,8 @@ export default function AdminPage(): React.ReactElement {
 
   const [showRotateJwtModal, setShowRotateJwtModal] = useState<boolean>(false)
   const [rotatingJwt, setRotatingJwt] = useState<boolean>(false)
+  const [transferring, setTransferring] = useState<{ tripId: number; tripTitle: string } | null>(null)
+  const [selectedNewOwner, setSelectedNewOwner] = useState<number | null>(null)
 
   useEffect(() => {
     loadData()
@@ -365,14 +415,23 @@ export default function AdminPage(): React.ReactElement {
   const loadData = async () => {
     setIsLoading(true)
     try {
-      const [usersData, statsData, invitesData] = await Promise.all([
+      const [usersData, statsData, invitesData, userStatsData] = await Promise.all([
         adminApi.users(),
         adminApi.stats(),
         adminApi.listInvites().catch(() => ({ invites: [] })),
+        adminApi.usersTripStats().catch(() => ({ users: [] })),
       ])
       setUsers(usersData.users)
       setStats(statsData)
       setInvites(invitesData.invites || [])
+      // Index user trip stats by user ID for quick lookup
+      const statsMap: Record<number, any> = {}
+      if (userStatsData.users) {
+        userStatsData.users.forEach((u: any) => {
+          statsMap[u.id] = u
+        })
+      }
+      setUserTripStats(statsMap)
     } catch (err: unknown) {
       toast.error(t('admin.toast.loadError'))
     } finally {
@@ -561,16 +620,17 @@ export default function AdminPage(): React.ReactElement {
 
   const handleEditUser = (user) => {
     setEditingUser(user)
-    setEditForm({ username: user.username, email: user.email, role: user.role, password: '', creator_auto_approved: !!(user.creator_auto_approved) })
+    setEditForm({ username: user.username, email: user.email, role: user.role, password: '', creator_auto_approved: !!(user.creator_auto_approved), creator_fee_percent: user.creator_fee_percent != null ? String(user.creator_fee_percent) : '' })
   }
 
   const handleSaveUser = async () => {
     try {
-      const payload: { username?: string; email?: string; role: string; password?: string; creator_auto_approved?: boolean } = {
+      const payload: { username?: string; email?: string; role: string; password?: string; creator_auto_approved?: boolean; creator_fee_percent?: number | null } = {
         username: editForm.username.trim() || undefined,
         email: editForm.email.trim() || undefined,
         role: editForm.role,
         creator_auto_approved: editForm.role === 'creator' ? editForm.creator_auto_approved : undefined,
+        creator_fee_percent: editForm.role === 'creator' && editForm.creator_fee_percent.trim() !== '' ? parseInt(editForm.creator_fee_percent.trim(), 10) : null,
       }
       if (editForm.password.trim()) {
         if (editForm.password.trim().length < 8) {
@@ -600,6 +660,49 @@ export default function AdminPage(): React.ReactElement {
       toast.success(t('admin.toast.userDeleted'))
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t('admin.toast.deleteError')))
+    }
+  }
+
+  const handleTransferTrip = async () => {
+    if (!transferring || !selectedNewOwner) return
+    try {
+      await adminApi.transferTrip(transferring.tripId, selectedNewOwner)
+      toast.success(t('admin.toast.tripTransferred'))
+      loadData() // Reload user stats
+      setTransferring(null)
+      setSelectedNewOwner(null)
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('admin.toast.transferError')))
+    }
+  }
+
+  const loadPayouts = async () => {
+    setPayoutsLoading(true)
+    try {
+      const data = await adminApi.getPayouts()
+      setPayoutData(data)
+    } catch {
+      toast.error(t('admin.payouts.loadError') || 'Payouts laden mislukt')
+    }
+    setPayoutsLoading(false)
+  }
+
+  const handleRegisterPayout = async () => {
+    if (!payoutForm.creatorId || !payoutForm.amount.trim()) return
+    try {
+      setSavingPayout(true)
+      await adminApi.registerPayout({
+        creator_user_id: Number(payoutForm.creatorId),
+        amount_cents: Math.round(parseFloat(payoutForm.amount) * 100),
+        description: payoutForm.description,
+      })
+      setPayoutForm({ creatorId: '', amount: '', description: '' })
+      await loadPayouts()
+      toast.success(t('admin.payouts.saved') || 'Payout geregistreerd')
+    } catch {
+      toast.error(t('admin.payouts.saveError') || 'Payout registreren mislukt')
+    } finally {
+      setSavingPayout(false)
     }
   }
 
@@ -728,80 +831,165 @@ export default function AdminPage(): React.ReactElement {
                   <table className="w-full">
                     <thead>
                       <tr className="text-left text-xs font-medium text-slate-500 uppercase tracking-wider border-b border-slate-100 bg-slate-50">
+                        <th className="px-5 py-3 w-8"></th>
                         <th className="px-5 py-3">{t('admin.table.user')}</th>
                         <th className="px-5 py-3">{t('admin.table.email')}</th>
                         <th className="px-5 py-3">{t('admin.table.role')}</th>
                         <th className="px-5 py-3">{t('admin.table.created')}</th>
                         <th className="px-5 py-3">{t('admin.table.lastLogin')}</th>
+                        <th className="px-5 py-3 text-center">Trips</th>
                         <th className="px-5 py-3 text-right">{t('admin.table.actions')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100 trek-stagger">
-                      {users.map(u => (
-                        <tr key={u.id} className={`hover:bg-slate-50 transition-colors ${u.id === currentUser?.id ? 'bg-slate-50/60' : ''}`}>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2">
-                              <div className="relative">
-                                {u.avatar_url ? (
-                                  <img src={u.avatar_url} alt={u.username} className="w-8 h-8 rounded-full object-cover" />
-                                ) : (
-                                  <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-700">
-                                    {u.username.charAt(0).toUpperCase()}
+                      {users.map(u => {
+                        const stats = userTripStats[u.id]
+                        const isExpanded = expandedUserId === u.id
+                        return (
+                          <React.Fragment key={u.id}>
+                            <tr className={`hover:bg-slate-50 transition-colors ${u.id === currentUser?.id ? 'bg-slate-50/60' : ''}`}>
+                              <td className="px-5 py-3">
+                                {stats?.trips && stats.trips.length > 0 && (
+                                  <button
+                                    onClick={() => setExpandedUserId(isExpanded ? null : u.id)}
+                                    className="p-1 hover:bg-slate-200 rounded transition-colors"
+                                    title={isExpanded ? 'Hide trips' : 'Show trips'}
+                                  >
+                                    <ChevronDown className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                                  </button>
+                                )}
+                              </td>
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-2">
+                                  <div className="relative">
+                                    {u.avatar_url ? (
+                                      <img src={u.avatar_url} alt={u.username} className="w-8 h-8 rounded-full object-cover" />
+                                    ) : (
+                                      <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-sm font-medium text-slate-700">
+                                        {u.username.charAt(0).toUpperCase()}
+                                      </div>
+                                    )}
+                                    <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ borderColor: 'var(--bg-card)', background: u.online ? '#22c55e' : '#94a3b8' }} />
                                   </div>
-                                )}
-                                <span className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2" style={{ borderColor: 'var(--bg-card)', background: u.online ? '#22c55e' : '#94a3b8' }} />
-                              </div>
-                              <div>
-                                <p className="text-sm font-medium text-slate-900">{u.username}</p>
-                                {u.id === currentUser?.id && (
-                                  <span className="text-xs text-slate-500">{t('admin.you')}</span>
-                                )}
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-5 py-3 text-sm text-slate-600">{u.email}</td>
-                          <td className="px-5 py-3">
-                            <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                              u.role === 'admin'
-                                ? 'bg-slate-900 text-white'
-                                : u.role === 'creator'
-                                ? 'bg-indigo-100 text-indigo-700'
-                                : 'bg-slate-100 text-slate-600'
-                            }`}>
-                              {u.role === 'admin' && <Shield className="w-3 h-3" />}
-                              {u.role === 'admin' ? t('settings.roleAdmin') : u.role === 'creator' ? t('settings.roleCreator') : t('settings.roleUser')}
-                            </span>
-                            {u.role === 'creator' && u.creator_auto_approved ? (
-                              <span className="ml-1 text-xs text-green-600 font-medium">{t('admin.explore.autoApprovedBadge')}</span>
-                            ) : null}
-                          </td>
-                          <td className="px-5 py-3 text-sm text-slate-500">
-                            {new Date(u.created_at).toLocaleDateString(locale, { timeZone: serverTimezone })}
-                          </td>
-                          <td className="px-5 py-3 text-sm text-slate-500">
-                            {u.last_login ? new Date(u.last_login).toLocaleDateString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12, timeZone: serverTimezone }) : '—'}
-                          </td>
-                          <td className="px-5 py-3">
-                            <div className="flex items-center gap-2 justify-end">
-                              <button
-                                onClick={() => handleEditUser(u)}
-                                className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
-                                title={t('admin.editUser')}
-                              >
-                                <Edit2 className="w-4 h-4" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteUser(u)}
-                                disabled={u.id === currentUser?.id}
-                                className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
-                                title={t('admin.deleteUserTitle')}
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                                  <div>
+                                    <p className="text-sm font-medium text-slate-900">{u.username}</p>
+                                    {u.id === currentUser?.id && (
+                                      <span className="text-xs text-slate-500">{t('admin.you')}</span>
+                                    )}
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-5 py-3 text-sm text-slate-600">{u.email}</td>
+                              <td className="px-5 py-3">
+                                <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
+                                  u.role === 'admin'
+                                    ? 'bg-slate-900 text-white'
+                                    : u.role === 'creator'
+                                    ? 'bg-indigo-100 text-indigo-700'
+                                    : 'bg-slate-100 text-slate-600'
+                                }`}>
+                                  {u.role === 'admin' && <Shield className="w-3 h-3" />}
+                                  {u.role === 'admin' ? t('settings.roleAdmin') : u.role === 'creator' ? t('settings.roleCreator') : t('settings.roleUser')}
+                                </span>
+                                {u.role === 'creator' && u.creator_auto_approved ? (
+                                  <span className="ml-1 text-xs text-green-600 font-medium">{t('admin.explore.autoApprovedBadge')}</span>
+                                ) : null}
+                              </td>
+                              <td className="px-5 py-3 text-sm text-slate-500">
+                                {new Date(u.created_at).toLocaleDateString(locale, { timeZone: serverTimezone })}
+                              </td>
+                              <td className="px-5 py-3 text-sm text-slate-500">
+                                {u.last_login ? new Date(u.last_login).toLocaleDateString(locale, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12, timeZone: serverTimezone }) : '—'}
+                              </td>
+                              <td className="px-5 py-3 text-center">
+                                <span className="inline-flex items-center justify-center px-3 py-1 text-xs font-semibold text-white bg-slate-500 rounded-full">
+                                  {stats?.trip_count || 0}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3">
+                                <div className="flex items-center gap-2 justify-end">
+                                  <button
+                                    onClick={() => handleEditUser(u)}
+                                    className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-colors"
+                                    title={t('admin.editUser')}
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteUser(u)}
+                                    disabled={u.id === currentUser?.id}
+                                    className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title={t('admin.deleteUserTitle')}
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                            {isExpanded && stats?.trips && stats.trips.length > 0 && (
+                              <tr className="bg-slate-50/50">
+                                <td colSpan={8} className="px-5 py-4">
+                                  <div className="space-y-3">
+                                    <div className="grid grid-cols-3 gap-4 mb-4">
+                                      <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Total Trips</p>
+                                        <p className="text-2xl font-bold text-slate-900">{stats.trip_count}</p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Total Days</p>
+                                        <p className="text-2xl font-bold text-slate-900">{stats.total_days}</p>
+                                      </div>
+                                      <div className="bg-white p-3 rounded-lg border border-slate-200">
+                                        <p className="text-xs text-slate-500 uppercase tracking-wider font-medium mb-1">Total Places</p>
+                                        <p className="text-2xl font-bold text-slate-900">{stats.total_places}</p>
+                                      </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                      <div className="overflow-x-auto">
+                                        <table className="w-full text-sm">
+                                          <thead className="bg-slate-50 border-b border-slate-200">
+                                            <tr>
+                                              <th className="px-4 py-2 text-left font-medium text-xs text-slate-600">Trip Title</th>
+                                              <th className="px-4 py-2 text-left font-medium text-xs text-slate-600">Dates</th>
+                                              <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Days</th>
+                                              <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Places</th>
+                                              <th className="px-4 py-2 text-center font-medium text-xs text-slate-600">Actions</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="divide-y divide-slate-100">
+                                            {stats.trips.map((trip: any) => (
+                                              <tr key={trip.id} className="hover:bg-slate-50 transition-colors">
+                                                <td className="px-4 py-2 font-medium text-slate-900">{trip.title}</td>
+                                                <td className="px-4 py-2 text-slate-600 text-xs">
+                                                  {trip.start_date && trip.end_date
+                                                    ? `${new Date(trip.start_date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' })} - ${new Date(trip.end_date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' })}`
+                                                    : trip.start_date
+                                                    ? new Date(trip.start_date).toLocaleDateString(locale, { day: 'numeric', month: 'short', year: '2-digit' })
+                                                    : '—'}
+                                                </td>
+                                                <td className="px-4 py-2 text-center text-slate-600">{trip.day_count || 0}</td>
+                                                <td className="px-4 py-2 text-center text-slate-600">{trip.place_count || 0}</td>
+                                                <td className="px-4 py-2 text-center">
+                                                  <button
+                                                    onClick={() => setTransferring({ tripId: trip.id, tripTitle: trip.title })}
+                                                    className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-blue-600 bg-blue-50 rounded hover:bg-blue-100 transition-colors"
+                                                  >
+                                                    Transfer
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                              </tr>
+                            )}
+                          </React.Fragment>
+                        )
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -916,6 +1104,44 @@ export default function AdminPage(): React.ReactElement {
 
           {activeTab === 'explore' && (
             <div>
+              {/* Explore subtabs */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 16, borderBottom: '1px solid var(--border-primary)', paddingBottom: 12 }}>
+                <button
+                  onClick={() => setExploreSubtab('submissions')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: exploreSubtab === 'submissions' ? 'var(--accent)' : 'transparent',
+                    color: exploreSubtab === 'submissions' ? 'var(--accent-text)' : 'var(--text-muted)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Trip Submissions
+                </button>
+                <button
+                  onClick={() => setExploreSubtab('creators')}
+                  style={{
+                    padding: '6px 12px',
+                    borderRadius: 6,
+                    border: 'none',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    background: exploreSubtab === 'creators' ? 'var(--accent)' : 'transparent',
+                    color: exploreSubtab === 'creators' ? 'var(--accent-text)' : 'var(--text-muted)',
+                    fontFamily: 'inherit',
+                  }}
+                >
+                  Creator Applications
+                </button>
+              </div>
+
+              {exploreSubtab === 'submissions' && (
+              <div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
                 <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.explore.title')}</h2>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -971,8 +1197,18 @@ export default function AdminPage(): React.ReactElement {
                           <div style={{ display: 'flex', gap: 10, marginTop: 6, fontSize: 11, color: 'var(--text-faint)' }}>
                             <span>{s.price === 0 ? t('admin.explore.free') : `€${s.price}`}</span>
                             {s.community_enabled ? <span>{t('admin.explore.communityOn')}</span> : null}
+                            <span>{s.day_count ?? 0}d · {s.place_count ?? 0}p</span>
                             <span>{t('admin.explore.submittedOn')}: {new Date(s.created_at).toLocaleDateString()}</span>
                           </div>
+                          <button
+                            onClick={() => setPreviewSubmission(s)}
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 8, padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border-primary)',
+                              background: 'var(--bg-secondary)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'inherit',
+                            }}
+                          >
+                            <Eye size={12} /> {t('admin.explore.preview') || 'Preview'}
+                          </button>
                         </div>
 
                         {s.status === 'pending' && (
@@ -1009,6 +1245,124 @@ export default function AdminPage(): React.ReactElement {
                             </div>
                           </div>
                         )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+              </div>
+              )}
+
+              {exploreSubtab === 'creators' && (
+                <div>
+                  <CreatorApplicationQueue />
+                </div>
+              )}
+            </div>
+          )}
+
+          {activeTab === 'payouts' && (
+            <div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                <h2 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.payouts.title') || 'Creator payouts'}</h2>
+                <button
+                  onClick={loadPayouts}
+                  disabled={payoutsLoading}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
+                >
+                  {payoutsLoading ? t('common.loading') : (t('common.refresh') || 'Ververs')}
+                </button>
+              </div>
+
+              {/* Register payout form */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 20, padding: '12px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                <select
+                  value={payoutForm.creatorId}
+                  onChange={e => setPayoutForm(f => ({ ...f, creatorId: e.target.value ? Number(e.target.value) : '' }))}
+                  style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                >
+                  <option value="">{t('admin.payouts.selectCreator') || 'Selecteer creator'}</option>
+                  {(payoutData?.creators || []).map((c: any) => (
+                    <option key={c.id} value={c.id}>{c.username} ({c.email})</option>
+                  ))}
+                </select>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder={t('admin.payouts.amountPlaceholder') || 'Bedrag (€)'}
+                  value={payoutForm.amount}
+                  onChange={e => setPayoutForm(f => ({ ...f, amount: e.target.value }))}
+                  style={{ padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                />
+                <input
+                  type="text"
+                  placeholder={t('admin.payouts.descriptionPlaceholder') || 'Omschrijving (optioneel)'}
+                  value={payoutForm.description}
+                  onChange={e => setPayoutForm(f => ({ ...f, description: e.target.value }))}
+                  style={{ flex: 1, padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 13, fontFamily: 'inherit' }}
+                />
+                <button
+                  onClick={handleRegisterPayout}
+                  disabled={savingPayout || !payoutForm.creatorId || !payoutForm.amount.trim()}
+                  style={{ padding: '8px 14px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: savingPayout ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit', opacity: savingPayout ? 0.7 : 1 }}
+                >
+                  {savingPayout ? t('common.saving') : (t('admin.payouts.register') || 'Registreer')}
+                </button>
+              </div>
+
+              {/* Creators earnings table */}
+              <h3 style={{ margin: '0 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.payouts.creators') || 'Creators'}</h3>
+              {payoutsLoading && !payoutData ? (
+                <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('common.loading')}</p>
+              ) : (payoutData?.creators || []).length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('admin.payouts.noCreators') || 'Geen creators gevonden'}</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(payoutData.creators || []).map((c: any) => (
+                    <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{c.username}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{c.email}</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.sales') || 'Verkopen'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{c.sales_count}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.earned') || 'Verdiend'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#059669' }}>€{(c.total_earned / 100).toFixed(2)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.paid') || 'Uitbetaald'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>€{(c.total_paid / 100).toFixed(2)}</div>
+                        </div>
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.payouts.balance') || 'Openstaand'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: ((c.total_earned - c.total_paid) > 0) ? '#d97706' : 'var(--text-faint)' }}>€{((c.total_earned - c.total_paid) / 100).toFixed(2)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Payout history */}
+              <h3 style={{ margin: '20px 0 10px', fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{t('admin.payouts.history') || 'Uitbetalingsgeschiedenis'}</h3>
+              {(payoutData?.payouts || []).length === 0 ? (
+                <p style={{ fontSize: 13, color: 'var(--text-faint)' }}>{t('admin.payouts.noPayouts') || 'Nog geen payouts geregistreerd'}</p>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {(payoutData.payouts || []).map((p: any) => (
+                    <div key={p.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-primary)' }}>{p.creator_name}</span>
+                        {p.description && <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{p.description}</span>}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>€{(p.amount_cents / 100).toFixed(2)}</span>
+                        <span style={{ fontSize: 11, color: 'var(--text-faint)' }}>{new Date(p.paid_at).toLocaleDateString()}</span>
                       </div>
                     </div>
                   ))}
@@ -1214,6 +1568,163 @@ export default function AdminPage(): React.ReactElement {
                       />
                     </button>
                   </div>
+                </div>
+              </div>
+
+              {/* Platform Fee */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="font-semibold text-slate-900">{t('admin.platformFee') || 'Platform fee'}</h2>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.platformFeeHint') || 'Standaard percentage dat het platform inhoudt bij elke verkoop.'}</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="flex items-end gap-3">
+                    <div className="flex-1">
+                      <label className="block text-sm font-medium text-slate-700 mb-1">
+                        {t('admin.platformFeeLabel') || 'Fee percentage (%)'}
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={platformFee}
+                        onChange={e => setPlatformFee(e.target.value)}
+                        placeholder={t('admin.platformFeePlaceholder') || 'Bijv. 10'}
+                        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setSavingPlatformFee(true)
+                        try {
+                          const val = platformFee.trim() === '' ? null : parseInt(platformFee.trim(), 10)
+                          await adminApi.setPlatformFee(val)
+                          toast.success(t('common.saved'))
+                        } catch {
+                          toast.error(t('common.error'))
+                        } finally {
+                          setSavingPlatformFee(false)
+                        }
+                      }}
+                      disabled={savingPlatformFee}
+                      className="px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                    >
+                      {savingPlatformFee ? t('common.saving') : t('common.save')}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Mollie Payment Methods */}
+              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                <div className="px-6 py-4 border-b border-slate-100">
+                  <h2 className="font-semibold text-slate-900">{t('admin.molliePaymentMethods') || 'Betalingskosten'}</h2>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.molliePaymentMethodsHint') || 'Mollie transactiekosten per betaalmethode'}</p>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div className="space-y-3">
+                    {mollieMethods.length > 0 ? (
+                      <>
+                        <div className="text-xs font-medium text-slate-600 mb-2 grid grid-cols-12 gap-2">
+                          <div className="col-span-4">{t('admin.mollieMethod') || 'Methode'}</div>
+                          <div className="col-span-3">{t('admin.mollieFixedFee') || 'Vast bedrag'}</div>
+                          <div className="col-span-3">{t('admin.molliePercentage') || 'Percentage'}</div>
+                          <div className="col-span-2"></div>
+                        </div>
+                        {mollieMethods.map((method, idx) => (
+                          <div key={idx} className="grid grid-cols-12 gap-2 items-center">
+                            <input
+                              type="text"
+                              value={method.name}
+                              onChange={e => {
+                                const updated = [...mollieMethods]
+                                updated[idx].name = e.target.value
+                                setMollieMethods(updated)
+                              }}
+                              placeholder={t('admin.mollieMethodPlaceholder') || 'bijv. iDEAL'}
+                              className="col-span-4 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                            />
+                            <div className="col-span-3 flex items-center gap-1">
+                              <span className="text-xs text-slate-500">€</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={method.fixed_cents}
+                                onChange={e => {
+                                  const updated = [...mollieMethods]
+                                  updated[idx].fixed_cents = parseInt(e.target.value, 10) || 0
+                                  setMollieMethods(updated)
+                                }}
+                                placeholder="29"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                              />
+                              <span className="text-xs text-slate-500">{(method.fixed_cents / 100).toFixed(2)}</span>
+                            </div>
+                            <div className="col-span-3 flex items-center gap-1">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={method.variable_pct}
+                                onChange={e => {
+                                  const updated = [...mollieMethods]
+                                  updated[idx].variable_pct = parseFloat(e.target.value) || 0
+                                  setMollieMethods(updated)
+                                }}
+                                placeholder="1.8"
+                                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+                              />
+                              <span className="text-xs text-slate-500">%</span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                setMollieMethods(mollieMethods.filter((_, i) => i !== idx))
+                              }}
+                              className="col-span-2 px-2 py-2 text-red-600 hover:bg-red-50 rounded-lg text-sm font-medium border border-red-200"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        ))}
+                      </>
+                    ) : (
+                      <p className="text-sm text-slate-500">{t('admin.noPaymentMethods') || 'Geen betalingsmethodes geconfigureerd'}</p>
+                    )}
+                  </div>
+
+                  <button
+                    onClick={() => {
+                      setMollieMethods([...mollieMethods, { name: '', fixed_cents: 29, variable_pct: 1.8 }])
+                    }}
+                    className="w-full px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 flex items-center justify-center gap-2"
+                  >
+                    <Plus className="w-4 h-4" />
+                    {t('admin.mollieAddMethod') || 'Methode toevoegen'}
+                  </button>
+
+                  <div className="text-xs text-slate-500 pt-2 border-t">
+                    {t('explore.costsVia')} <a href="https://www.mollie.com/nl/pricing" target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline">Mollie ↗</a>
+                  </div>
+
+                  <button
+                    onClick={async () => {
+                      setSavingMollie(true)
+                      try {
+                        await adminApi.setMollieFees(mollieMethods)
+                        toast.success(t('common.saved'))
+                      } catch {
+                        toast.error(t('common.error'))
+                      } finally {
+                        setSavingMollie(false)
+                      }
+                    }}
+                    disabled={savingMollie}
+                    className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-sm font-medium rounded-lg hover:bg-slate-800 disabled:opacity-50"
+                  >
+                    <Save className="w-4 h-4" />
+                    {savingMollie ? t('common.saving') : t('common.save')}
+                  </button>
                 </div>
               </div>
 
@@ -1949,6 +2460,8 @@ export default function AdminPage(): React.ReactElement {
 
           {activeTab === 'audit' && <AuditLogPanel serverTimezone={serverTimezone} />}
 
+          {activeTab === 'gdpr' && <GdprAdminPanel />}
+
           {activeTab === 'mcp-tokens' && <AdminMcpTokensPanel />}
 
           {activeTab === 'github' && <GitHubPanel isPrerelease={updateInfo?.is_prerelease ?? false} />}
@@ -2111,16 +2624,33 @@ export default function AdminPage(): React.ReactElement {
               />
             </div>
             {editForm.role === 'creator' && (
-              <div>
-                <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+              <>
+                <div>
+                  <label className="flex items-center gap-2 cursor-pointer text-sm text-slate-700">
+                    <input
+                      type="checkbox"
+                      checked={editForm.creator_auto_approved}
+                      onChange={e => setEditForm(f => ({ ...f, creator_auto_approved: e.target.checked }))}
+                    />
+                    {t('admin.creatorAutoApprove')}
+                  </label>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 mb-1">
+                    {t('admin.creatorFeePercent') || 'Platform fee (%)'}
+                  </label>
                   <input
-                    type="checkbox"
-                    checked={editForm.creator_auto_approved}
-                    onChange={e => setEditForm(f => ({ ...f, creator_auto_approved: e.target.checked }))}
+                    type="number"
+                    min="0"
+                    max="100"
+                    placeholder={t('admin.creatorFeePercentPlaceholder') || 'Leeg = standaard fee'}
+                    value={editForm.creator_fee_percent}
+                    onChange={e => setEditForm(f => ({ ...f, creator_fee_percent: e.target.value }))}
+                    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-slate-900 focus:border-transparent"
                   />
-                  {t('admin.creatorAutoApprove')}
-                </label>
-              </div>
+                  <p className="text-xs text-slate-400 mt-1">{t('admin.creatorFeePercentHint') || 'Percentage dat het platform inhoudt per verkoop. Leeg = gebruik standaard fee.'}</p>
+                </div>
+              </>
             )}
           </div>
         )}
@@ -2252,6 +2782,119 @@ docker run -d --name trek \\
           </div>
         </div>
       </Modal>
+
+      {/* Explore Submission Preview Modal */}
+      {previewSubmission && (
+        <div onClick={() => setPreviewSubmission(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: 'var(--bg-primary)', borderRadius: 16, overflow: 'hidden', maxWidth: 520, width: '100%', maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+            {previewSubmission.cover_image && (
+              <div style={{ width: '100%', height: 200, background: '#f3f4f6', backgroundImage: `url(${previewSubmission.cover_image})`, backgroundSize: 'cover', backgroundPosition: 'center' }} />
+            )}
+            <div style={{ padding: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'start', justifyContent: 'space-between', gap: 12, marginBottom: 12 }}>
+                <div>
+                  <h2 style={{ fontSize: 18, fontWeight: 700, color: 'var(--text-primary)', margin: 0 }}>{previewSubmission.title}</h2>
+                  <div style={{ fontSize: 12, color: 'var(--text-faint)', marginTop: 4 }}>
+                    {t('admin.explore.submittedBy')} <strong>{previewSubmission.submitter_name}</strong> ({previewSubmission.submitter_email})
+                  </div>
+                </div>
+                <button onClick={() => setPreviewSubmission(null)} style={{ background: 'none', border: 'none', fontSize: 24, cursor: 'pointer', color: 'var(--text-faint)', padding: 0 }}>×</button>
+              </div>
+
+              {previewSubmission.description && (
+                <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 12px' }}>{previewSubmission.description}</p>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 16 }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.explore.price') || 'Price'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.price === 0 ? t('admin.explore.free') : `€${previewSubmission.price}`}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('admin.explore.community') || 'Community'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.community_enabled ? 'Enabled' : 'Disabled'}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('dashboard.days') || 'Days'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.day_count ?? 0}</div>
+                </div>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+                  <div style={{ fontSize: 11, color: 'var(--text-faint)' }}>{t('dashboard.places') || 'Places'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text-primary)' }}>{previewSubmission.place_count ?? 0}</div>
+                </div>
+              </div>
+
+              {(previewSubmission.start_date || previewSubmission.end_date) && (
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
+                  {previewSubmission.start_date && new Date(previewSubmission.start_date).toLocaleDateString()} {previewSubmission.end_date ? '— ' + new Date(previewSubmission.end_date).toLocaleDateString() : ''}
+                </div>
+              )}
+
+              {previewSubmission.status === 'pending' && (
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => { setPreviewSubmission(null); handleReject(previewSubmission) }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'rgba(239,68,68,0.1)', color: '#dc2626', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                  >
+                    {t('admin.explore.reject')}
+                  </button>
+                  <button
+                    onClick={() => { setPreviewSubmission(null); handleApprove(previewSubmission) }}
+                    style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'rgba(16,185,129,0.12)', color: '#059669', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
+                  >
+                    {t('admin.explore.approve')}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Transfer Trip Modal */}
+      {transferring && (
+        <Modal
+          isOpen={true}
+          onClose={() => { setTransferring(null); setSelectedNewOwner(null) }}
+          title={`Transfer Trip: ${transferring.tripTitle}`}
+          size="sm"
+          footer={
+            <div className="flex gap-3 justify-end">
+              <button
+                onClick={() => { setTransferring(null); setSelectedNewOwner(null) }}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50"
+              >
+                {t('common.cancel')}
+              </button>
+              <button
+                onClick={handleTransferTrip}
+                disabled={!selectedNewOwner}
+                className="px-4 py-2 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+              >
+                {t('common.transfer')}
+              </button>
+            </div>
+          }
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-slate-600">
+              Select the user who will become the new owner of this trip.
+            </p>
+            <select
+              value={selectedNewOwner || ''}
+              onChange={e => setSelectedNewOwner(e.target.value ? parseInt(e.target.value) : null)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm"
+            >
+              <option value="">Choose new owner...</option>
+              {users.map(u => (
+                <option key={u.id} value={u.id}>
+                  {u.username} ({u.email})
+                </option>
+              ))}
+            </select>
+          </div>
+        </Modal>
+      )}
     </div>
   )
 }

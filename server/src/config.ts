@@ -116,3 +116,15 @@ export const PROJECT_METADATA = {
   modifiedBy: { name: 'Bas', url: 'https://github.com/Knibbaz/TREK' },
   originalBy: { name: 'Maurice', url: 'https://github.com/mauriceboe/TREK' },
 };
+
+// API keys from env — seeded into DB on first start so they survive restarts
+// even if the env var is later removed. The DB value takes precedence after seeding.
+export const GOOGLE_PLACES_API_KEY = process.env.GOOGLE_PLACES_API_KEY || '';
+export const UNSPLASH_API_KEY = process.env.UNSPLASH_API_KEY || '';
+
+// Mollie Connect configuration
+export const MOLLIE_CLIENT_ID = process.env.MOLLIE_CLIENT_ID || '';
+export const MOLLIE_CLIENT_SECRET = process.env.MOLLIE_CLIENT_SECRET || '';
+export const MOLLIE_API_KEY = process.env.MOLLIE_API_KEY || '';
+export const PLATFORM_FEE_PERCENT = parseInt(process.env.PLATFORM_FEE_PERCENT || '10', 10);
+export const APP_URL = process.env.APP_URL || 'http://localhost:3001';

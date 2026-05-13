@@ -103,13 +103,22 @@ const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
   next();
 };
 
+const adminOrCreator = (req: Request, res: Response, next: NextFunction): void => {
+  const authReq = req as AuthRequest;
+  if (!authReq.user || (authReq.user.role !== 'admin' && authReq.user.role !== 'creator')) {
+    res.status(403).json({ error: 'Admin or creator access required' });
+    return;
+  }
+  next();
+};
+
 const demoUploadBlock = (req: Request, res: Response, next: NextFunction): void => {
   const authReq = req as AuthRequest;
-  if (process.env.DEMO_MODE?.toLowerCase() === 'true' && isDemoEmail(authReq.user?.email)) {
+  if (process.env.DEMO_MODE === 'true'?.toLowerCase() && isDemoEmail(authReq.user?.email)) {
     res.status(403).json({ error: 'Uploads are disabled in demo mode. Self-host ROUTD for full functionality.' });
     return;
   }
   next();
 };
 
-export { authenticate, requireCookieAuth, optionalAuth, adminOnly, demoUploadBlock };
+export { authenticate, requireCookieAuth, optionalAuth, adminOnly, adminOrCreator, demoUploadBlock };

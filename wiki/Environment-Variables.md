@@ -119,10 +119,10 @@ These variables only take effect on first boot, before any user exists.
 
 | Variable | Description | Default |
 |---|---|---|
-| `ADMIN_EMAIL` | Email for the first admin account | `admin@routd.local` |
+| `ADMIN_EMAIL` | Email for the first admin account | `admin@trek.local` |
 | `ADMIN_PASSWORD` | Password for the first admin account | random |
 
-Both variables must be set together. If either is omitted, the account is created with email `admin@routd.local` and a randomly generated password that is printed to the server log. Once any user exists, these variables have no effect.
+Both variables must be set together. If either is omitted, the account is created with email `admin@trek.local` and a randomly generated password that is printed to the server log. Once any user exists, these variables have no effect.
 
 ---
 

@@ -4,7 +4,7 @@ import toast from 'react-hot-toast'
 import {
   Plus, Trash2, CalendarDays, ChevronLeft, ChevronRight,
   Globe, Briefcase, Plane, X, Check, Link2, BarChart2,
-  Lock, Unlock, Copy, Zap
+  Lock, Unlock, Copy, Zap, BellRing
 } from 'lucide-react'
 import { dateProposalsApi, availabilityApi, settingsApi, groupsApi, tripsApi } from '../../api/client'
 import { addListener, removeListener } from '../../api/websocket'
@@ -62,12 +62,15 @@ interface TooltipProps {
   y: number
   overlays: DayOverlay[]
   availability: DateAvailabilityEntry[]
+  guestAvailability?: Array<{ date: string; status: string; note: string | null; guest_token_id: number; guest_name: string | null }>
   members: DateProposal['members']
 }
 
-function Tooltip({ date, x, y, overlays, availability, members }: TooltipProps) {
+function Tooltip({ date, x, y, overlays, availability, guestAvailability, members }: TooltipProps) {
   const { t, locale } = useTranslation()
-  const entries = availability.filter(a => a.date === date)
+  const memberEntries = availability.filter(a => a.date === date)
+  const guestEntries = guestAvailability?.filter(g => g.date === date) || []
+  const entries = [...memberEntries, ...guestEntries]
   return createPortal(
     <div style={{
       position: 'fixed',
@@ -100,14 +103,14 @@ function Tooltip({ date, x, y, overlays, availability, members }: TooltipProps) 
       {entries.length > 0 && (
         <div style={{ borderTop: '1px solid var(--border-faint)', paddingTop: 6 }}>
           <div style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)', marginBottom: 4 }}>{t('dateAvail.groupResponses') || 'Group responses'}</div>
-          {entries.map(e => (
-            <div key={e.user_id} style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
+          {entries.map((e: any) => (
+            <div key={e.user_id || e.guest_token_id} style={{ display: 'flex', flexDirection: 'column', gap: 1, marginBottom: 2 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
                 <span style={{
                   fontWeight: 900, fontSize: 12,
                   color: e.status === 'yes' ? '#16a34a' : e.status === 'maybe' ? '#f59e0b' : '#dc2626',
                 }}>{e.status === 'yes' ? '✓' : e.status === 'maybe' ? '?' : '✕'}</span>
-                <span style={{ color: 'var(--text-primary)' }}>{e.username}</span>
+                <span style={{ color: 'var(--text-primary)' }}>{e.username || e.guest_name || (t('dateAvail.unnamedGuest') || 'Gast')}</span>
               </div>
               {e.note && (
                 <div style={{ fontSize: 10, color: 'var(--text-faint)', paddingLeft: 17, fontStyle: 'italic' }}>{e.note}</div>
@@ -303,7 +306,7 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
   }
 
   return (
-    <div className="rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border-primary)' }}>
+    <div className="rounded-xl border" style={{ borderColor: 'var(--border-primary)', overflowY: 'hidden' }}>
       {/* Day headers */}
       <div className="grid grid-cols-7 border-b" style={{ borderColor: 'var(--border-secondary)' }}>
         {DAY_LABELS.map((l, i) => (
@@ -335,11 +338,13 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
               const isToday = dateStr === todayStr
               const overlays = getOverlays(dateStr)
               const mine = myStatus[dateStr]
-              const entries = proposal.availability.filter(a => a.date === dateStr)
+              const memberEntries = proposal.availability.filter(a => a.date === dateStr)
+              const guestEntries = proposal.guestAvailability?.filter(g => g.date === dateStr) || []
+              const entries = [...memberEntries, ...guestEntries]
               const yesCount  = entries.filter(e => e.status === 'yes').length
               const maybeCount = entries.filter(e => e.status === 'maybe').length
               const noCount   = entries.filter(e => e.status === 'no').length
-              const total     = proposal.members.length
+              const total     = proposal.members.length + (new Set(guestEntries.map(g => g.guest_token_id)).size || 0)
               const notYet    = total - entries.length
 
               const hasNote = !!myNotes[dateStr]
@@ -463,6 +468,7 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
         <Tooltip
           {...tooltip}
           availability={proposal.availability}
+          guestAvailability={proposal.guestAvailability}
           members={proposal.members}
         />
       )}
@@ -593,6 +599,32 @@ function AnalysisPanel({ groupId, proposal, onConfirm, onHighlight }: AnalysisPa
 
       {analysis && (
         <>
+          {/* Heatmap */}
+          <div style={{ marginBottom: 12, paddingBottom: 8, borderBottom: '1px solid var(--border-faint)' }}>
+            <div style={{ fontSize: 10, color: 'var(--text-faint)', marginBottom: 6 }}>{t('dateAvail.overlapHeatmap') || 'Overlap heatmap'}</div>
+            <div style={{ display: 'flex', gap: 1, height: 24 }}>
+              {analysis.perDayOverlap.map((day, i) => {
+                const maxScore = Math.max(...analysis.perDayOverlap.map(d => d.score), 1);
+                const ratio = day.score / maxScore;
+                const hue = ratio > 0.1 ? 120 : 0; // green if >10% of max, else red
+                const saturation = 100;
+                const lightness = 45 + (1 - ratio) * 35; // darker green = higher overlap
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      flex: 1,
+                      background: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+                      borderRadius: 2,
+                      cursor: 'pointer',
+                    }}
+                    title={`${day.date}: ${day.yes} ja, ${day.maybe} misschien`}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
           <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 8 }}>
             {t('dateAvail.analysisStats', {
               responded: analysis.statistics.totalResponded,
@@ -668,6 +700,7 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
   const [pending, setPending] = useState<Record<string, 'yes' | 'no' | 'maybe'>>({})
   const [pendingNotes, setPendingNotes] = useState<Record<string, string | null>>({})
   const [saving, setSaving] = useState(false)
+  const [pinging, setPinging] = useState(false)
   const [showAnalysis, setShowAnalysis] = useState(false)
   const [highlightRange, setHighlightRange] = useState<{ start: string; end: string } | null>(null)
   const [confirmingPeriod, setConfirmingPeriod] = useState<{ start: string; end: string } | null>(null)
@@ -805,6 +838,18 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
     } catch { toast.error(t('common.error')) }
   }
 
+  const handlePing = async () => {
+    setPinging(true)
+    try {
+      const result = await dateProposalsApi.ping(groupId, proposal.id)
+      toast.success(t('dateAvail.pingSuccess', { count: result.pinged }) || `${result.pinged} member(s) pinged`)
+    } catch {
+      toast.error('Failed to send ping')
+    } finally {
+      setPinging(false)
+    }
+  }
+
   useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
 
   // Build list of months in range
@@ -880,6 +925,10 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
               <button onClick={() => setShowGuestPanel(v => !v)} title={t('dateAvail.guestLink') || 'Gastlink'}
                 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, border: 'none', background: showGuestPanel ? 'var(--accent)' : 'transparent', cursor: 'pointer', color: showGuestPanel ? 'var(--accent-text)' : 'var(--text-faint)' }}>
                 <Link2 size={14} />
+              </button>
+              <button onClick={handlePing} disabled={pinging} title={t('dateAvail.pingMembers') || 'Ping members'}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 28, height: 28, borderRadius: 8, border: 'none', background: 'transparent', cursor: pinging ? 'not-allowed' : 'pointer', color: 'var(--text-faint)', opacity: pinging ? 0.5 : 1 }}>
+                <BellRing size={14} />
               </button>
             </>
           )}
@@ -964,20 +1013,22 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
       )}
 
       {/* Grid */}
-      <div style={{ padding: '4px 16px 12px' }}>
-        <MonthGrid
-          year={viewMonth.getFullYear()}
-          month={viewMonth.getMonth()}
-          proposal={proposal}
-          myStatus={myStatus}
-          myNotes={myNotes}
-          onToggle={toggleDate}
-          onNoteOpen={handleNoteOpen}
-          publicHolidays={publicHolidays}
-          viewMode={viewMode}
-          highlightRange={highlightRange || confirmedRange}
-          readOnly={isConfirmed}
-        />
+      <div style={{ padding: '4px 16px 12px', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+        <div style={{ minWidth: '100%' }}>
+          <MonthGrid
+            year={viewMonth.getFullYear()}
+            month={viewMonth.getMonth()}
+            proposal={proposal}
+            myStatus={myStatus}
+            myNotes={myNotes}
+            onToggle={toggleDate}
+            onNoteOpen={handleNoteOpen}
+            publicHolidays={publicHolidays}
+            viewMode={viewMode}
+            highlightRange={highlightRange || confirmedRange}
+            readOnly={isConfirmed}
+          />
+        </div>
       </div>
 
       {/* Legend */}

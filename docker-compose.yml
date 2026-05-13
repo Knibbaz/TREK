@@ -40,7 +40,7 @@ services:
 #      - OIDC_DISPLAY_NAME=SSO # Label shown on the SSO login button
 #      - OIDC_ONLY=false # Set true to force SSO-only mode: disables password login and registration, overrides Admin > Settings toggles, cannot be changed at runtime
 #      - OIDC_ADMIN_CLAIM=groups # OIDC claim used to identify admin users
-#      - OIDC_ADMIN_VALUE=app-routd-admins # Value of the OIDC claim that grants admin role
+#      - OIDC_ADMIN_VALUE=app-trek-admins # Value of the OIDC claim that grants admin role
 #      - OIDC_SCOPE=openid email profile # Fully overrides the default. Add extra scopes as needed (e.g. add groups if using OIDC_ADMIN_CLAIM)
 #      - OIDC_DISCOVERY_URL= # Override the OIDC discovery endpoint for providers with non-standard paths (e.g. Authentik)
 #      - MCP_RATE_LIMIT=300 # Max MCP API requests per user per minute (default: 300)

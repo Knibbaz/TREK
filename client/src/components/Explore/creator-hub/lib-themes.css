@@ -1,0 +1,250 @@
+/* ──────────────────────────────────────────────────────────────────────────────
+   Creator Hub / Link-in-Bio Themes
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-root {
+  font-family: var(--lib-font-family, 'Inter');
+  background-color: var(--lib-bg);
+  color: var(--lib-text-primary);
+  min-height: 100vh;
+  padding: 1rem;
+}
+
+.lib-container {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.lib-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.lib-header-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 1rem;
+  border: 3px solid var(--lib-accent);
+}
+
+.lib-header-title {
+  font-size: 1.75rem;
+  font-weight: 600;
+  margin: 0.5rem 0;
+  color: var(--lib-text-primary);
+}
+
+.lib-header-subtitle {
+  font-size: 0.95rem;
+  color: var(--lib-text-secondary);
+  margin: 0.25rem 0 1rem 0;
+}
+
+.lib-block {
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: var(--lib-border-radius, 0.5rem);
+  background-color: var(--lib-block-bg);
+  border: 1px solid var(--lib-block-border);
+  transition: all 0.2s ease;
+}
+
+.lib-block:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.lib-block-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  text-decoration: none;
+  color: var(--lib-text-primary);
+  cursor: pointer;
+  padding: 0.5rem 0;
+}
+
+.lib-block-link:hover {
+  color: var(--lib-accent);
+}
+
+.lib-block-icon {
+  font-size: 1.5rem;
+  min-width: 1.5rem;
+}
+
+.lib-block-content {
+  flex: 1;
+}
+
+.lib-block-title {
+  font-weight: 600;
+  margin: 0;
+  color: var(--lib-text-primary);
+}
+
+.lib-block-description {
+  font-size: 0.85rem;
+  color: var(--lib-text-secondary);
+  margin: 0.25rem 0 0 0;
+}
+
+.lib-block-arrow {
+  color: var(--lib-accent);
+  font-size: 1.2rem;
+}
+
+.lib-divider {
+  height: 1px;
+  background: linear-gradient(to right, transparent, var(--lib-divider), transparent);
+  margin: 1.5rem 0;
+}
+
+.lib-heading {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.5rem 0 1rem 0;
+  color: var(--lib-accent);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.85rem;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Theme: Minimal (default)
+   Light, clean, minimalist
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-theme-minimal {
+  --lib-bg: #ffffff;
+  --lib-text-primary: #000000;
+  --lib-text-secondary: #666666;
+  --lib-accent: #0066cc;
+  --lib-block-bg: #f9f9f9;
+  --lib-block-border: #e0e0e0;
+  --lib-divider: #d0d0d0;
+  --lib-border-radius: 0.375rem;
+  --lib-font-family: 'Inter', sans-serif;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Theme: Card
+   Elevated cards with shadows
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-theme-card {
+  --lib-bg: #f5f5f5;
+  --lib-text-primary: #1a1a1a;
+  --lib-text-secondary: #555555;
+  --lib-accent: #ff6b35;
+  --lib-block-bg: #ffffff;
+  --lib-block-border: transparent;
+  --lib-divider: #cccccc;
+  --lib-border-radius: 1rem;
+  --lib-font-family: 'Inter', sans-serif;
+}
+
+.lib-theme-card .lib-block {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-radius: 1rem;
+}
+
+.lib-theme-card .lib-block:hover {
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Theme: Magazine
+   Grid layout, bold typography
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-theme-magazine {
+  --lib-bg: #fafafa;
+  --lib-text-primary: #222222;
+  --lib-text-secondary: #666666;
+  --lib-accent: #d1295b;
+  --lib-block-bg: #ffffff;
+  --lib-block-border: #e5e5e5;
+  --lib-divider: #cccccc;
+  --lib-border-radius: 0.25rem;
+  --lib-font-family: 'Georgia', serif;
+}
+
+.lib-theme-magazine .lib-heading {
+  font-family: 'Georgia', serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  letter-spacing: 0px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Theme: Map
+   Outdoorsy, natural colors
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-theme-map {
+  --lib-bg: #ecf0f1;
+  --lib-text-primary: #2c3e50;
+  --lib-text-secondary: #7f8c8d;
+  --lib-accent: #27ae60;
+  --lib-block-bg: #ffffff;
+  --lib-block-border: #bdc3c7;
+  --lib-divider: #95a5a6;
+  --lib-border-radius: 0.5rem;
+  --lib-font-family: 'Inter', sans-serif;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Theme: Dark
+   Dark mode, high contrast
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-theme-dark {
+  --lib-bg: #1a1a1a;
+  --lib-text-primary: #ffffff;
+  --lib-text-secondary: #aaaaaa;
+  --lib-accent: #00d4ff;
+  --lib-block-bg: #2a2a2a;
+  --lib-block-border: #444444;
+  --lib-divider: #555555;
+  --lib-border-radius: 0.5rem;
+  --lib-font-family: 'Inter', sans-serif;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────────
+   Theme: Glassmorphism
+   Frosted glass effect, modern
+   ────────────────────────────────────────────────────────────────────────────── */
+
+.lib-theme-glassmorphism {
+  --lib-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --lib-text-primary: #ffffff;
+  --lib-text-secondary: rgba(255, 255, 255, 0.7);
+  --lib-accent: #ffd700;
+  --lib-block-bg: rgba(255, 255, 255, 0.1);
+  --lib-block-border: rgba(255, 255, 255, 0.2);
+  --lib-divider: rgba(255, 255, 255, 0.3);
+  --lib-border-radius: 1.5rem;
+  --lib-font-family: 'Inter', sans-serif;
+}
+
+.lib-theme-glassmorphism {
+  background-color: transparent;
+}
+
+.lib-root.lib-theme-glassmorphism {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.lib-theme-glassmorphism .lib-block {
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.lib-theme-glassmorphism .lib-block:hover {
+  background: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 32px rgba(31, 38, 135, 0.37);
+}

@@ -14,12 +14,14 @@ import TimezoneWidget from '../components/Dashboard/TimezoneWidget'
 import TripFormModal from '../components/Trips/TripFormModal'
 import ConfirmDialog from '../components/shared/ConfirmDialog'
 import CopyTripDialog from '../components/shared/CopyTripDialog'
+import { PublishModal } from '../components/Explore/PublishModal'
+import { PublishUpdateModal } from '../components/Explore/PublishUpdateModal'
 import { useToast } from '../components/shared/Toast'
 import { useCountUp } from '../hooks/useCountUp'
 import {
   Plus, Calendar, Trash2, Edit2, Map, ChevronDown, ChevronUp,
   Archive, ArchiveRestore, Clock, MapPin, Settings, X, ArrowRightLeft, Users,
-  LayoutGrid, List, Copy, Bell, CheckCircle2, Compass,
+  LayoutGrid, List, Copy, Bell, Compass, Upload, Download,
 } from 'lucide-react'
 import { useCanDo } from '../store/permissionsStore'
 import { useAddonStore } from '../store/addonStore'
@@ -37,6 +39,8 @@ interface DashboardTrip {
   day_count?: number
   place_count?: number
   shared_count?: number
+  from_explore?: number
+  source_trip_id?: number
   [key: string]: string | number | boolean | null | undefined
 }
 
@@ -153,6 +157,9 @@ interface TripCardProps {
   onDelete?: (trip: DashboardTrip) => void
   onArchive?: (id: number) => void
   onPublish?: (trip: DashboardTrip) => void
+  onPushUpdate?: (trip: DashboardTrip) => void
+  onSync?: (trip: DashboardTrip) => void
+  updateAvailable?: Record<number, boolean>
   onClick: (trip: DashboardTrip) => void
   t: (key: string, params?: Record<string, string | number | null>) => string
   locale: string
@@ -182,9 +189,9 @@ function SpotlightStats({ trip, totalDays, t }: { trip: DashboardTrip; totalDays
   )
 }
 
-function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale, dark }: TripCardProps): React.ReactElement {
+function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onClick, t, locale, dark }: TripCardProps): React.ReactElement {
   const status = getTripStatus(trip)
-  const days = useCountUp(trip.day_count || totalDays)
+  const days = useCountUp(trip.day_count || 0)
   const places = useCountUp(trip.place_count || 0)
   const buddies = useCountUp(trip.shared_count || 0)
 
@@ -204,6 +211,17 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
 
         {/* Badges top-left */}
         <div style={{ position: 'absolute', top: 16, left: 16, display: 'flex', gap: 8 }}>
+          {trip.from_explore === 1 && (
+            <span style={{
+              background: 'rgba(99,102,241,0.85)', backdropFilter: 'blur(8px)',
+              color: 'white', fontSize: 10, fontWeight: 700,
+              padding: '4px 10px', borderRadius: 99, border: '1px solid rgba(255,255,255,0.25)',
+              display: 'flex', alignItems: 'center', gap: 4,
+            }}>
+              <Compass size={9} />
+              Explore
+            </span>
+          )}
           {status && (
             <span style={{
               background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(8px)',
@@ -224,12 +242,13 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
         </div>
 
         {/* Top-right actions */}
-        {(onEdit || onCopy || onArchive || onDelete || onPublish) && (
+        {(onEdit || onCopy || onArchive || onDelete || onPublish || onPushUpdate) && (
         <div style={{ position: 'absolute', top: 16, right: 16, display: 'flex', gap: 6 }}
           onClick={e => e.stopPropagation()}>
           {onEdit && <IconBtn onClick={() => onEdit(trip)} title={t('common.edit')}><Edit2 size={14} /></IconBtn>}
           {onCopy && <IconBtn onClick={() => onCopy(trip)} title={t('dashboard.copyTrip')}><Copy size={14} /></IconBtn>}
           {onPublish && <IconBtn onClick={() => onPublish(trip)} title={t('dashboard.publishExplore')}><Compass size={14} /></IconBtn>}
+          {onPushUpdate && trip.is_published && <IconBtn onClick={() => onPushUpdate(trip)} title={t('explore.publishUpdate')}><Upload size={14} /></IconBtn>}
           {onArchive && <IconBtn onClick={() => onArchive(trip.id)} title={t('dashboard.archive')}><Archive size={14} /></IconBtn>}
           {onDelete && <IconBtn onClick={() => onDelete(trip)} title={t('common.delete')} danger><Trash2 size={14} /></IconBtn>}
         </div>
@@ -273,7 +292,7 @@ function SpotlightCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, o
 }
 
 // ── Regular Trip Card ────────────────────────────────────────────────────────
-function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
+function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onSync, updateAvailable, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
   const status = getTripStatus(trip)
   const isLive = status === 'ongoing'
   const today = new Date().toISOString().split('T')[0]
@@ -316,22 +335,41 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
       <div className="relative p-6 flex flex-col text-white z-[2]" style={{ minHeight: 340 }}>
         {/* Top: badge + actions */}
         <div className="flex items-center justify-between mb-5">
-          {badgeText ? (
-            <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
-              style={isConcept ? { background: 'rgba(245,158,11,0.25)', borderColor: 'rgba(245,158,11,0.4)' } : { background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.15)' }}>
-              {isLive ? (
-                <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
-              ) : isConcept ? (
-                <Edit2 size={10} />
-              ) : (
-                <Clock size={10} />
-              )}
-              {badgeText}
-            </span>
-          ) : <span />}
+          <div className="flex items-center gap-2">
+            {trip.from_explore === 1 && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                style={{ background: 'rgba(99,102,241,0.25)', borderColor: 'rgba(99,102,241,0.4)' }}>
+                <Compass size={9} />
+                Explore
+              </span>
+            )}
+            {updateAvailable?.[trip.id] && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                style={{ background: 'rgba(34,197,94,0.25)', borderColor: 'rgba(34,197,94,0.4)' }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                Update Available
+              </span>
+            )}
+            {badgeText ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 backdrop-blur-sm border rounded-full text-[10px] font-bold uppercase tracking-[0.1em]"
+                style={isConcept ? { background: 'rgba(245,158,11,0.25)', borderColor: 'rgba(245,158,11,0.4)' } : { background: 'rgba(0,0,0,0.4)', borderColor: 'rgba(255,255,255,0.15)' }}>
+                {isLive ? (
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.8)] animate-pulse" />
+                ) : isConcept ? (
+                  <Edit2 size={10} />
+                ) : (
+                  <Clock size={10} />
+                )}
+                {badgeText}
+              </span>
+            ) : null}
+          </div>
           <div className="flex gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity" onClick={e => e.stopPropagation()}>
             {onEdit && <button title={t('common.edit')} onClick={() => onEdit(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Edit2 size={14} /></button>}
             {onCopy && <button title={t('dashboard.copyTrip')} onClick={() => onCopy(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Copy size={14} /></button>}
+            {onPublish && <button title={t('dashboard.publishExplore')} onClick={() => onPublish(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Compass size={14} /></button>}
+            {onPushUpdate && trip.is_published && <button title={t('explore.publishUpdate')} onClick={() => onPushUpdate(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Upload size={14} /></button>}
+            {onSync && updateAvailable?.[trip.id] && <button title={t('explore.syncTrip')} onClick={() => onSync(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-green-500/20 backdrop-blur-sm border border-green-500/40 flex items-center justify-center text-green-300 hover:bg-green-500/30 transition-colors"><Download size={14} /></button>}
             {onArchive && <button title={t('dashboard.archive')} onClick={() => onArchive(trip.id)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-white hover:bg-white/20 transition-colors"><Archive size={14} /></button>}
             {onDelete && <button title={t('common.delete')} onClick={() => onDelete(trip)} className="w-[34px] h-[34px] rounded-[10px] bg-white/12 backdrop-blur-sm border border-white/15 flex items-center justify-center text-red-300 hover:bg-red-500/20 transition-colors"><Trash2 size={14} /></button>}
           </div>
@@ -381,7 +419,7 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClic
 }
 
 // ── List View Item ──────────────────────────────────────────────────────────
-function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
+function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPushUpdate, onSync, updateAvailable, onClick, t, locale }: Omit<TripCardProps, 'dark'>): React.ReactElement {
   const status = getTripStatus(trip)
   const [hovered, setHovered] = useState(false)
 
@@ -422,6 +460,11 @@ function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, on
           <span style={{ fontWeight: 700, fontSize: 14, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {trip.title}
           </span>
+          {trip.from_explore === 1 && (
+            <span style={{ fontSize: 9, fontWeight: 700, color: '#4f46e5', background: 'rgba(99,102,241,0.1)', padding: '2px 6px', borderRadius: 99, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              Explore
+            </span>
+          )}
           {!trip.is_owner && (
             <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', background: 'var(--bg-tertiary)', padding: '1px 6px', borderRadius: 99, whiteSpace: 'nowrap', flexShrink: 0 }}>
               {t('dashboard.shared')}
@@ -478,11 +521,12 @@ function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, on
       </div>
 
       {/* Actions */}
-      {(onEdit || onCopy || onArchive || onDelete || onPublish) && (
+      {(onEdit || onCopy || onArchive || onDelete || onPublish || onPushUpdate) && (
       <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
         {onEdit && <CardAction onClick={() => onEdit(trip)} icon={<Edit2 size={12} />} label="" />}
         {onCopy && <CardAction onClick={() => onCopy(trip)} icon={<Copy size={12} />} label="" />}
         {onPublish && <CardAction onClick={() => onPublish(trip)} icon={<Compass size={12} />} label="" />}
+        {onPushUpdate && trip.is_published && <CardAction onClick={() => onPushUpdate(trip)} icon={<Upload size={12} />} label="" />}
         {onArchive && <CardAction onClick={() => onArchive(trip.id)} icon={<Archive size={12} />} label="" />}
         {onDelete && <CardAction onClick={() => onDelete(trip)} icon={<Trash2 size={12} />} label="" danger />}
       </div>
@@ -620,6 +664,7 @@ export default function DashboardPage(): React.ReactElement {
   const [filterMode, setFilterMode] = useState<'all' | 'live' | 'upcoming' | 'past' | 'concept'>('all')
   const [deleteTrip, setDeleteTrip] = useState<DashboardTrip | null>(null)
   const [copyTrip, setCopyTrip] = useState<DashboardTrip | null>(null)
+  const [updateAvailable, setUpdateAvailable] = useState<Record<number, boolean>>({})
 
   const toggleViewMode = () => {
     setViewMode(prev => {
@@ -661,6 +706,22 @@ export default function DashboardPage(): React.ReactElement {
   }, [searchParams])
 
   useEffect(() => { loadTrips() }, [])
+
+  // Check sync status for forked trips
+  useEffect(() => {
+    const checkSyncStatus = async () => {
+      const forkedTrips = [...trips, ...archivedTrips].filter(t => t.from_explore === 1)
+      for (const trip of forkedTrips) {
+        try {
+          const status = await exploreApi.getSyncStatus(trip.id)
+          setUpdateAvailable(prev => ({ ...prev, [trip.id]: status.update_available || false }))
+        } catch {
+          // silently fail
+        }
+      }
+    }
+    if (trips.length > 0 || archivedTrips.length > 0) checkSyncStatus()
+  }, [trips, archivedTrips])
 
   const loadTrips = async () => {
     setIsLoading(true)
@@ -752,34 +813,27 @@ export default function DashboardPage(): React.ReactElement {
     setCopyTrip(null)
   }
 
-  const [publishingTrip, setPublishingTrip] = useState<DashboardTrip | null>(null)
-  const [publishPrice, setPublishPrice] = useState(0)
-  const [publishDescriptions, setPublishDescriptions] = useState<Record<string, string>>({})
-  const [publishMode, setPublishMode] = useState<'publish' | 'update'>('publish')
-  const [publishCommunityEnabled, setPublishCommunityEnabled] = useState(false)
-  const openPublishModal = (trip: DashboardTrip, mode: 'publish' | 'update' = 'publish') => {
-    setPublishingTrip(trip)
-    setPublishMode(mode)
-    setPublishPrice(0)
-    setPublishDescriptions({})
-    setPublishCommunityEnabled(false)
+  const handleSyncFork = async (trip: DashboardTrip) => {
+    try {
+      const result = await exploreApi.syncTrip(trip.id)
+      setUpdateAvailable(prev => ({ ...prev, [trip.id]: false }))
+      toast.success(t('explore.syncSuccess', { added_days: result.added_days || 0, added_places: result.added_places || 0 }))
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('explore.syncError')))
+    }
   }
 
-  const handlePublish = async () => {
-    if (!publishingTrip) return
-    try {
-      if (publishMode === 'update') {
-        const result = await exploreApi.publishUpdate(publishingTrip.id, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined)
-        toast.success(t('explore.publishUpdateSuccess').replace('{version}', String(result.version)).replace('{count}', String(result.notified_count)))
-      } else {
-        await exploreApi.publishTrip(publishingTrip.id, publishPrice, Object.keys(publishDescriptions).length > 0 ? publishDescriptions : undefined, publishCommunityEnabled)
-        toast.success(t('dashboard.toast.published'))
-      }
-      setPublishingTrip(null)
-    } catch (err) {
-      console.error('Error publishing trip:', err)
-      toast.error(t('dashboard.toast.publishError'))
-    }
+  const [publishingTrip, setPublishingTrip] = useState<DashboardTrip | null>(null)
+  const [showPublishModal, setShowPublishModal] = useState(false)
+  const [updateTrip, setUpdateTrip] = useState<DashboardTrip | null>(null)
+  const [showUpdateModal, setShowUpdateModal] = useState(false)
+  const openPublishModal = (trip: DashboardTrip) => {
+    setPublishingTrip(trip)
+    setShowPublishModal(true)
+  }
+  const openUpdateModal = (trip: DashboardTrip) => {
+    setUpdateTrip(trip)
+    setShowUpdateModal(true)
   }
 
   const today = new Date().toISOString().split('T')[0]
@@ -840,6 +894,8 @@ export default function DashboardPage(): React.ReactElement {
                 onCopy={can('trip_create') ? handleCopy : undefined}
                 onDelete={can('trip_delete', spotlight) ? handleDelete : undefined}
                 onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
+                onPublish={exploreEnabled && spotlight.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
+                onPushUpdate={exploreEnabled && spotlight.is_owner && spotlight.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
                 onClick={tr => navigate(`/trips/${tr.id}`)}
               />
             </div>
@@ -883,6 +939,30 @@ export default function DashboardPage(): React.ReactElement {
               <span className="text-[10px] font-semibold" style={{ color: 'var(--text-primary)' }}>{t('dashboard.mobile.timezone')}</span>
             </button>
           </div>
+
+          {/* Mobile: Filter tabs */}
+          {trips.length > 0 && (
+            <div className="md:hidden mb-4 overflow-x-auto">
+              <div style={{ display: 'inline-flex', gap: 2, background: 'var(--bg-secondary)', padding: '3px', borderRadius: 10, width: '100%' }}>
+                {(['all', 'live', 'upcoming', 'past', 'concept'] as const).map(mode => (
+                  <button key={mode} onClick={() => setFilterMode(mode)} style={{
+                    appearance: 'none', border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+                    padding: '4px 10px', borderRadius: 7, fontSize: 11, fontWeight: 500,
+                    display: 'inline-flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap',
+                    background: filterMode === mode ? 'var(--bg-card)' : 'transparent',
+                    color: filterMode === mode
+                      ? (mode === 'live' ? '#ef4444' : mode === 'concept' ? '#d97706' : 'var(--text-primary)')
+                      : 'var(--text-muted)',
+                    boxShadow: filterMode === mode ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
+                    transition: 'all 0.15s',
+                  }}>
+                    {mode === 'live' && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#ef4444', flexShrink: 0, animation: filterMode === 'live' ? 'blink 1s ease-in-out infinite' : undefined }} />}
+                    {t(`dashboard.filter.${mode}`)}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Desktop header — unified toolbar */}
           <div className="hidden md:block" style={{ marginBottom: 20 }}>
@@ -1044,6 +1124,26 @@ export default function DashboardPage(): React.ReactElement {
             </div>
           )}
 
+          {/* Mobile: All trips (excluding spotlight which was shown above) */}
+          {!isLoading && (
+            <div className="md:hidden flex flex-col gap-3 mb-6">
+              {filteredTrips.filter(t => t.id !== spotlight?.id).map(trip => (
+                <TripListItem
+                  key={trip.id}
+                  trip={trip}
+                  t={t} locale={locale}
+                  onEdit={(can('trip_edit', trip) || can('trip_cover_upload', trip)) ? tr => { setEditingTrip(tr); setShowForm(true) } : undefined}
+                  onCopy={can('trip_create') ? handleCopy : undefined}
+                  onDelete={can('trip_delete', trip) ? handleDelete : undefined}
+                  onArchive={can('trip_archive', trip) ? handleArchive : undefined}
+                  onSync={exploreEnabled ? handleSyncFork : undefined}
+                  updateAvailable={updateAvailable}
+                  onClick={tr => navigate(`/trips/${tr.id}`)}
+                />
+              ))}
+            </div>
+          )}
+
           {/* Spotlight (grid mode, desktop only — mobile has Live Hero) */}
           {!isLoading && spotlight && viewMode === 'grid' && (
             <div className="hidden md:block"><SpotlightCard
@@ -1053,7 +1153,8 @@ export default function DashboardPage(): React.ReactElement {
               onCopy={can('trip_create') ? handleCopy : undefined}
               onDelete={can('trip_delete', spotlight) ? handleDelete : undefined}
               onArchive={can('trip_archive', spotlight) ? handleArchive : undefined}
-              onPublish={exploreEnabled && spotlight.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
+              onPublish={exploreEnabled && spotlight.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr, tr.is_published ? 'update' : 'publish') : undefined}
+              onPushUpdate={exploreEnabled && spotlight.is_owner && spotlight.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
               onClick={tr => navigate(`/trips/${tr.id}`)}
             />
             </div>
@@ -1072,7 +1173,10 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={can('trip_create') ? handleCopy : undefined}
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                    onPublish={exploreEnabled && trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
+                    onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
+                    onPushUpdate={exploreEnabled && trip.is_owner && trip.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
+                    onSync={exploreEnabled ? handleSyncFork : undefined}
+                    updateAvailable={updateAvailable}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1088,7 +1192,10 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={can('trip_create') ? handleCopy : undefined}
                     onDelete={can('trip_delete', trip) ? handleDelete : undefined}
                     onArchive={can('trip_archive', trip) ? handleArchive : undefined}
-                    onPublish={exploreEnabled && trip.is_owner && useAuthStore.getState().user?.role === 'admin' ? tr => openPublishModal(tr) : undefined}
+                    onPublish={exploreEnabled && trip.is_owner && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? tr => openPublishModal(tr) : undefined}
+                    onPushUpdate={exploreEnabled && trip.is_owner && trip.is_published && (useAuthStore.getState().user?.role === 'admin' || useAuthStore.getState().user?.role === 'creator') ? openUpdateModal : undefined}
+                    onSync={exploreEnabled ? handleSyncFork : undefined}
+                    updateAvailable={updateAvailable}
                     onClick={tr => navigate(`/trips/${tr.id}`)}
                   />
                 ))}
@@ -1181,120 +1288,40 @@ export default function DashboardPage(): React.ReactElement {
         message={t('dashboard.confirm.delete', { title: deleteTrip?.title || '' })}
       />
 
-      {publishingTrip && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }} onClick={() => setPublishingTrip(null)}>
-          <div style={{ background: 'var(--bg-primary)', borderRadius: 16, padding: 24, maxWidth: 480, width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-            <h2 style={{ margin: '0 0 4px', fontSize: 18, fontWeight: 700, color: 'var(--text-primary)' }}>
-              {publishMode === 'update' ? t('explore.publishUpdate') : t('dashboard.publishExplore')}
-            </h2>
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 20px' }}>{publishingTrip.title}</p>
+      <CopyTripDialog
+        isOpen={!!copyTrip}
+        tripTitle={copyTrip?.title || ''}
+        onClose={() => setCopyTrip(null)}
+        onConfirm={confirmCopy}
+      />
 
-            {/* Prijs (alleen bij eerste publicatie) */}
-            {publishMode === 'publish' && (
-              <div style={{ marginBottom: 16 }}>
-                <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 6 }}>
-                  {t('dashboard.price')}
-                </label>
-                <input
-                  type="number"
-                  value={publishPrice}
-                  onChange={e => setPublishPrice(Math.max(0, parseInt(e.target.value) || 0))}
-                  style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 13, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit' }}
-                  min="0"
-                />
-              </div>
-            )}
+      <PublishModal
+        isOpen={showPublishModal}
+        onClose={() => {
+          setShowPublishModal(false)
+          setPublishingTrip(null)
+        }}
+        trips={publishingTrip ? [publishingTrip] : []}
+        onSubmitted={() => {
+          loadTrips()
+          setShowPublishModal(false)
+          setPublishingTrip(null)
+        }}
+      />
 
-            {/* Community bijdragen toggle */}
-            {publishMode === 'publish' && (
-              <div style={{ marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-                <input
-                  type="checkbox"
-                  id="communityEnabled"
-                  checked={publishCommunityEnabled}
-                  onChange={e => setPublishCommunityEnabled(e.target.checked)}
-                  style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#8b5cf6' }}
-                />
-                <label htmlFor="communityEnabled" style={{ fontSize: 13, color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}>
-                  {t('explore.enableCommunity')}
-                </label>
-              </div>
-            )}
-
-            {/* Meertalige beschrijvingen */}
-            <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>
-                {t('explore.descriptions')}
-              </label>
-
-              {Object.entries(publishDescriptions).map(([lang, text]) => (
-                <div key={lang} style={{ marginBottom: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                    <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 99, background: 'var(--bg-tertiary)', color: 'var(--text-muted)', textTransform: 'uppercase' }}>{lang}</span>
-                    <button
-                      onClick={() => { const d = { ...publishDescriptions }; delete d[lang]; setPublishDescriptions(d) }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-faint)', fontSize: 11, padding: 0 }}
-                    >
-                      {t('explore.removeLanguage')}
-                    </button>
-                  </div>
-                  <textarea
-                    value={text}
-                    onChange={e => setPublishDescriptions(d => ({ ...d, [lang]: e.target.value }))}
-                    rows={3}
-                    style={{ width: '100%', padding: '8px 12px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit', resize: 'vertical', boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-
-              {/* Taal toevoegen */}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                  placeholder={t('explore.addLanguage') + ' (en, nl, de...)'}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') {
-                      const code = (e.target as HTMLInputElement).value.trim().toLowerCase();
-                      if (code && !publishDescriptions[code]) {
-                        setPublishDescriptions(d => ({ ...d, [code]: '' }));
-                        (e.target as HTMLInputElement).value = '';
-                      }
-                    }
-                  }}
-                  style={{ flex: 1, padding: '6px 10px', border: '1px solid var(--border-primary)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)', background: 'var(--bg-secondary)', fontFamily: 'inherit' }}
-                />
-                <button
-                  onClick={(e) => {
-                    const input = (e.currentTarget.previousSibling as HTMLInputElement);
-                    const code = input.value.trim().toLowerCase();
-                    if (code && !publishDescriptions[code]) {
-                      setPublishDescriptions(d => ({ ...d, [code]: '' }));
-                      input.value = '';
-                    }
-                  }}
-                  style={{ padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 12, fontWeight: 600, fontFamily: 'inherit' }}
-                >
-                  +
-                </button>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-              <button
-                onClick={() => setPublishingTrip(null)}
-                style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border-primary)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
-              >
-                {t('common.cancel')}
-              </button>
-              <button
-                onClick={handlePublish}
-                style={{ padding: '8px 16px', borderRadius: 8, border: 'none', background: 'var(--accent)', color: 'var(--accent-text)', cursor: 'pointer', fontSize: 13, fontWeight: 600, fontFamily: 'inherit' }}
-              >
-                {publishMode === 'update' ? t('explore.publishUpdate') : t('dashboard.publish')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <PublishUpdateModal
+        isOpen={showUpdateModal}
+        onClose={() => {
+          setShowUpdateModal(false)
+          setUpdateTrip(null)
+        }}
+        trip={updateTrip}
+        onUpdatePublished={() => {
+          loadTrips()
+          setShowUpdateModal(false)
+          setUpdateTrip(null)
+        }}
+      />
 
       <style>{`
         @keyframes pulse {

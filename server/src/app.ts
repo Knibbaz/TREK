@@ -30,12 +30,21 @@ import settingsRoutes from './routes/settings';
 import budgetRoutes from './routes/budget';
 import collabRoutes from './routes/collab';
 import backupRoutes from './routes/backup';
+import adminImportRouter from './routes/backup/admin-import';
+import userExportRouter from './routes/backup/user-export';
+import schedulesRouter from './routes/backup/schedules';
+import userGdprRouter from './routes/user-gdpr';
+import adminGdprRouter from './routes/admin-gdpr';
 import oidcRoutes from './routes/oidc';
 import { oauthPublicRouter, oauthApiRouter } from './routes/oauth';
 import vacayRoutes from './routes/vacay';
 import atlasRoutes from './routes/atlas';
 import groupsRoutes from './routes/groups';
 import exploreRoutes from './routes/explore';
+import explorePaymentsRoutes from './routes/payments';
+import creatorHubLibRoutes from './routes/creator-hub/link-in-bio';
+import mollieWebhookRoutes from './routes/mollieWebhook';
+import mollieConnectRoutes from './routes/mollieConnect';
 import worldmapRoutes from './routes/worldmap';
 import memoriesRoutes from './routes/memories/unified';
 import photoRoutes from './routes/photos';
@@ -364,6 +373,11 @@ export function createApp(): express.Application {
   app.use('/api/addons/atlas', atlasRoutes);
   app.use('/api/addons/groups', groupsRoutes);
   app.use('/api/addons/explore', exploreRoutes);
+  app.use('/api/addons/explore/payments', explorePaymentsRoutes);
+  app.use('/api/addons/explore/creator-hub/lib', creatorHubLibRoutes);
+  app.use('/api/public/lib', creatorHubLibRoutes);
+  app.use('/api/mollie', mollieConnectRoutes);
+  app.use('/webhooks/mollie', mollieWebhookRoutes);
   app.use('/api/addons/worldmap', worldmapRoutes);
   app.use('/api/journeys', (req, res, next) => {
     if (!isAddonEnabled(ADDON_IDS.JOURNEY)) return res.status(404).json({ error: 'Journey addon is not enabled' });
@@ -378,6 +392,11 @@ export function createApp(): express.Application {
   app.use('/api/settings', settingsRoutes);
   app.use('/api/system-notices', systemNoticesRoutes);
   app.use('/api/backup', backupRoutes);
+  app.use('/api/admin/backup-v2', adminImportRouter);
+  app.use('/api/admin/backup-v2', schedulesRouter);
+  app.use('/api/user', userExportRouter);
+  app.use('/api/user', userGdprRouter);
+  app.use('/api/admin/gdpr', adminGdprRouter);
   app.use('/api/notifications', notificationRoutes);
   app.use('/api', shareRoutes);
 

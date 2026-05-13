@@ -132,7 +132,6 @@ export interface BudgetItem {
   persons: number
   members: BudgetMember[]
   expense_date: string | null
-  reservation_id?: number | null
 }
 
 export interface BudgetMember {
@@ -218,6 +217,8 @@ export interface Settings {
   time_format: string
   show_place_description: boolean
   route_calculation?: boolean
+  route_walking_threshold?: number
+  route_driving_threshold?: number
   blur_booking_codes?: boolean
   map_booking_labels?: boolean
   map_provider?: 'leaflet' | 'mapbox-gl'
@@ -276,6 +277,7 @@ export interface DateProposal {
   confirmed_start?: string | null
   confirmed_end?: string | null
   availability: DateAvailabilityEntry[]
+  guestAvailability?: Array<{ date: string; status: string; note: string | null; guest_token_id: number; guest_name: string | null }>
   members: DateProposalMember[]
   memberRegions?: Record<number, string>
   vacationDays?: VacationDay[]
@@ -533,4 +535,57 @@ export interface MergedItem {
   type: 'assignment' | 'note' | 'place' | 'transport'
   sortKey: number
   data: Assignment | DayNote | Reservation
+}
+
+// ──────────────────────────────────────
+// Creator Hub / Link-in-Bio
+// ──────────────────────────────────────
+
+export interface LibBlock {
+  id: string
+  creator_id: number
+  type:
+    | 'link'
+    | 'heading'
+    | 'divider'
+    | 'embed'
+    | 'image'
+    | 'text'
+    | 'listings_grid'
+    | 'guides_grid'
+    | 'group_trip'
+    | 'social_grid'
+    | 'tip_jar'
+    | 'email_signup'
+    | 'affiliate_featured'
+  title?: string
+  url?: string
+  icon?: string
+  thumbnail_url?: string
+  content?: Record<string, unknown>
+  is_visible: boolean
+  sort_order: number
+  clicks: number
+  created_at: string
+}
+
+export interface LibConfig {
+  creator_id: number
+  slug: string
+  theme: 'minimal' | 'card' | 'magazine' | 'map' | 'dark' | 'glassmorphism'
+  custom_css?: string
+  background_type: 'solid' | 'gradient' | 'image'
+  background_value: string
+  accent_color: string
+  font_family: string
+  tagline?: string
+  show_country_count: boolean
+  show_location: boolean
+  show_listings: boolean
+  show_guides: boolean
+  show_group_trips: boolean
+  show_affiliate_links: boolean
+  show_tip_jar: boolean
+  view_count: number
+  updated_at: string
 }

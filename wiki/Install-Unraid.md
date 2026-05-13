@@ -41,7 +41,7 @@ The Unraid template exposes the following fields in the container UI:
 | `ALLOWED_ORIGINS` | *(empty)* | Comma-separated origins for CORS and email notification links, e.g. `https://trek.example.com` |
 | `APP_URL` | *(empty)* | Public base URL; required when OIDC is enabled (must match the redirect URI registered with your IdP) |
 | `ADMIN_EMAIL` | *(empty)* | Email for the first admin account (first-boot only; no effect once any user exists). Must be set together with `ADMIN_PASSWORD`. |
-| `ADMIN_PASSWORD` | *(empty)* | Password for the first admin account (first-boot only). Must be set together with `ADMIN_EMAIL`. If either is omitted, ROUTD creates the account with email `admin@routd.local` and a random password printed to the container log. |
+| `ADMIN_PASSWORD` | *(empty)* | Password for the first admin account (first-boot only). Must be set together with `ADMIN_EMAIL`. If either is omitted, ROUTD creates the account with email `admin@trek.local` and a random password printed to the container log. |
 
 ### Advanced Variables
 
@@ -65,7 +65,7 @@ Once the container starts, open your browser at:
 http://<unraid-ip>:<port>
 ```
 
-On first boot, ROUTD automatically creates an admin account. The credentials are printed to the container log — check **Docker → routd → Log** in the Unraid UI. If you set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`, those values are used; otherwise the email is `admin@routd.local` and a random password is generated.
+On first boot, ROUTD automatically creates an admin account. The credentials are printed to the container log — check **Docker → trek → Log** in the Unraid UI. If you set both `ADMIN_EMAIL` and `ADMIN_PASSWORD`, those values are used; otherwise the email is `admin@trek.local` and a random password is generated.
 
 ## Next Steps
 

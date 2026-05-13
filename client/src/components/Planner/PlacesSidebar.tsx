@@ -156,7 +156,8 @@ const MemoPlaceRow = React.memo(function MemoPlaceRow({
 
 const PlacesSidebar = React.memo(function PlacesSidebar({
   tripId, places, categories, assignments, selectedDayId, selectedPlaceId,
-  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onBulkDeletePlaces, onBulkDeleteConfirm, days, isMobile, onCategoryFilterChange, onPlacesFilterChange, pushUndo, initialScrollTop, onScrollTopChange,
+  onPlaceClick, onAddPlace, onAssignToDay, onEditPlace, onDeletePlace, onBulkDeletePlaces, onBulkDeleteConfirm, days, isMobile, onCategoryFilterChange, onPlacesFilterChange, pushUndo,
+  initialScrollTop, onScrollTopChange,
 }: PlacesSidebarProps) {
   const { t } = useTranslation()
   const toast = useToast()

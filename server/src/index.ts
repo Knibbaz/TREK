@@ -77,6 +77,9 @@ const onListen = () => {
   scheduler.startDemoReset();
   scheduler.startIdempotencyCleanup();
   scheduler.startTrekPhotoCacheCleanup();
+  scheduler.startScheduledBackups();
+  scheduler.startDateProposalReminders();
+  scheduler.startGdprCleanup();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
   import('./websocket').then(({ setupWebSocket }) => {

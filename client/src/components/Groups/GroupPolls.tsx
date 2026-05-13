@@ -1,5 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { groupsApi, mapsApi } from '../../api/client'
+import { groupsApi, mapsApi, filesApi } from '../../api/client'
+import { MapContainer, TileLayer, Marker } from 'react-leaflet'
+import L from 'leaflet'
 import { useTranslation } from '../../i18n'
 import { useAuthStore } from '../../store/authStore'
 import { addListener, removeListener } from '../../api/websocket'
@@ -41,6 +43,8 @@ interface Poll {
   status: 'open' | 'closed' | 'decided'
   decided_option_id: string | null
   deadline: string | null
+  anonymous: boolean
+  allow_guest_votes: boolean
   total_votes: number
   voter_count: number
   my_vote: string | null
@@ -85,6 +89,8 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
   const [pollDesc, setPollDesc] = useState('')
   const [pollType, setPollType] = useState<string>('single_choice')
   const [pollDeadline, setPollDeadline] = useState('')
+  const [pollAnonymous, setPollAnonymous] = useState(false)
+  const [pollAllowGuest, setPollAllowGuest] = useState(false)
   const [creating, setCreating] = useState(false)
 
   // Add option form
@@ -93,6 +99,8 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
   const [optionDesc, setOptionDesc] = useState('')
   const [optionLat, setOptionLat] = useState<number | null>(null)
   const [optionLng, setOptionLng] = useState<number | null>(null)
+  const [optionImageUrl, setOptionImageUrl] = useState<string | null>(null)
+  const [optionImageUploading, setOptionImageUploading] = useState(false)
   const [locSuggestions, setLocSuggestions] = useState<LocationSuggestion[]>([])
   const [locOpen, setLocOpen] = useState(false)
   const locDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -102,6 +110,10 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
   // Ranked: local order state per poll
   const [rankedOrders, setRankedOrders] = useState<Record<string, string[]>>({})
   const [submittingRank, setSubmittingRank] = useState<string | null>(null)
+
+  // Swipe: local order state per poll
+  const [swipeOrders, setSwipeOrders] = useState<Record<string, string[]>>({})
+  const [submittingSwipeOrder, setSubmittingSwipeOrder] = useState<string | null>(null)
 
   // Decide modal
   const [decidingPoll, setDecidingPoll] = useState<Poll | null>(null)
@@ -147,6 +159,22 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
           } else {
             next[poll.id] = poll.options.map(o => o.id)
           }
+        }
+      }
+      return next
+    })
+  }, [polls])
+
+  // Init/update swipe order from server data (by sort_order)
+  useEffect(() => {
+    setSwipeOrders(prev => {
+      const next = { ...prev }
+      for (const poll of polls) {
+        if (poll.type === 'swipe') {
+          const sorted = [...poll.options].sort((a, b) => (a as any).sort_order - (b as any).sort_order)
+          const newOrder = sorted.map(o => o.id)
+          // Always update to ensure new options are included
+          next[poll.id] = newOrder
         }
       }
       return next
@@ -210,9 +238,12 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
         description: pollDesc.trim() || undefined,
         type: pollType,
         deadline: pollDeadline || undefined,
+        anonymous: pollAnonymous,
+        allow_guest_votes: pollAllowGuest,
       })
       toast.success(t('groups.polls.created') || 'Poll aangemaakt')
       setPollTitle(''); setPollDesc(''); setPollType('single_choice'); setPollDeadline('')
+      setPollAnonymous(false); setPollAllowGuest(false)
       setShowCreate(false)
       await load()
     } catch (err: any) {
@@ -231,8 +262,9 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
         description: optionDesc.trim() || undefined,
         lat: optionLat ?? undefined,
         lng: optionLng ?? undefined,
+        image_url: optionImageUrl ?? undefined,
       })
-      setOptionLabel(''); setOptionDesc(''); setOptionLat(null); setOptionLng(null)
+      setOptionLabel(''); setOptionDesc(''); setOptionLat(null); setOptionLng(null); setOptionImageUrl(null)
       setAddingOptionTo(null)
       await load()
     } catch (err: any) {
@@ -276,6 +308,32 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
       ;[order[idx], order[target]] = [order[target], order[idx]]
       return { ...prev, [pollId]: order }
     })
+  }
+
+  const moveSwipeItem = (pollId: string, idx: number, dir: -1 | 1) => {
+    setSwipeOrders(prev => {
+      const order = [...(prev[pollId] || [])]
+      const target = idx + dir
+      if (target < 0 || target >= order.length) return prev
+      ;[order[idx], order[target]] = [order[target], order[idx]]
+      return { ...prev, [pollId]: order }
+    })
+  }
+
+  const handleSubmitSwipeOrder = async (poll: Poll) => {
+    const order = swipeOrders[poll.id]
+    if (!order?.length) return
+    setSubmittingSwipeOrder(poll.id)
+    try {
+      const options = order.map((optId, idx) => ({ option_id: optId, sort_order: idx }))
+      await groupsApi.updatePollOptionOrder(tripId, poll.id, options)
+      toast.success(t('groups.polls.orderSaved') || 'Volgorde opgeslagen')
+      await load()
+    } catch (err: any) {
+      toast.error(err?.response?.data?.error || err.message)
+    } finally {
+      setSubmittingSwipeOrder(null)
+    }
   }
 
   const handleDeleteOption = async (poll: Poll, optionId: string) => {
@@ -427,9 +485,36 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
               style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
             />
           </div>
+          {/* Settings toggles */}
+          <div className="flex gap-3 mb-3">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={pollAnonymous}
+                onChange={e => setPollAnonymous(e.target.checked)}
+                className="w-3.5 h-3.5 rounded"
+              />
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {t('groups.polls.anonymous') || 'Anoniem stemmen'}
+              </span>
+              <Lock size={11} style={{ color: 'var(--text-faint)' }} />
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={pollAllowGuest}
+                onChange={e => setPollAllowGuest(e.target.checked)}
+                className="w-3.5 h-3.5 rounded"
+              />
+              <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>
+                {t('groups.polls.allowGuest') || 'Gasten toestaan'}
+              </span>
+              <Link2 size={11} style={{ color: 'var(--text-faint)' }} />
+            </label>
+          </div>
           <div className="flex justify-end gap-2">
             <button
-              onClick={() => { setShowCreate(false); setPollTitle(''); setPollDesc(''); setPollType('single_choice'); setPollDeadline('') }}
+              onClick={() => { setShowCreate(false); setPollTitle(''); setPollDesc(''); setPollType('single_choice'); setPollDeadline(''); setPollAnonymous(false); setPollAllowGuest(false) }}
               className="px-3 py-1.5 rounded-lg text-xs"
               style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}
             >
@@ -495,6 +580,16 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                       <span className="px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--bg-secondary)', color: 'var(--text-faint)' }}>
                         {pollTypeLabel(poll.type)}
                       </span>
+                      {poll.anonymous && (
+                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--bg-secondary)', color: 'var(--text-faint)' }}>
+                          <Lock size={9} /> {t('groups.polls.anonymousShort') || 'Anoniem'}
+                        </span>
+                      )}
+                      {poll.allow_guest_votes && (
+                        <span className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[10px]" style={{ background: 'var(--bg-secondary)', color: 'var(--text-faint)' }}>
+                          <Link2 size={9} /> {t('groups.polls.guestShort') || 'Gasten'}
+                        </span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>
@@ -538,6 +633,55 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                       <Shuffle size={14} />
                       {t('groups.polls.startSwipe') || 'Swipe door opties'}
                     </button>
+                  )}
+
+                  {/* ── Swipe type: reorder options ── */}
+                  {poll.type === 'swipe' && isOpen && isCreator && (
+                    <div className="mb-3">
+                      <p className="text-[11px] mb-2" style={{ color: 'var(--text-muted)' }}>
+                        {t('groups.polls.reorderSwipe') || 'Verander volgorde van opties:'}
+                      </p>
+                      <div className="space-y-1">
+                        {(swipeOrders[poll.id] || poll.options.map(o => o.id)).map((optId, idx) => {
+                          const opt = poll.options.find(o => o.id === optId)
+                          if (!opt) return null
+                          return (
+                            <div
+                              key={optId}
+                              className="flex items-center gap-2 px-3 py-2 rounded-lg border"
+                              style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}
+                            >
+                              <span className="w-5 text-center text-xs font-bold" style={{ color: 'var(--accent)' }}>{idx + 1}</span>
+                              <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
+                              <button
+                                disabled={idx === 0}
+                                onClick={() => moveSwipeItem(poll.id, idx, -1)}
+                                className="p-1 rounded disabled:opacity-20"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
+                                <ArrowUp size={13} />
+                              </button>
+                              <button
+                                disabled={idx === (swipeOrders[poll.id]?.length ?? poll.options.length) - 1}
+                                onClick={() => moveSwipeItem(poll.id, idx, 1)}
+                                className="p-1 rounded disabled:opacity-20"
+                                style={{ color: 'var(--text-muted)' }}
+                              >
+                                <ArrowDown size={13} />
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <button
+                        onClick={() => handleSubmitSwipeOrder(poll)}
+                        disabled={submittingSwipeOrder === poll.id}
+                        className="mt-2 w-full py-2 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                        style={{ background: 'var(--accent)' }}
+                      >
+                        {submittingSwipeOrder === poll.id ? '...' : t('groups.polls.submitRanking') || 'Volgorde opslaan'}
+                      </button>
+                    </div>
                   )}
 
                   {/* ── Ranked type: drag order ── */}
@@ -655,6 +799,9 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                                 >
                                   {isMyVote ? <Check size={11} color="white" /> : opt.lat ? <MapPin size={10} style={{ color: 'var(--text-faint)' }} /> : null}
                                 </div>
+                                {opt.image_url && (
+                                  <img src={opt.image_url} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0 border" style={{ borderColor: 'var(--border-primary)' }} />
+                                )}
                                 <div className="flex-1 min-w-0">
                                   <div className="flex items-center gap-1.5">
                                     <span className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{opt.label}</span>
@@ -688,7 +835,7 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                   )}
 
                   {/* Add option form */}
-                  {isOpen && poll.type !== 'swipe' && (addingOptionTo === poll.id ? (
+                  {isOpen && (addingOptionTo === poll.id ? (
                     <div className="mt-3" ref={locRef}>
                       <div className="flex items-center gap-2 mb-2">
                         <div className="flex-1 relative">
@@ -731,6 +878,32 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                           )}
                         </div>
                       </div>
+                      {/* Minimap for selected location */}
+                      {optionLat != null && optionLng != null && (
+                        <div className="mb-2 rounded-lg border overflow-hidden" style={{ borderColor: 'var(--border-primary)', height: 120 }}>
+                          <MapContainer
+                            center={[optionLat, optionLng]}
+                            zoom={12}
+                            zoomControl={false}
+                            scrollWheelZoom={false}
+                            style={{ width: '100%', height: '100%' }}
+                          >
+                            <TileLayer
+                              url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+                            />
+                            <Marker
+                              position={[optionLat, optionLng]}
+                              icon={L.divIcon({
+                                className: '',
+                                html: '<div style="width:10px;height:10px;border-radius:50%;background:#111827;border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,0.3);"></div>',
+                                iconSize: [10, 10],
+                                iconAnchor: [5, 5],
+                              })}
+                            />
+                          </MapContainer>
+                        </div>
+                      )}
                       <input
                         type="text"
                         value={optionDesc}
@@ -739,9 +912,48 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                         className="w-full px-3 py-2 rounded-lg border text-sm mb-2"
                         style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
                       />
+                      {/* Image upload */}
+                      <div className="mb-2">
+                        <label className="flex items-center gap-2 cursor-pointer w-fit">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            className="hidden"
+                            onChange={async (e) => {
+                              const file = e.target.files?.[0]
+                              if (!file) return
+                              setOptionImageUploading(true)
+                              try {
+                                const fd = new FormData()
+                                fd.append('file', file)
+                                const res = await filesApi.upload(tripId, fd)
+                                setOptionImageUrl(res.file?.url || res.url)
+                              } catch {
+                                toast.error(t('groups.polls.imageUploadError') || 'Upload mislukt')
+                              } finally {
+                                setOptionImageUploading(false)
+                              }
+                            }}
+                          />
+                          <span className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs transition-colors hover:opacity-80"
+                            style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)', color: 'var(--text-muted)' }}>
+                            <MapPin size={12} />
+                            {optionImageUploading ? '...' : (optionImageUrl ? t('groups.polls.changeImage') || 'Afbeelding wijzigen' : t('groups.polls.addImage') || 'Afbeelding toevoegen')}
+                          </span>
+                        </label>
+                        {optionImageUrl && (
+                          <div className="mt-2 relative inline-block">
+                            <img src={optionImageUrl} alt="" className="w-24 h-16 object-cover rounded-lg border" style={{ borderColor: 'var(--border-primary)' }} />
+                            <button
+                              onClick={() => setOptionImageUrl(null)}
+                              className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-red-500 text-white flex items-center justify-center text-[10px]"
+                            >×</button>
+                          </div>
+                        )}
+                      </div>
                       <div className="flex justify-end gap-2">
                         <button
-                          onClick={() => { setAddingOptionTo(null); setOptionLabel(''); setOptionDesc(''); setOptionLat(null); setOptionLng(null) }}
+                          onClick={() => { setAddingOptionTo(null); setOptionLabel(''); setOptionDesc(''); setOptionLat(null); setOptionLng(null); setOptionImageUrl(null) }}
                           className="px-3 py-1.5 rounded-lg text-xs"
                           style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
                         >
@@ -789,26 +1001,28 @@ export default function GroupPolls({ tripId, tripTitle, canCreate }: Props): Rea
                         {t('groups.polls.close') || 'Sluiten'}
                       </button>
                       {/* Guest link */}
-                      {guestLinkPollId !== poll.id ? (
-                        <button
-                          onClick={() => handleGenerateGuestLink(poll.id)}
-                          disabled={guestLinkLoading}
-                          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                          style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
-                        >
-                          <Link2 size={12} />
-                          {t('groups.polls.shareLink') || 'Deellink'}
-                        </button>
-                      ) : (
-                        guestLinkToken && (
+                      {poll.allow_guest_votes && (
+                        guestLinkPollId !== poll.id ? (
                           <button
-                            onClick={() => copyGuestLink(guestLinkToken)}
+                            onClick={() => handleGenerateGuestLink(poll.id)}
+                            disabled={guestLinkLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
-                            style={{ background: 'var(--bg-success-soft, #dcfce7)', color: '#15803d' }}
+                            style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
                           >
-                            <Copy size={12} />
-                            {t('groups.polls.copyLink') || 'Link kopiëren'}
+                            <Link2 size={12} />
+                            {t('groups.polls.shareLink') || 'Deellink'}
                           </button>
+                        ) : (
+                          guestLinkToken && (
+                            <button
+                              onClick={() => copyGuestLink(guestLinkToken)}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium"
+                              style={{ background: 'var(--bg-success-soft, #dcfce7)', color: '#15803d' }}
+                            >
+                              <Copy size={12} />
+                              {t('groups.polls.copyLink') || 'Link kopiëren'}
+                            </button>
+                          )
                         )
                       )}
                     </div>

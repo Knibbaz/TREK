@@ -6,12 +6,14 @@ import { runMigrations } from './migrations';
 import { runSeeds } from './seeds';
 import { Place, Tag } from '../types';
 
-const dataDir = path.join(__dirname, '../../data');
+const dataDir = process.env.TREK_DB_PATH
+  ? path.dirname(process.env.TREK_DB_PATH)
+  : path.join(__dirname, '../../data');
 if (!fs.existsSync(dataDir)) {
   fs.mkdirSync(dataDir, { recursive: true });
 }
 
-const dbPath = path.join(dataDir, 'travel.db');
+const dbPath = process.env.TREK_DB_PATH || path.join(dataDir, 'travel.db');
 
 let _db: Database.Database | null = null;
 
@@ -132,11 +134,11 @@ function canAccessGroup(groupId: number | string, userId: number): boolean {
   return !!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
 }
 
-// Backfill flight endpoints on startup (lazy import to avoid circular deps)
-import('../services/airportService').then(({ backfillFlightEndpoints }) => {
+try {
+  const { backfillFlightEndpoints } = require('../services/airportService');
   backfillFlightEndpoints();
-}).catch((err) => {
+} catch (err) {
   console.error('[DB] Flight endpoint backfill failed:', err);
-});
+}
 
 export { db, closeDb, reinitialize, getPlaceWithTags, canAccessTrip, canAccessGroup, isOwner };

@@ -4,25 +4,29 @@ import { useAddonStore } from '../../store/addonStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useTranslation } from '../../i18n'
-import { Plane, CalendarDays, Globe, Globe2, Compass, User, Settings, Shield, LogOut, X, Users } from 'lucide-react'
+import { Plane, CalendarDays, Globe, Globe2, Compass, User, Settings, Shield, LogOut, X, Users, Sparkles, CreditCard } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const BASE_ITEMS: { to: string; label: string; icon: LucideIcon; addonId?: string }[] = [
   { to: '/trips', label: 'Trips', icon: Plane },
 ]
 
-const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey: string }> = {
-  vacay:   { icon: CalendarDays, labelKey: 'admin.addons.catalog.vacay.name' },
-  atlas:   { icon: Globe,        labelKey: 'admin.addons.catalog.atlas.name' },
-  journey: { icon: Compass,      labelKey: 'admin.addons.catalog.journey.name' },
-  groups:  { icon: Users,        labelKey: 'admin.addons.catalog.groups.name' },
-  worldmap:{ icon: Globe2,       labelKey: 'admin.addons.catalog.worldmap.name' },
+const ADDON_NAV: Record<string, { to: string; label: string; icon: LucideIcon; creatorOnly?: boolean }> = {
+  vacay: { to: '/vacay', label: 'Vacay', icon: CalendarDays },
+  atlas: { to: '/atlas', label: 'Atlas', icon: Globe },
+  journey: { to: '/journey', label: 'Journey', icon: Compass },
+  groups: { to: '/groups', label: 'Groups', icon: Users },
+  worldmap: { to: '/worldmap', label: 'World Map', icon: Globe2 },
+  creator_hub: { to: '/creator-hub', label: 'Creator Hub', icon: Sparkles, creatorOnly: true },
+  explore_payments: { to: '/explore', label: 'Payments & Payouts', icon: CreditCard, creatorOnly: true },
 }
 
 export default function BottomNav() {
   const { t } = useTranslation()
   const darkMode = useSettingsStore(s => s.settings.dark_mode)
   const dark = darkMode === true || darkMode === 'dark' || (darkMode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const user = useAuthStore(s => s.user)
+  const isCreator = user?.role === 'creator' || user?.role === 'admin'
   const addons = useAddonStore(s => s.addons)
   const globalAddons = addons.filter(a => a.type === 'global' && a.enabled)
   const [showProfile, setShowProfile] = useState(false)
@@ -31,7 +35,9 @@ export default function BottomNav() {
     { to: '/trips', label: t('nav.myTrips'), icon: Plane },
     ...globalAddons.flatMap(addon => {
       const nav = ADDON_NAV[addon.id]
-      return nav ? [{ to: `/${addon.id}`, label: t(nav.labelKey), icon: nav.icon }] : []
+      if (!nav) return []
+      if (nav.creatorOnly && !isCreator) return []
+      return [{ to: nav.to, label: nav.label, icon: nav.icon }]
     }),
   ]
 

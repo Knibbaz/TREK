@@ -410,10 +410,11 @@ export default function PlaceInspector({
   }, [onFileUpload, place.id])
 
   // Check if there's any content to display
-  const hasContent = googleDetails?.rating || placePrice > 0 || 
-    place.phone || googleDetails?.phone || 
-    place.description || googleDetails?.summary || 
-    place.notes || 
+  const hasPhoneContent = place.phone !== null && place.phone !== undefined ? place.phone : googleDetails?.phone
+  const hasContent = googleDetails?.rating || placePrice > 0 ||
+    hasPhoneContent ||
+    place.description || googleDetails?.summary ||
+    place.notes ||
     openingHours?.length > 0 || place.route_geometry ||
     (selectedAssignmentId && (reservations.find(r => r.assignment_id === selectedAssignmentId) || tripMembers.length > 1))
 
@@ -603,11 +604,11 @@ export default function PlaceInspector({
             )}
 
           {/* Telefon */}
-          {(place.phone || googleDetails?.phone) && (
+          {(place.phone !== null && place.phone !== undefined ? place.phone : googleDetails?.phone) && (
             <div style={{ display: 'flex', gap: 12 }}>
-              <a href={`tel:${place.phone || googleDetails.phone}`}
+              <a href={`tel:${place.phone !== null && place.phone !== undefined ? place.phone : googleDetails.phone}`}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, color: 'var(--text-primary)', textDecoration: 'none' }}>
-                <Phone size={12} /> {place.phone || googleDetails.phone}
+                <Phone size={12} /> {place.phone !== null && place.phone !== undefined ? place.phone : googleDetails.phone}
               </a>
             </div>
           )}
@@ -621,10 +622,10 @@ export default function PlaceInspector({
 
           {/* Notes */}
           {place.notes && (
-            <div className="collab-note-md" style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden', fontSize: 12, color: 'var(--text-muted)', lineHeight: '1.5', padding: '8px 12px', wordBreak: 'break-word', overflowWrap: 'anywhere' }} >
-              <Markdown remarkPlugins={[remarkGfm, remarkBreaks]} components={{ a: props => <a {...props} target="_blank" rel="noopener noreferrer" /> }}>
-                {place.notes}
-              </Markdown>
+              <div className="collab-note-md" style={{ background: 'var(--bg-hover)', borderRadius: 10, overflow: 'hidden', fontSize: 12, color: 'var(--text-muted)', lineHeight: '1.5', padding: '8px 12px', wordBreak: 'break-word', overflowWrap: 'anywhere' }} >
+                <Markdown remarkPlugins={[remarkGfm, remarkBreaks]}  components={{ a: props => <a {...props} target="_blank" rel="noopener noreferrer" /> }} >
+                  {place.notes}
+                </Markdown>
             </div>
           )}
 

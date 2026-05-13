@@ -26,6 +26,8 @@ function createTables(db: Database.Database): void {
       synology_sid TEXT,
       must_change_password INTEGER DEFAULT 0,
       password_version INTEGER NOT NULL DEFAULT 0,
+      creator_auto_approved INTEGER DEFAULT 0,
+      creator_fee_percent INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
     );
@@ -476,6 +478,248 @@ function createTables(db: Database.Database): void {
     CREATE INDEX IF NOT EXISTS idx_ncp_user ON notification_channel_preferences(user_id);
 
     CREATE TABLE IF NOT EXISTS migrations (id integer PRIMARY KEY AUTOINCREMENT NOT NULL, timestamp bigint NOT NULL, name varchar NOT NULL);
+
+    CREATE TABLE IF NOT EXISTS explore_published (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      trip_id INTEGER NOT NULL UNIQUE REFERENCES trips(id) ON DELETE CASCADE,
+      price INTEGER DEFAULT 0,
+      is_published INTEGER DEFAULT 1,
+      version INTEGER NOT NULL DEFAULT 1,
+      descriptions TEXT NOT NULL DEFAULT '{}',
+      last_published_at DATETIME,
+      community_enabled INTEGER DEFAULT 0,
+      status TEXT NOT NULL DEFAULT 'approved',
+      submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_explore_published_trip ON explore_published(trip_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_published_status ON explore_published(is_published);
+
+    CREATE TABLE IF NOT EXISTS explore_user_trips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      snapshot_version INTEGER NOT NULL DEFAULT 1,
+      payment_id INTEGER REFERENCES explore_payments(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, source_trip_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_explore_user_trips_source ON explore_user_trips(source_trip_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
+
+    CREATE TABLE IF NOT EXISTS explore_fork_deltas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_trip_id INTEGER NOT NULL REFERENCES explore_user_trips(id) ON DELETE CASCADE,
+      entity_type TEXT NOT NULL CHECK(entity_type IN ('place', 'day', 'budget_item', 'reservation', 'note')),
+      entity_id INTEGER NOT NULL,
+      action TEXT NOT NULL CHECK(action IN ('added', 'removed', 'modified')),
+      original_data TEXT,
+      modified_data TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_fork_deltas_user_trip ON explore_fork_deltas(user_trip_id);
+    CREATE INDEX IF NOT EXISTS idx_fork_deltas_entity ON explore_fork_deltas(entity_type, entity_id);
+
+    CREATE TABLE IF NOT EXISTS creator_badges (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      badge_type TEXT NOT NULL CHECK(badge_type IN ('verified_creator', 'top_seller', 'highly_rated', 'globe_trotter', 'trending', 'consistent')),
+      awarded_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      revoked_at DATETIME,
+      UNIQUE(creator_user_id, badge_type)
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_badges_user ON creator_badges(creator_user_id);
+    CREATE INDEX IF NOT EXISTS idx_creator_badges_type ON creator_badges(badge_type);
+
+    CREATE TABLE IF NOT EXISTS creator_mollie_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+      mollie_profile_id TEXT NOT NULL,
+      access_token TEXT NOT NULL,
+      refresh_token TEXT NOT NULL,
+      token_expires_at DATETIME,
+      organization_id TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_mollie_user ON creator_mollie_accounts(user_id);
+
+    CREATE TABLE IF NOT EXISTS creator_payouts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      creator_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      amount_cents INTEGER NOT NULL,
+      description TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      paid_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_creator_payouts_creator ON creator_payouts(creator_user_id);
+    CREATE INDEX IF NOT EXISTS idx_creator_payouts_status ON creator_payouts(status);
+
+    CREATE TABLE IF NOT EXISTS explore_payments (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id),
+      source_trip_id INTEGER NOT NULL REFERENCES trips(id),
+      creator_user_id INTEGER NOT NULL REFERENCES users(id),
+      mollie_payment_id TEXT UNIQUE NOT NULL,
+      amount_cents INTEGER NOT NULL,
+      platform_fee_cents INTEGER NOT NULL DEFAULT 0,
+      creator_payout_cents INTEGER NOT NULL,
+      currency TEXT NOT NULL DEFAULT 'EUR',
+      status TEXT NOT NULL DEFAULT 'pending',
+      paid_at DATETIME,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_explore_payments_mollie ON explore_payments(mollie_payment_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_payments_creator ON explore_payments(creator_user_id);
+    CREATE INDEX IF NOT EXISTS idx_explore_payments_user ON explore_payments(user_id);
+
+    -- Groups addon tables
+    CREATE TABLE IF NOT EXISTS groups (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      name TEXT NOT NULL,
+      description TEXT,
+      cover_image TEXT,
+      created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE TABLE IF NOT EXISTS group_members (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'admin', 'member')),
+      invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+      joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(group_id, user_id)
+    );
+
+    CREATE TABLE IF NOT EXISTS group_trips (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+      added_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(group_id, trip_id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+    CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+    CREATE INDEX IF NOT EXISTS idx_group_trips_group ON group_trips(group_id);
+    CREATE INDEX IF NOT EXISTS idx_group_trips_trip ON group_trips(trip_id);
+
+    CREATE TABLE IF NOT EXISTS group_invite_tokens (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      token TEXT NOT NULL UNIQUE,
+      created_by INTEGER NOT NULL REFERENCES users(id),
+      role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+      max_uses INTEGER NOT NULL DEFAULT 1,
+      used_count INTEGER NOT NULL DEFAULT 0,
+      expires_at TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_group_invite_token ON group_invite_tokens(token);
+    CREATE INDEX IF NOT EXISTS idx_group_invite_group ON group_invite_tokens(group_id);
+
+    CREATE TABLE IF NOT EXISTS date_proposals (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+      created_by INTEGER NOT NULL REFERENCES users(id),
+      title TEXT NOT NULL,
+      period_start TEXT NOT NULL,
+      period_end TEXT NOT NULL,
+      deadline TEXT,
+      reminder_days INTEGER NOT NULL DEFAULT 2,
+      reminder_sent INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
+    CREATE INDEX IF NOT EXISTS idx_date_proposals_group ON date_proposals(group_id);
+
+    CREATE TABLE IF NOT EXISTS date_availability (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      date TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+      UNIQUE(proposal_id, user_id, date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_date_avail_proposal ON date_availability(proposal_id);
+    CREATE INDEX IF NOT EXISTS idx_date_avail_user ON date_availability(user_id);
+
+    CREATE TABLE IF NOT EXISTS user_vacation_days (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      start_date TEXT NOT NULL,
+      end_date TEXT NOT NULL,
+      label TEXT,
+      color TEXT DEFAULT '#3b82f6',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, start_date, end_date)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_vacation_days_user ON user_vacation_days(user_id);
+
+    CREATE TABLE IF NOT EXISTS company_holidays (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      date TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      color TEXT DEFAULT '#ef4444',
+      created_by INTEGER REFERENCES users(id),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    );
+    CREATE INDEX IF NOT EXISTS idx_company_holidays_date ON company_holidays(date);
+
+    CREATE TABLE IF NOT EXISTS place_votes (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      vote INTEGER NOT NULL CHECK(vote IN (1, -1)),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(place_id, user_id)
+    );
+    CREATE INDEX IF NOT EXISTS idx_place_votes_place ON place_votes(place_id);
+
+    CREATE TABLE IF NOT EXISTS user_residency (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      country_code TEXT NOT NULL,
+      city TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, country_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_residency_user ON user_residency(user_id);
+
+    CREATE TABLE IF NOT EXISTS user_volunteering (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+      country_code TEXT NOT NULL,
+      city TEXT,
+      organization TEXT,
+      start_date TEXT,
+      end_date TEXT,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, country_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_volunteering_user ON user_volunteering(user_id);
+
+    /* Add trip requirements table */
+    CREATE TABLE IF NOT EXISTS trip_requirements (
+      id TEXT PRIMARY KEY,
+      min_places INTEGER DEFAULT 5,
+      min_days INTEGER DEFAULT 3,
+      min_category_percentage INTEGER DEFAULT 80,
+      require_header_photo BOOLEAN DEFAULT TRUE,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
   `);
 }
 

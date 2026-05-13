@@ -276,6 +276,7 @@ export default function PlaceFormModal({
         notes: place.notes || '',
         transport_mode: place.transport_mode || 'walking',
         website: place.website || '',
+        phone: place.phone || '',
         price: place.price != null ? String(place.price) : '',
         price_type: place.price_type || 'total',
         currency: place.currency || defaultCurrency,
@@ -981,6 +982,18 @@ export default function PlaceFormModal({
             value={form.website}
             onChange={e => handleChange('website', e.target.value)}
             placeholder="https://..."
+            className="form-input"
+          />
+        </div>
+
+        {/* Phone */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">{t('places.formPhone')}</label>
+          <input
+            type="tel"
+            value={form.phone || ''}
+            onChange={e => handleChange('phone', e.target.value)}
+            placeholder={t('places.formPhonePlaceholder')}
             className="form-input"
           />
         </div>

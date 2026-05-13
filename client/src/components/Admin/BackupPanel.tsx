@@ -1,11 +1,13 @@
 import { useState, useEffect, useRef } from 'react'
 import { backupApi } from '../../api/client'
 import { useToast } from '../shared/Toast'
-import { Download, Trash2, Plus, RefreshCw, RotateCcw, Upload, Clock, Check, HardDrive, AlertTriangle } from 'lucide-react'
+import { Download, Trash2, Plus, RefreshCw, RotateCcw, Upload, Clock, Check, HardDrive, AlertTriangle, ChevronDown, ChevronUp, Calendar } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import CustomSelect from '../shared/CustomSelect'
 import { getApiErrorMessage } from '../../types'
+import RestoreFlowV2 from './RestoreFlowV2'
+import ScheduleEditor from './ScheduleEditor'
 
 const INTERVAL_OPTIONS = [
   { value: 'hourly',  labelKey: 'backup.interval.hourly' },
@@ -48,6 +50,8 @@ export default function BackupPanel() {
   const [autoSettingsDirty, setAutoSettingsDirty] = useState(false)
   const [serverTimezone, setServerTimezone] = useState('')
   const [restoreConfirm, setRestoreConfirm] = useState(null) // { type: 'file'|'upload', filename, file? }
+  const [showRestoreFlowV2, setShowRestoreFlowV2] = useState(false)
+  const [showScheduleEditor, setShowScheduleEditor] = useState(false)
   const fileInputRef = useRef(null)
   const toast = useToast()
   const { t, language, locale } = useTranslation()
@@ -453,6 +457,50 @@ export default function BackupPanel() {
             </button>
           </div>
         </div>
+      </div>
+
+      {/* Restore from V2 .trek file */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <button
+          onClick={() => setShowRestoreFlowV2(!showRestoreFlowV2)}
+          className="w-full flex items-center justify-between hover:opacity-75 transition-opacity"
+        >
+          <div className="flex items-center gap-3">
+            <Upload className="w-5 h-5 text-gray-400" />
+            <div className="text-left">
+              <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('backup.v2.restore.title')}</h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Upload and restore .trek backup file</p>
+            </div>
+          </div>
+          {showRestoreFlowV2 ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+        </button>
+        {showRestoreFlowV2 && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <RestoreFlowV2 />
+          </div>
+        )}
+      </div>
+
+      {/* Scheduled Backups */}
+      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <button
+          onClick={() => setShowScheduleEditor(!showScheduleEditor)}
+          className="w-full flex items-center justify-between hover:opacity-75 transition-opacity"
+        >
+          <div className="flex items-center gap-3">
+            <Calendar className="w-5 h-5 text-gray-400" />
+            <div className="text-left">
+              <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('backup.v2.schedules.title')}</h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Automate your backups on a schedule</p>
+            </div>
+          </div>
+          {showScheduleEditor ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+        </button>
+        {showScheduleEditor && (
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <ScheduleEditor />
+          </div>
+        )}
       </div>
 
       {/* Restore Warning Modal */}

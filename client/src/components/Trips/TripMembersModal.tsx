@@ -1,11 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { tripsApi, shareApi, groupsApi } from '../../api/client'
+import { tripsApi, shareApi, groupsApi, addonsApi } from '../../api/client'
 import { useToast } from '../shared/Toast'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useTripStore } from '../../store/tripStore'
-import { Crown, UserMinus, UserPlus, Users, LogOut, Link2, Trash2, Copy, Check, UsersRound } from 'lucide-react'
+import { Crown, UserMinus, UserPlus, Users, LogOut, Link2, Trash2, Copy, Check, UsersRound, Eye } from 'lucide-react'
 import { useTranslation } from '../../i18n'
 
 interface AvatarProps {
@@ -32,11 +32,14 @@ function Avatar({ username, avatarUrl, size = 32 }: AvatarProps) {
   )
 }
 
-function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, params?: Record<string, string | number>) => string }) {
+function ShareLinkSection({ tripId, t, enabledAddons }: { tripId: number; t: (key: string, params?: Record<string, string | number>) => string; enabledAddons?: Record<string, boolean> }) {
   const [shareToken, setShareToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [copied, setCopied] = useState(false)
-  const [perms, setPerms] = useState({ share_map: true, share_plan: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false, allow_clone: false })
+  const [perms, setPerms] = useState({ share_map: true, share_plan: true, share_bookings: true, share_packing: false, share_budget: false, share_collab: false, allow_clone: false, share_description: false })
+  const [visitorCount, setVisitorCount] = useState<number | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const { user } = useAuthStore()
   const toast = useToast()
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -45,20 +48,44 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
   }, [])
 
   useEffect(() => {
+    setIsAdmin(user?.role === 'admin')
+  }, [user])
+
+  useEffect(() => {
     shareApi.getLink(tripId).then(d => {
       setShareToken(d.token)
-      if (d.token) setPerms({
-        share_map: d.share_map ?? true,
-        share_plan: d.share_plan ?? true,
-        share_bookings: d.share_bookings ?? true,
-        share_packing: d.share_packing ?? false,
-        share_budget: d.share_budget ?? false,
-        share_collab: d.share_collab ?? false,
-        allow_clone: d.allow_clone ?? false,
-      })
+      if (d.token) {
+        // Ensure disabled addon perms are false
+        const permsFromServer = {
+          share_map: d.share_map ?? true,
+          share_plan: d.share_plan ?? true,
+          share_bookings: d.share_bookings ?? true,
+          share_packing: d.share_packing ?? false,
+          share_budget: d.share_budget ?? false,
+          share_collab: d.share_collab ?? false,
+          allow_clone: d.allow_clone ?? false,
+          share_description: d.share_description ?? false,
+        }
+
+        // Force perms to false if addon not enabled
+        if (enabledAddons) {
+          if (!enabledAddons.packing) permsFromServer.share_packing = false
+          if (!enabledAddons.budget) permsFromServer.share_budget = false
+          if (!enabledAddons.collab) permsFromServer.share_collab = false
+        }
+
+        setPerms(permsFromServer)
+
+        // Fetch visitor stats for admins
+        if (isAdmin) {
+          shareApi.getVisits(tripId).then(stats => {
+            setVisitorCount(stats.uniqueVisitors || 0)
+          }).catch(() => setVisitorCount(0))
+        }
+      }
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [tripId])
+  }, [tripId, enabledAddons, isAdmin])
 
   const shareUrl = shareToken ? `${window.location.origin}/shared/${shareToken}` : null
 
@@ -81,6 +108,7 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
     try {
       await shareApi.deleteLink(tripId)
       setShareToken(null)
+      setVisitorCount(null)
     } catch {}
   }
 
@@ -106,27 +134,30 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
       {/* Permission toggles */}
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
         {[
-          { key: 'share_map', label: t('share.permMap') },
-          { key: 'share_plan', label: t('share.permPlan') },
-          { key: 'share_bookings', label: t('share.permBookings') },
-          { key: 'share_packing', label: t('share.permPacking') },
-          { key: 'share_budget', label: t('share.permBudget') },
-          { key: 'share_collab', label: t('share.permCollab') },
-          { key: 'allow_clone', label: t('share.permClone') },
-        ].map(opt => (
-          <button key={opt.key} onClick={() => handleUpdatePerms(opt.key, !perms[opt.key])}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20,
-              border: '1.5px solid', fontSize: 11, fontWeight: 500, cursor: 'pointer',
-              fontFamily: 'inherit', transition: 'all 0.12s',
-              background: perms[opt.key] ? 'var(--text-primary)' : 'transparent',
-              borderColor: perms[opt.key] ? 'var(--text-primary)' : 'var(--border-primary)',
-              color: perms[opt.key] ? 'var(--bg-primary)' : 'var(--text-muted)',
-            }}>
-            {perms[opt.key] ? <Check size={10} /> : null}
-            {opt.label}
-          </button>
-        ))}
+          { key: 'share_map', label: t('share.permMap'), requiresAddon: null },
+          { key: 'share_plan', label: t('share.permPlan'), requiresAddon: null },
+          { key: 'share_description', label: t('share.permDescription'), requiresAddon: null },
+          { key: 'share_bookings', label: t('share.permBookings'), requiresAddon: null },
+          { key: 'share_packing', label: t('share.permPacking'), requiresAddon: 'packing' },
+          { key: 'share_budget', label: t('share.permBudget'), requiresAddon: 'budget' },
+          { key: 'share_collab', label: t('share.permCollab'), requiresAddon: 'collab' },
+          { key: 'allow_clone', label: t('share.permClone'), requiresAddon: null },
+        ]
+          .filter(opt => !opt.requiresAddon || (enabledAddons && enabledAddons[opt.requiresAddon]))
+          .map(opt => (
+            <button key={opt.key} onClick={() => handleUpdatePerms(opt.key, !perms[opt.key])}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 20,
+                border: '1.5px solid', fontSize: 11, fontWeight: 500, cursor: 'pointer',
+                fontFamily: 'inherit', transition: 'all 0.12s',
+                background: perms[opt.key] ? 'var(--text-primary)' : 'transparent',
+                borderColor: perms[opt.key] ? 'var(--text-primary)' : 'var(--border-primary)',
+                color: perms[opt.key] ? 'var(--bg-primary)' : 'var(--text-muted)',
+              }}>
+              {perms[opt.key] ? <Check size={10} /> : null}
+              {opt.label}
+            </button>
+          ))}
       </div>
 
       {shareUrl ? (
@@ -147,6 +178,19 @@ function ShareLinkSection({ tripId, t }: { tripId: number; t: (key: string, para
               {copied ? <><Check size={10} /> {t('common.copied')}</> : <><Copy size={10} /> {t('common.copy')}</>}
             </button>
           </div>
+
+          {isAdmin && visitorCount !== null && (
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 10px',
+              background: 'rgba(59,130,246,0.06)', borderRadius: 8, border: '1px solid rgba(59,130,246,0.2)',
+            }}>
+              <Eye size={12} style={{ color: '#3b82f6' }} />
+              <span style={{ fontSize: 11, color: 'var(--text-primary)' }}>
+                <strong>{visitorCount}</strong> unieke bezoekers
+              </span>
+            </div>
+          )}
+
           <button onClick={handleDelete} style={{
             display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
             padding: '6px 0', borderRadius: 8, border: '1px solid rgba(239,68,68,0.3)',
@@ -306,6 +350,7 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [removingId, setRemovingId] = useState(null)
+  const [enabledAddons, setEnabledAddons] = useState<Record<string, boolean>>({})
   const toast = useToast()
   const { user } = useAuthStore()
   const { t } = useTranslation()
@@ -317,8 +362,21 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
   useEffect(() => {
     if (isOpen && tripId) {
       loadMembers()
+      loadAddons()
     }
   }, [isOpen, tripId])
+
+  const loadAddons = async () => {
+    try {
+      const data = await addonsApi.enabled()
+      const map: Record<string, boolean> = {}
+      data.addons.forEach((a: any) => { map[a.id] = true })
+      setEnabledAddons({ packing: !!map.packing, budget: !!map.budget, collab: !!map.collab })
+    } catch {
+      // Fallback to defaults
+      setEnabledAddons({ packing: true, budget: true, collab: false })
+    }
+  }
 
   const loadMembers = async () => {
     setLoading(true)
@@ -433,7 +491,7 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
 
         {/* Right column: Share Link + Groups */}
         {canManageShare && <div style={{ borderLeft: '1px solid var(--border-faint)', paddingLeft: 24, display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <ShareLinkSection tripId={tripId} t={t} />
+        <ShareLinkSection tripId={tripId} t={t} enabledAddons={enabledAddons} />
         <GroupsSection tripId={tripId} t={t} />
         </div>}
 

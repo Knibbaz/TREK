@@ -25,6 +25,7 @@ import {
   type KmlImportOptions,
 } from '../services/placeService';
 import { onPlaceCreated, onPlaceUpdated, onPlaceDeleted } from '../services/journeyService';
+import { trackPlaceAdded, trackPlaceModified, trackPlaceRemoved } from '../services/deltaTrackingService';
 
 const uploadMulter = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
@@ -86,6 +87,7 @@ router.post('/', authenticate, requireTripAccess, validateStringLengths({ name: 
   res.status(201).json({ place });
   broadcast(tripId, 'place:created', { place }, req.headers['x-socket-id'] as string);
   try { onPlaceCreated(Number(tripId), place.id); } catch {}
+  try { trackPlaceAdded(db, Number(tripId), place.id, place); } catch {}
 });
 
 // Import places from GPX file with full track geometry (must be before /:id)
@@ -275,6 +277,7 @@ router.put('/:id', authenticate, requireTripAccess, validateStringLengths({ name
 
   const { tripId, id } = req.params;
 
+  const originalPlace = getPlace(tripId, id);
   const place = updatePlace(tripId, id, req.body);
   if (!place) {
     return res.status(404).json({ error: 'Place not found' });
@@ -283,6 +286,7 @@ router.put('/:id', authenticate, requireTripAccess, validateStringLengths({ name
   res.json({ place });
   broadcast(tripId, 'place:updated', { place }, req.headers['x-socket-id'] as string);
   try { onPlaceUpdated(place.id); } catch {}
+  try { if (originalPlace) trackPlaceModified(db, Number(tripId), Number(id), originalPlace, place); } catch {}
 });
 
 // ── Place photo upload ────────────────────────────────────────────────────
@@ -370,6 +374,7 @@ router.delete('/:id', authenticate, requireTripAccess, (req: Request, res: Respo
 
   const { tripId, id } = req.params;
 
+  const place = getPlace(tripId, id);
   try { onPlaceDeleted(Number(id)); } catch {} // sync before actual delete
   const deleted = deletePlace(tripId, id);
   if (!deleted) {
@@ -378,6 +383,7 @@ router.delete('/:id', authenticate, requireTripAccess, (req: Request, res: Respo
 
   res.json({ success: true });
   broadcast(tripId, 'place:deleted', { placeId: Number(id) }, req.headers['x-socket-id'] as string);
+  try { if (place) trackPlaceRemoved(db, Number(tripId), Number(id), place); } catch {}
 });
 
 // ── Place votes ───────────────────────────────────────────────────────────────
