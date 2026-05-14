@@ -101,15 +101,10 @@ function seedAddons(db: Database.Database): void {
       { id: 'journey', name: 'Journey', description: 'Trip tracking & travel journal — check-ins, photos, daily stories', type: 'global', icon: 'Compass', enabled: 0, sort_order: 35 },
       { id: 'worldmap', name: 'World Map', description: 'Collaborative world map — everyone adds places per country', type: 'global', icon: 'Globe2', enabled: 1, sort_order: 15 },
     ];
-    const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
-    for (const a of defaultAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order, null);
+    const insertAddon = db.prepare('INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)');
+    for (const a of defaultAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order);
 
-    // Sub-addons (children of existing addons)
-    const subAddons = [
-      { id: 'creator_hub', name: 'Creator Hub', description: 'Link-in-bio, media kit, mini-guides', type: 'global', icon: 'Sparkles', enabled: 0, sort_order: 20, parent_id: 'explore' },
-      { id: 'explore_payments', name: 'Payments & Payouts', description: 'Trip purchases and creator payouts (requires Mollie API key)', type: 'global', icon: 'CreditCard', enabled: 0, sort_order: 21, parent_id: 'explore' },
-    ];
-    for (const a of subAddons) insertAddon.run(a.id, a.name, a.description, a.type, a.icon, a.enabled, a.sort_order, a.parent_id);
+    // Sub-addons are seeded via Migration 169 (requires parent_id column to exist first)
 
     const providerRows = [
       {

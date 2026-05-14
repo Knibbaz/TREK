@@ -3077,6 +3077,21 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Created creator_lib_blocks table');
     },
+
+    // Migration 169: Add parent_id to addons + seed Explore sub-addons
+    () => {
+      try { db.exec('ALTER TABLE addons ADD COLUMN parent_id TEXT REFERENCES addons(id) ON DELETE CASCADE'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+
+      db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run('explore', 'Explore', 'Discover and purchase ready-made trips', 'global', 'Compass', 0, 12, null);
+      db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run('creator_hub', 'Creator Hub', 'Link-in-bio, media kit, mini-guides', 'global', 'Sparkles', 0, 20, 'explore');
+      db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run('explore_payments', 'Payments & Payouts', 'Trip purchases and creator payouts (requires Mollie API key)', 'global', 'CreditCard', 0, 21, 'explore');
+
+      console.log('[migrations] Added parent_id to addons, seeded Explore sub-addons');
+    },
   ];
 
   if (currentVersion < migrations.length) {
