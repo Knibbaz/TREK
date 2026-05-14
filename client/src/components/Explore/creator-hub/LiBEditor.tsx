@@ -33,7 +33,8 @@ export function LiBEditor() {
     };
 
     loadData();
-  }, [setConfig, setBlocks, setLoading, showError]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   if (isLoading) {
     return (
