@@ -209,6 +209,31 @@ router.post('/import/naver-list', authenticate, requireTripAccess, async (req: R
   }
 });
 
+// GET /trips/:tripId/places/export.gpx — must be before /:id to avoid route conflict
+router.get('/export.gpx', authenticate, requireTripAccess, (req: AuthRequest, res: Response) => {
+  const { tripId } = req.params;
+  const places = db.prepare(
+    'SELECT id, name, lat, lng, notes, address, website FROM places WHERE trip_id = ? ORDER BY id'
+  ).all(tripId) as Array<{ id: number; name: string; lat: number | null; lng: number | null; notes: string | null; address: string | null; website: string | null }>;
+
+  const escapeXml = (s: string) =>
+    s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+  const wpts = places
+    .filter(p => p.lat != null && p.lng != null)
+    .map(p => {
+      const descParts = [p.notes, p.address, p.website].filter(Boolean) as string[];
+      const desc = descParts.length ? `<desc>${escapeXml(descParts.join(' | '))}</desc>` : '';
+      return `  <wpt lat="${p.lat}" lon="${p.lng}"><name>${escapeXml(p.name)}</name>${desc}</wpt>`;
+    })
+    .join('\n');
+
+  const gpx = `<?xml version="1.0" encoding="UTF-8"?>\n<gpx version="1.1" creator="TREK" xmlns="http://www.topografix.com/GPX/1/1">\n${wpts}\n</gpx>`;
+  res.setHeader('Content-Type', 'application/gpx+xml');
+  res.setHeader('Content-Disposition', `attachment; filename="places-${tripId}.gpx"`);
+  res.send(gpx);
+});
+
 router.get('/:id', authenticate, requireTripAccess, (req: Request, res: Response) => {
   const { tripId, id } = req.params;
 

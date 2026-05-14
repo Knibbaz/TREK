@@ -307,6 +307,15 @@ export const placesApi = {
     apiClient.get(`/trips/${tripId}/places/${placeId}/votes`).then(r => r.data),
   vote: (tripId: number | string, placeId: number | string, vote: 1 | -1 | null) =>
     apiClient.put(`/trips/${tripId}/places/${placeId}/vote`, { vote }).then(r => r.data),
+  exportGpx: async (tripId: number | string): Promise<void> => {
+    const res = await apiClient.get(`/trips/${tripId}/places/export.gpx`, { responseType: 'blob' })
+    const url = URL.createObjectURL(res.data as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `places-${tripId}.gpx`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
 
 export const assignmentsApi = {

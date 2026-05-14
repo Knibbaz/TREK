@@ -1,7 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom'
 import { useState, useMemo, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
-import { Search, Plus, X, CalendarDays, Pencil, Trash2, ExternalLink, Navigation, Upload, ChevronDown, Check, MapPin, Eye, Route } from 'lucide-react'
+import { Search, Plus, X, CalendarDays, Pencil, Trash2, ExternalLink, Navigation, Upload, ChevronDown, Check, MapPin, Eye, Route, Download } from 'lucide-react'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import { getCategoryIcon } from '../shared/categoryIcons'
 import { useTranslation } from '../../i18n'
@@ -250,6 +250,14 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
     }
   }
 
+  const handleExportPlaces = async () => {
+    try {
+      await placesApi.exportGpx(tripId)
+    } catch {
+      toast.error(t('places.exportError'))
+    }
+  }
+
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('all')
   const [categoryFilters, setCategoryFiltersLocal] = useState<Set<string>>(new Set())
@@ -405,6 +413,18 @@ const PlacesSidebar = React.memo(function PlacesSidebar({
             }}
           >
             <MapPin size={11} strokeWidth={2} /> {t(hasMultipleListImportProviders ? 'places.importList' : 'places.importGoogleList')}
+          </button>
+          <button
+            onClick={handleExportPlaces}
+            style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
+              flex: 1, padding: '5px 12px', borderRadius: 8,
+              border: '1px dashed var(--border-primary)', background: 'none',
+              color: 'var(--text-faint)', fontSize: 11, fontWeight: 500,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Download size={11} strokeWidth={2} /> {t('places.exportGpx')}
           </button>
         </div>
         <div style={{ height: 1, background: 'var(--border-primary)', margin: '2px 0 10px' }} />

@@ -153,7 +153,7 @@ export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, 
   const photoProviderAddons = addons.filter(isPhotoProviderAddon)
   const photosAddon = addons.filter(a => a.type === 'trip').find(isPhotosAddon)
   const tripAddons = addons.filter(a => a.type === 'trip' && !isPhotosAddon(a))
-  const globalAddons = addons.filter(a => a.type === 'global')
+  const globalAddons = addons.filter(a => a.type === 'global' && !a.parent_id)
   const integrationAddons = addons.filter(a => a.type === 'integration')
   const providerOptions: ProviderOption[] = photoProviderAddons.map((provider) => ({
       key: provider.id,
