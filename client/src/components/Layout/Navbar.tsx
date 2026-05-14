@@ -5,11 +5,17 @@ import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useAddonStore } from '../../store/addonStore'
 import { useTranslation } from '../../i18n'
-import { Plane, LogOut, Settings, ChevronDown, Shield, ArrowLeft, Users, Moon, Sun, Monitor, CalendarDays, Briefcase, Globe, Compass, Upload, ExternalLink } from 'lucide-react'
+import { Plane, LogOut, Settings, ChevronDown, Shield, ArrowLeft, Users, Moon, Sun, Monitor, CalendarDays, Briefcase, Globe, Compass, Upload, ExternalLink, Sparkles, CreditCard } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import InAppNotificationBell from './InAppNotificationBell.tsx'
 
-const ADDON_ICONS: Record<string, LucideIcon> = { CalendarDays, Briefcase, Globe, Compass }
+const ADDON_ICONS: Record<string, LucideIcon> = { CalendarDays, Briefcase, Globe, Compass, Sparkles, CreditCard }
+
+// Addons whose id doesn't match their route path, or that need role restrictions
+const ADDON_NAV_OVERRIDES: Record<string, { to: string; creatorOnly?: boolean }> = {
+  creator_hub: { to: '/creator-hub', creatorOnly: true },
+  explore_payments: { to: '/explore', creatorOnly: true },
+}
 
 interface NavbarProps {
   tripTitle?: string
@@ -27,6 +33,7 @@ interface Addon {
   name: string
   icon: string
   type: string
+  parent_id?: string | null
 }
 
 export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, onPublish, onPublishLabel, onExploreLink }: NavbarProps): React.ReactElement {
@@ -52,8 +59,14 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
     }
   }, [])
 
-  // Only show 'global' type addons in the navbar — 'integration' addons have no dedicated page
-  const globalAddons = allAddons.filter((a: Addon) => a.type === 'global' && a.enabled)
+  const isCreator = user?.role === 'creator' || user?.role === 'admin'
+  // Only show 'global' type addons without a parent (sub-addons like creator_hub handled separately)
+  const globalAddons = allAddons.filter((a: Addon) => {
+    if (a.type !== 'global' || !a.enabled || a.parent_id) return false
+    const override = ADDON_NAV_OVERRIDES[a.id]
+    if (override?.creatorOnly && !isCreator) return false
+    return true
+  })
 
   useEffect(() => {
     if (user) loadAddons()
@@ -143,7 +156,8 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
             </Link>
             {globalAddons.map(addon => {
               const Icon = ADDON_ICONS[addon.icon] || CalendarDays
-              const path = `/${addon.id}`
+              const override = ADDON_NAV_OVERRIDES[addon.id]
+              const path = override?.to ?? `/${addon.id}`
               const isActive = location.pathname === path
               return (
                 <Link key={addon.id} to={path}
