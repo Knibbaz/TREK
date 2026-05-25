@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams } from 'react-router-dom'
+import { useBranding } from '../context/BrandingContext'
 import { MapContainer, TileLayer, Marker, Tooltip, Polyline, useMap } from 'react-leaflet'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
@@ -10,7 +11,7 @@ import { shareApi, configApi } from '../api/client'
 import { getCategoryIcon, CATEGORY_ICON_MAP } from '../components/shared/categoryIcons'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle, Copy, Phone } from 'lucide-react'
+import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, Map, Luggage, Wallet, MessageCircle, Copy, Phone, Route as RouteIcon } from 'lucide-react'
 import { calculateRoute, calculateSegments } from '../components/Map/RouteCalculator'
 import { useAuthStore } from '../store/authStore'
 import { isDayInAccommodationRange } from '../utils/dayOrder'
@@ -166,6 +167,7 @@ export default function SharedTripPage() {
   const { token } = useParams<{ token: string }>()
   const { t, locale } = useTranslation()
   const { user } = useAuthStore()
+  const branding = useBranding()
   const [data, setData] = useState<any>(null)
   const [error, setError] = useState(false)
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
@@ -177,6 +179,7 @@ export default function SharedTripPage() {
   const [selectedPlaceId, setSelectedPlaceId] = useState<number | null>(null)
   const [route, setRoute] = useState<[number, number][][] | null>(null)
   const [routeSegments, setRouteSegments] = useState<any[]>([])
+  const [showRouteLabels, setShowRouteLabels] = useState(false)
   const [projectMeta, setProjectMeta] = useState<any>(null)
 
   useEffect(() => {
@@ -367,7 +370,7 @@ export default function SharedTripPage() {
 
         {/* Logo */}
         <div style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: 44, height: 44, borderRadius: 12, background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(8px)', marginBottom: 12, border: '1px solid rgba(255,255,255,0.1)' }}>
-          <img src="/icons/icon-white.svg" alt="ROUTD" width="26" height="26" />
+          <img src={branding.iconLight} alt={branding.name} width="26" height="26" />
         </div>
 
         <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 3, textTransform: 'uppercase', opacity: 0.35, marginBottom: 12 }}>Routes Organized for Unforgettable Travel Days</div>
@@ -449,7 +452,24 @@ export default function SharedTripPage() {
         {/* Map */}
         {(activeTab === 'plan' || activeTab === 'map') && (<>
         {permissions?.share_map !== false && (
-        <div style={{ borderRadius: 16, overflow: 'hidden', height: 480, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
+        <div style={{ borderRadius: 16, overflow: 'hidden', height: 480, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)', position: 'relative' }}>
+          {routeSegments.length > 0 && (
+            <button
+              onClick={() => setShowRouteLabels(v => !v)}
+              title={showRouteLabels ? 'Verberg reistijden' : 'Toon reistijden'}
+              style={{
+                position: 'absolute', top: 10, right: 10, zIndex: 1000,
+                background: showRouteLabels ? '#111827' : 'rgba(255,255,255,0.95)',
+                color: showRouteLabels ? '#fff' : '#374151',
+                border: '1px solid rgba(0,0,0,0.15)',
+                borderRadius: 8, padding: '5px 7px',
+                cursor: 'pointer', display: 'flex', alignItems: 'center',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+              }}
+            >
+              <RouteIcon size={14} />
+            </button>
+          )}
           <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
             <FitBoundsToPlaces places={mapPlaces} />
@@ -516,7 +536,7 @@ export default function SharedTripPage() {
                     dashArray="6, 5"
                   />
                 ))}
-                {routeSegments.map((seg, i) => (
+                {showRouteLabels && routeSegments.map((seg, i) => (
                   <RouteLabel
                     key={i}
                     midpoint={seg.mid}
@@ -876,8 +896,8 @@ export default function SharedTripPage() {
         {/* Footer */}
         <div style={{ textAlign: 'center', padding: '40px 0 20px' }}>
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 20, background: 'var(--bg-card, white)', border: '1px solid var(--border-faint, #e5e7eb)', boxShadow: '0 1px 3px rgba(0,0,0,0.04)' }}>
-            <img src="/icons/icon.svg" alt="ROUTD" width="18" height="18" style={{ borderRadius: 4 }} />
-            <span style={{ fontSize: 11, color: '#9ca3af' }}>{t('shared.sharedVia')} <strong style={{ color: '#6b7280' }}>ROUTD</strong></span>
+            <img src={branding.iconDark} alt={branding.name} width="18" height="18" style={{ borderRadius: 4 }} />
+            <span style={{ fontSize: 11, color: '#9ca3af' }}>{t('shared.sharedVia')} <strong style={{ color: '#6b7280' }}>{branding.name}</strong></span>
           </div>
           <div style={{ marginTop: 8, fontSize: 10, color: '#d1d5db' }}>
             Modified by <a href={projectMeta?.modifiedBy.url || 'https://github.com/Knibbaz/TREK'} style={{ color: '#9ca3af', textDecoration: 'none' }}>{projectMeta?.modifiedBy.name || 'Bas'}</a>

@@ -229,6 +229,8 @@ const nl: Record<string, string> = {
   'settings.routeWalkingThresholdHint': 'Routes tot deze afstand tonen wandeltijd; daarboven auto.',
   'settings.routeDrivingThreshold': 'Auto tot',
   'settings.routeDrivingThresholdHint': 'Routes tot deze afstand tonen rijtijd; daarboven vlucht.',
+  'settings.shareVacayInGroups': 'Verlof en reizen delen in groepen',
+  'settings.shareVacayInGroupsHint': 'Jouw verlof en geplande reizen worden automatisch meegeteld bij beschikbaarheidsanalyses in groepen.',
   'settings.blurBookingCodes': 'Boekingscodes vervagen',
   'settings.notifications': 'Meldingen',
   'settings.notifyTripInvite': 'Reisuitnodigingen',
@@ -719,6 +721,10 @@ const nl: Record<string, string> = {
   'admin.packingTemplates.createError': 'Fout bij aanmaken van sjabloon',
   'admin.packingTemplates.deleteError': 'Fout bij verwijderen van sjabloon',
   'admin.packingTemplates.saveError': 'Fout bij opslaan',
+
+  // Groups & Branding tabs
+  'admin.tabs.groups': 'Groepen',
+  'admin.tabs.branding': 'Huisstijl',
 
   // Addons
   'admin.tabs.addons': 'Add-ons',
@@ -1648,7 +1654,7 @@ const nl: Record<string, string> = {
 
   // Backup V2 — User Export & Import
   'backup.v2.export.title': 'Gegevens exporteren',
-  'backup.v2.export.preview': 'Download een kopie van je reizen, plaatsen en bestanden in een .trek-bestand.',
+  'backup.v2.export.preview': 'Download een kopie van je reizen, plaatsen en bestanden in een .routd-bestand.',
   'backup.v2.export.start': 'Mijn gegevens exporteren',
   'backup.v2.export.downloading': 'Export wordt gemaakt…',
   'backup.v2.export.ready': 'Export downloaden',
@@ -1657,11 +1663,11 @@ const nl: Record<string, string> = {
   'backup.v2.export.success': 'Export succesvol gemaakt',
   'backup.v2.import.title': 'Gegevens importeren',
   'backup.v2.import.warning': 'Het importeren van gegevens maakt nieuwe kopieën van je reizen, plaatsen en bestanden. Bestaande gegevens worden niet beïnvloed.',
-  'backup.v2.import.start': 'Selecteer .trek-bestand om te importeren',
+  'backup.v2.import.start': 'Selecteer .routd-bestand om te importeren',
   'backup.v2.import.success': 'Gegevens succesvol geïmporteerd',
   'backup.v2.import.error': 'Importeren mislukt',
   'backup.v2.restore.title': 'Herstellen uit back-up',
-  'backup.v2.restore.upload': '.trek-bestand uploaden',
+  'backup.v2.restore.upload': '.routd-bestand uploaden',
   'backup.v2.restore.preview': 'Voorbeeld',
   'backup.v2.restore.strategy': 'Conflictresolutie',
   'backup.v2.restore.dryRun': 'Test (alleen voorbeeld)',
@@ -2139,6 +2145,9 @@ const nl: Record<string, string> = {
   'notif.packing_tagged.text': '{actor} heeft je toegewezen aan {category} in {trip}',
   'notif.version_available.title': 'Nieuwe versie beschikbaar',
   'notif.version_available.text': 'ROUTD {version} is nu beschikbaar',
+  'notif.date_proposal_threshold.title': 'Drempel bereikt',
+  'notif.date_proposal_threshold.text': '{respondents} van {members} leden hebben hun beschikbaarheid ingevuld voor {proposal}',
+  'notif.action.view_group': 'Groep bekijken',
   'notif.action.view_trip': 'Reis bekijken',
   'notif.action.view_collab': 'Berichten bekijken',
   'notif.action.view_packing': 'Paklijst bekijken',
@@ -2673,6 +2682,7 @@ const nl: Record<string, string> = {
   'dateAvail.deadline': 'Deadline',
   'dateAvail.reminderDays': 'Herinneringsdagen voor deadline',
   'dateAvail.reminderHint': 'Er wordt {days} dag(en) voor de deadline een herinnering gestuurd aan leden die nog niet hebben gereageerd.',
+  'dateAvail.responseThreshold': 'Melding na X reacties',
   'dateAvail.myAvailability': 'Mijn beschikbaarheid',
   'dateAvail.group': 'Groep',
   // Notities

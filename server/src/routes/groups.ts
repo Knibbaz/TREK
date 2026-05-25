@@ -1,10 +1,41 @@
 import express, { Request, Response } from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { v4 as uuid } from 'uuid';
 import { authenticate } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { db } from '../db/database';
 import * as svc from '../services/groupsService';
 import { broadcastToGroup, broadcast } from '../websocket';
 import { NextFunction } from 'express';
+
+// ── Activity feed helper ─────────────────────────────────────────────────────
+function logActivity(groupId: number, actorId: number, eventType: string, resourceId?: number | null, resourceTitle?: string | null) {
+  try {
+    const actor = db.prepare('SELECT username FROM users WHERE id = ?').get(actorId) as { username: string } | undefined;
+    db.prepare(`
+      INSERT INTO group_activity (group_id, actor_id, actor_name, event_type, resource_id, resource_title)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(groupId, actorId, actor?.username || null, eventType, resourceId ?? null, resourceTitle ?? null);
+  } catch { /* non-critical — never block main action */ }
+}
+
+// ── Cover image upload ───────────────────────────────────────────────────────
+const groupCoversDir = path.join(__dirname, '../../uploads/group-covers');
+if (!fs.existsSync(groupCoversDir)) fs.mkdirSync(groupCoversDir, { recursive: true });
+const coverStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, groupCoversDir),
+  filename: (_req, file, cb) => cb(null, uuid() + path.extname(file.originalname).toLowerCase()),
+});
+const coverUpload = multer({
+  storage: coverStorage,
+  limits: { fileSize: 8 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype.startsWith('image/')) return cb(new Error('Only images allowed'));
+    cb(null, true);
+  },
+});
 
 // Simple in-process rate limiter for guest endpoints (10 req/min per IP)
 const guestAttempts = new Map<string, { count: number; first: number }>();
@@ -70,6 +101,48 @@ router.put('/:id', (req: Request, res: Response) => {
   res.json({ group });
 });
 
+// ── Update group welcome message ────────────────────────────────────────────
+router.patch('/:id/welcome', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const { welcome_title, welcome_body, welcome_icon } = req.body;
+  const ok = svc.updateGroupWelcome(parseInt(req.params.id), userId, { welcome_title, welcome_body, welcome_icon });
+  if (!ok) return res.status(403).json({ error: 'Forbidden' });
+  res.json({ success: true });
+});
+
+// ── Upload group cover image ─────────────────────────────────────────────────
+router.post('/:id/cover', authenticate, coverUpload.single('cover'), (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return res.status(403).json({ error: 'Forbidden' });
+  if (!req.file) return res.status(400).json({ error: 'No file uploaded' });
+  // Delete old custom cover if present
+  const current = db.prepare(`SELECT cover_image FROM groups WHERE id = ?`).get(groupId) as { cover_image: string | null } | undefined;
+  if (current?.cover_image?.startsWith('/uploads/group-covers/')) {
+    const oldPath = path.join(__dirname, '../..', current.cover_image);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  }
+  const url = `/uploads/group-covers/${req.file.filename}`;
+  db.prepare(`UPDATE groups SET cover_image = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(url, groupId);
+  res.json({ url });
+});
+
+// ── Delete group cover image ──────────────────────────────────────────────────
+router.delete('/:id/cover', authenticate, (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return res.status(403).json({ error: 'Forbidden' });
+  const current = db.prepare(`SELECT cover_image FROM groups WHERE id = ?`).get(groupId) as { cover_image: string | null } | undefined;
+  if (current?.cover_image?.startsWith('/uploads/group-covers/')) {
+    const oldPath = path.join(__dirname, '../..', current.cover_image);
+    if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  }
+  db.prepare(`UPDATE groups SET cover_image = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?`).run(groupId);
+  res.json({ success: true });
+});
+
 // ── Delete group ────────────────────────────────────────────────────────────
 router.delete('/:id', (req: Request, res: Response) => {
   const userId = (req as AuthRequest).user.id;
@@ -91,6 +164,7 @@ router.post('/:id/members', (req: Request, res: Response) => {
     groupId,
     user: addedUser || { id: parseInt(user_id), username: '', avatar: null },
   }, req.headers['x-socket-id'] as string);
+  logActivity(groupId, userId, 'member_added', parseInt(user_id), addedUser?.username || null);
   const group = svc.getGroup(userId, groupId);
   res.json({ group });
 });
@@ -148,6 +222,8 @@ router.post('/:id/trips', (req: Request, res: Response) => {
   if (!trip_id) return res.status(400).json({ error: 'trip_id required' });
   const result = svc.addTripToGroup(groupId, parseInt(trip_id), userId);
   if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  const tripInfo = db.prepare('SELECT title FROM trips WHERE id = ?').get(parseInt(trip_id)) as { title: string } | undefined;
+  logActivity(groupId, userId, 'trip_added', parseInt(trip_id), tripInfo?.title || null);
   const group = svc.getGroup(userId, groupId);
   res.json({ group });
 });
@@ -159,6 +235,324 @@ router.delete('/:id/trips/:tripId', (req: Request, res: Response) => {
   const tripId = parseInt(req.params.tripId);
   const result = svc.removeTripFromGroup(groupId, tripId, userId);
   if (!result.success) return res.status(result.error === 'Forbidden' ? 403 : 400).json({ error: result.error });
+  res.json({ success: true });
+});
+
+// ── Per-group vacay sharing preference ─────────────────────────────────────
+router.patch('/:id/my-vacay-sharing', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const { share_vacay } = req.body as { share_vacay: boolean | null };
+
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Not a member' });
+
+  const value = share_vacay === null ? null : (share_vacay ? 1 : 0);
+  db.prepare('UPDATE group_members SET share_vacay = ? WHERE group_id = ? AND user_id = ?').run(value, groupId, userId);
+  res.json({ success: true, share_vacay });
+});
+
+// ── Trip participants ───────────────────────────────────────────────────────
+router.get('/:id/trips/:tripId/participants', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const tripId = parseInt(req.params.tripId);
+
+  // Must be a group member
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+  const participants = db.prepare(`
+    SELECT u.id, u.username, u.avatar
+    FROM group_trip_participants gtp
+    JOIN users u ON u.id = gtp.user_id
+    WHERE gtp.group_id = ? AND gtp.trip_id = ?
+  `).all(groupId, tripId);
+
+  res.json({ participants });
+});
+
+router.put('/:id/trips/:tripId/participants', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const tripId = parseInt(req.params.tripId);
+
+  // Must be owner or admin
+  const member = db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) {
+    return res.status(403).json({ error: 'Forbidden' });
+  }
+
+  const { user_ids } = req.body as { user_ids: number[] };
+  if (!Array.isArray(user_ids)) return res.status(400).json({ error: 'user_ids must be an array' });
+
+  db.transaction(() => {
+    db.prepare('DELETE FROM group_trip_participants WHERE group_id = ? AND trip_id = ?').run(groupId, tripId);
+    const insert = db.prepare('INSERT OR IGNORE INTO group_trip_participants (group_id, trip_id, user_id) VALUES (?, ?, ?)');
+    for (const uid of user_ids) {
+      insert.run(groupId, tripId, uid);
+    }
+  })();
+
+  const participants = db.prepare(`
+    SELECT u.id, u.username, u.avatar
+    FROM group_trip_participants gtp
+    JOIN users u ON u.id = gtp.user_id
+    WHERE gtp.group_id = ? AND gtp.trip_id = ?
+  `).all(groupId, tripId);
+
+  res.json({ participants });
+});
+
+// ── Group atlas (visited countries via place_regions) ───────────────────────
+router.get('/:id/atlas', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+  const countries = db.prepare(`
+    SELECT pr.country_code AS code, COUNT(DISTINCT p.id) AS place_count
+    FROM group_trips gt
+    JOIN places p ON p.trip_id = gt.trip_id
+    JOIN place_regions pr ON pr.place_id = p.id
+    WHERE gt.group_id = ?
+    GROUP BY pr.country_code
+    ORDER BY place_count DESC
+  `).all(groupId) as { code: string; place_count: number }[];
+
+  res.json({ countries });
+});
+
+// ── RSVP toggle (any member can mark themselves as going on a trip) ─────────
+router.post('/:id/trips/:tripId/rsvp', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const tripId = parseInt(req.params.tripId);
+
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+  const existing = db.prepare('SELECT id FROM group_trip_participants WHERE group_id = ? AND trip_id = ? AND user_id = ?').get(groupId, tripId, userId);
+  let participating: boolean;
+  if (existing) {
+    db.prepare('DELETE FROM group_trip_participants WHERE group_id = ? AND trip_id = ? AND user_id = ?').run(groupId, tripId, userId);
+    participating = false;
+  } else {
+    db.prepare('INSERT OR IGNORE INTO group_trip_participants (group_id, trip_id, user_id) VALUES (?, ?, ?)').run(groupId, tripId, userId);
+    participating = true;
+  }
+
+  const participants = db.prepare(`
+    SELECT u.id, u.username, u.avatar
+    FROM group_trip_participants gtp
+    JOIN users u ON u.id = gtp.user_id
+    WHERE gtp.group_id = ? AND gtp.trip_id = ?
+  `).all(groupId, tripId);
+
+  res.json({ participating, participants });
+});
+
+// ── Group statistics ─────────────────────────────────────────────────────────
+router.get('/:id/stats', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+  const stats = db.prepare(`
+    SELECT
+      (SELECT COUNT(DISTINCT trip_id) FROM group_trips WHERE group_id = ?) AS trip_count,
+      (SELECT COUNT(DISTINCT pr.country_code)
+       FROM group_trips gt
+       JOIN places p ON p.trip_id = gt.trip_id
+       JOIN place_regions pr ON pr.place_id = p.id
+       WHERE gt.group_id = ?) AS country_count,
+      (SELECT COALESCE(SUM(
+         CASE WHEN t.start_date IS NOT NULL AND t.end_date IS NOT NULL
+         THEN CAST(julianday(t.end_date) - julianday(t.start_date) + 1 AS INTEGER)
+         ELSE 0 END
+       ), 0) FROM group_trips gt JOIN trips t ON t.id = gt.trip_id WHERE gt.group_id = ?) AS total_days,
+      (SELECT COUNT(*) FROM group_members WHERE group_id = ?) AS member_count,
+      (SELECT created_at FROM groups WHERE id = ?) AS group_created_at,
+      (SELECT MIN(t.start_date) FROM group_trips gt JOIN trips t ON t.id = gt.trip_id WHERE gt.group_id = ? AND t.start_date IS NOT NULL) AS first_trip_date
+  `).get(groupId, groupId, groupId, groupId, groupId, groupId) as {
+    trip_count: number; country_count: number; total_days: number;
+    member_count: number; group_created_at: string; first_trip_date: string | null;
+  };
+
+  // Compute milestones on-demand
+  const milestones: string[] = [];
+  if (stats.trip_count >= 1) milestones.push('first_trip');
+  if (stats.trip_count >= 5) milestones.push('trips_5');
+  if (stats.trip_count >= 10) milestones.push('trips_10');
+  if (stats.trip_count >= 25) milestones.push('trips_25');
+  if (stats.country_count >= 3) milestones.push('countries_3');
+  if (stats.country_count >= 10) milestones.push('countries_10');
+  if (stats.country_count >= 25) milestones.push('countries_25');
+  if (stats.group_created_at) {
+    const ageYears = (Date.now() - new Date(stats.group_created_at).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+    if (ageYears >= 1) milestones.push('anniversary_1y');
+    if (ageYears >= 2) milestones.push('anniversary_2y');
+    if (ageYears >= 5) milestones.push('anniversary_5y');
+  }
+
+  res.json({ ...stats, milestones });
+});
+
+// ── Activity feed ───────────────────────────────────────────────────────────
+router.get('/:id/activity', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const limit = Math.min(50, parseInt(String(req.query.limit || '30')));
+  const before = req.query.before ? parseInt(String(req.query.before)) : null;
+
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+
+  const events = db.prepare(`
+    SELECT id, actor_id, actor_name, event_type, resource_id, resource_title, created_at
+    FROM group_activity
+    WHERE group_id = ? ${before ? 'AND id < ?' : ''}
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(...(before ? [groupId, before, limit] : [groupId, limit])) as Array<{
+    id: number; actor_id: number | null; actor_name: string | null;
+    event_type: string; resource_id: number | null; resource_title: string | null; created_at: string;
+  }>;
+
+  res.json({ events, hasMore: events.length === limit });
+});
+
+// ── Update group brand_color ─────────────────────────────────────────────────
+router.patch('/:id/brand-color', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return res.status(403).json({ error: 'Forbidden' });
+  const { brand_color } = req.body as { brand_color: string | null };
+  db.prepare('UPDATE groups SET brand_color = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(brand_color ?? null, groupId);
+  res.json({ success: true });
+});
+
+// ── Ideas (prikbord) ─────────────────────────────────────────────────────────
+router.get('/:id/ideas', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const ideas = db.prepare(`
+    SELECT gi.id, gi.user_id, u.username AS author, gi.title, gi.body, gi.created_at
+    FROM group_ideas gi JOIN users u ON u.id = gi.user_id
+    WHERE gi.group_id = ? ORDER BY gi.created_at DESC
+  `).all(groupId);
+  res.json({ ideas });
+});
+
+router.post('/:id/ideas', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const { title, body } = req.body as { title: string; body?: string };
+  if (!title?.trim()) return res.status(400).json({ error: 'title required' });
+  const result = db.prepare('INSERT INTO group_ideas (group_id, user_id, title, body) VALUES (?, ?, ?, ?)').run(groupId, userId, title.trim(), body?.trim() || null);
+  const idea = db.prepare(`
+    SELECT gi.id, gi.user_id, u.username AS author, gi.title, gi.body, gi.created_at
+    FROM group_ideas gi JOIN users u ON u.id = gi.user_id WHERE gi.id = ?
+  `).get(result.lastInsertRowid);
+  logActivity(groupId, userId, 'idea_added', null, title.trim());
+  res.status(201).json({ idea });
+});
+
+router.delete('/:id/ideas/:ideaId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const ideaId = parseInt(req.params.ideaId);
+  const member = db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId) as { role: string } | undefined;
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const idea = db.prepare('SELECT user_id FROM group_ideas WHERE id = ? AND group_id = ?').get(ideaId, groupId) as { user_id: number } | undefined;
+  if (!idea) return res.status(404).json({ error: 'Not found' });
+  const isOwner = idea.user_id === userId || member.role === 'owner' || member.role === 'admin';
+  if (!isOwner) return res.status(403).json({ error: 'Forbidden' });
+  db.prepare('DELETE FROM group_ideas WHERE id = ?').run(ideaId);
+  res.json({ success: true });
+});
+
+// ── Tasks (taakverdeling) ─────────────────────────────────────────────────────
+router.get('/:id/tasks', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const tasks = db.prepare(`
+    SELECT gt.id, gt.title, gt.done, gt.assigned_to, gt.created_by, gt.sort_order, gt.created_at, gt.updated_at,
+           u.username AS assigned_username, u.avatar AS assigned_avatar
+    FROM group_tasks gt
+    LEFT JOIN users u ON u.id = gt.assigned_to
+    WHERE gt.group_id = ? ORDER BY gt.sort_order ASC, gt.created_at ASC
+  `).all(groupId);
+  res.json({ tasks });
+});
+
+router.post('/:id/tasks', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const { title, assigned_to } = req.body as { title: string; assigned_to?: number };
+  if (!title?.trim()) return res.status(400).json({ error: 'title required' });
+  const maxOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), -1) AS m FROM group_tasks WHERE group_id = ?').get(groupId) as { m: number }).m;
+  const result = db.prepare(`
+    INSERT INTO group_tasks (group_id, title, assigned_to, created_by, sort_order)
+    VALUES (?, ?, ?, ?, ?)
+  `).run(groupId, title.trim(), assigned_to || null, userId, maxOrder + 1);
+  const task = db.prepare(`
+    SELECT gt.id, gt.title, gt.done, gt.assigned_to, gt.created_by, gt.sort_order, gt.created_at, gt.updated_at,
+           u.username AS assigned_username, u.avatar AS assigned_avatar
+    FROM group_tasks gt LEFT JOIN users u ON u.id = gt.assigned_to WHERE gt.id = ?
+  `).get(result.lastInsertRowid);
+  res.status(201).json({ task });
+});
+
+router.patch('/:id/tasks/:taskId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const taskId = parseInt(req.params.taskId);
+  const member = db.prepare('SELECT id FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const existing = db.prepare('SELECT id FROM group_tasks WHERE id = ? AND group_id = ?').get(taskId, groupId);
+  if (!existing) return res.status(404).json({ error: 'Not found' });
+  const { done, title, assigned_to } = req.body as { done?: boolean; title?: string; assigned_to?: number | null };
+  const fields: string[] = [];
+  const vals: unknown[] = [];
+  if (done !== undefined) { fields.push('done = ?'); vals.push(done ? 1 : 0); }
+  if (title !== undefined) { fields.push('title = ?'); vals.push(title.trim()); }
+  if ('assigned_to' in req.body) { fields.push('assigned_to = ?'); vals.push(assigned_to ?? null); }
+  if (fields.length === 0) return res.status(400).json({ error: 'Nothing to update' });
+  fields.push('updated_at = CURRENT_TIMESTAMP');
+  db.prepare(`UPDATE group_tasks SET ${fields.join(', ')} WHERE id = ?`).run(...vals, taskId);
+  const task = db.prepare(`
+    SELECT gt.id, gt.title, gt.done, gt.assigned_to, gt.created_by, gt.sort_order, gt.created_at, gt.updated_at,
+           u.username AS assigned_username, u.avatar AS assigned_avatar
+    FROM group_tasks gt LEFT JOIN users u ON u.id = gt.assigned_to WHERE gt.id = ?
+  `).get(taskId);
+  res.json({ task });
+});
+
+router.delete('/:id/tasks/:taskId', (req: Request, res: Response) => {
+  const userId = (req as AuthRequest).user.id;
+  const groupId = parseInt(req.params.id);
+  const taskId = parseInt(req.params.taskId);
+  const member = db.prepare('SELECT role FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId) as { role: string } | undefined;
+  if (!member) return res.status(403).json({ error: 'Forbidden' });
+  const task = db.prepare('SELECT created_by FROM group_tasks WHERE id = ? AND group_id = ?').get(taskId, groupId) as { created_by: number } | undefined;
+  if (!task) return res.status(404).json({ error: 'Not found' });
+  const canDelete = task.created_by === userId || member.role === 'owner' || member.role === 'admin';
+  if (!canDelete) return res.status(403).json({ error: 'Forbidden' });
+  db.prepare('DELETE FROM group_tasks WHERE id = ?').run(taskId);
   res.json({ success: true });
 });
 

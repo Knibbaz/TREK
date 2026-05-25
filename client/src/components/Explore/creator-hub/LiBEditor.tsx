@@ -8,14 +8,15 @@ import { LiBPreview } from './LiBPreview';
 import { LiBThemes } from './LiBThemes';
 import './lib-themes.css';
 
-export function LiBEditor() {
+export function LiBEditor({ skipLoad = false }: { skipLoad?: boolean }) {
   const { t } = useTranslation();
   const { success, error: showError } = useToast();
   const { config, setConfig, setBlocks, isLoading, setLoading } = useCreatorHubStore();
   const [activeTab, setActiveTab] = useState<'blocks' | 'theme'>('blocks');
 
-  // Load config and blocks on mount
+  // Load config and blocks on mount (unless parent already loaded)
   useEffect(() => {
+    if (skipLoad) return;
     const loadData = async () => {
       try {
         setLoading(true);

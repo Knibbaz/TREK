@@ -11,6 +11,7 @@ export interface GroupMember {
   joined_at: string
   username?: string
   avatar?: string | null
+  share_vacay?: boolean | null
 }
 
 export interface GroupTrip {
@@ -21,6 +22,8 @@ export interface GroupTrip {
   added_at: string
   trip_title?: string
   trip_cover_image?: string | null
+  trip_start_date?: string | null
+  trip_end_date?: string | null
 }
 
 export interface Group {
@@ -36,6 +39,10 @@ export interface Group {
   role: 'owner' | 'admin' | 'member'
   members?: GroupMember[]
   trips?: GroupTrip[]
+  welcome_title?: string | null
+  welcome_body?: string | null
+  welcome_icon?: string | null
+  brand_color?: string | null
 }
 
 interface GroupsState {

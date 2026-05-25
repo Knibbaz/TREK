@@ -1,5 +1,6 @@
-import React, { useEffect, ReactNode } from 'react'
+import React, { useCallback, useEffect, useState, ReactNode } from 'react'
 import ErrorBoundary from './components/shared/ErrorBoundary'
+import { BrandingProvider, Branding } from './context/BrandingContext'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useSettingsStore } from './store/settingsStore'
@@ -33,7 +34,7 @@ import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import { ToastContainer } from './components/shared/Toast'
 import BottomNav from './components/Layout/BottomNav'
 import { TranslationProvider, useTranslation } from './i18n'
-import { authApi } from './api/client'
+import { authApi, adminApi } from './api/client'
 import { usePermissionsStore, PermissionLevel } from './store/permissionsStore'
 import { useInAppNotificationListener } from './hooks/useInAppNotificationListener.ts'
 import { registerSyncTriggers, unregisterSyncTriggers } from './sync/syncTriggers'
@@ -116,6 +117,34 @@ export default function App() {
   const { loadUser, isAuthenticated, demoMode, setDemoMode, setDevMode, setIsPrerelease, setAppVersion, setHasMapsKey, setServerTimezone, setAppRequireMfa, setTripRemindersEnabled, setPlacesPhotosEnabled, setPlacesAutocompleteEnabled, setPlacesDetailsEnabled, setUnsplashConfigured } = useAuthStore()
   const { loadSettings } = useSettingsStore()
   const { loadAddons } = useAddonStore()
+  const [branding, setBranding] = useState<Partial<Branding> | null>(null)
+
+  const reloadBranding = useCallback(async () => {
+    try {
+      const data = await adminApi.getBranding() as Record<string, string>
+      setBranding({
+        name: data.brand_name || undefined,
+        logoLight: data.brand_logo_light || undefined,
+        logoDark: data.brand_logo_dark || undefined,
+        iconLight: data.brand_icon_light || undefined,
+        iconDark: data.brand_icon_dark || undefined,
+        accent: data.brand_accent || undefined,
+        accentText: data.brand_accent_text || undefined,
+        bgPrimary: data.brand_bg_primary || undefined,
+        bgSecondary: data.brand_bg_secondary || undefined,
+        textPrimary: data.brand_text_primary || undefined,
+        textSecondary: data.brand_text_secondary || undefined,
+        textMuted: data.brand_text_muted || undefined,
+        navBg: data.brand_nav_bg || undefined,
+        disableDarkMode: data.disable_dark_mode === 'true' ? true : undefined,
+      })
+    } catch { /* ignore */ }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('branding-updated', reloadBranding)
+    return () => window.removeEventListener('branding-updated', reloadBranding)
+  }, [reloadBranding])
 
   useEffect(() => {
     if (!location.pathname.startsWith('/shared/') && !location.pathname.startsWith('/public/') && !location.pathname.startsWith('/invite/') && !location.pathname.startsWith('/login')) {
@@ -129,7 +158,7 @@ export default function App() {
         loadUser()
       }
     }
-    authApi.getAppConfig().then(async (config: { demo_mode?: boolean; dev_mode?: boolean; is_prerelease?: boolean; has_maps_key?: boolean; version?: string; timezone?: string; require_mfa?: boolean; trip_reminders_enabled?: boolean; places_photos_enabled?: boolean; places_autocomplete_enabled?: boolean; places_details_enabled?: boolean; unsplash_configured?: boolean; permissions?: Record<string, PermissionLevel> }) => {
+    authApi.getAppConfig().then(async (config: { demo_mode?: boolean; dev_mode?: boolean; is_prerelease?: boolean; has_maps_key?: boolean; version?: string; timezone?: string; require_mfa?: boolean; trip_reminders_enabled?: boolean; places_photos_enabled?: boolean; places_autocomplete_enabled?: boolean; places_details_enabled?: boolean; unsplash_configured?: boolean; permissions?: Record<string, PermissionLevel>; branding?: { name?: string; logo_light?: string; logo_dark?: string; icon_light?: string; icon_dark?: string; accent?: string; accent_text?: string; bg_primary?: string; bg_secondary?: string; text_primary?: string; text_secondary?: string; text_muted?: string; nav_bg?: string; disable_dark_mode?: boolean } }) => {
       if (config?.demo_mode) setDemoMode(true)
       if (config?.dev_mode) setDevMode(true)
       if (config?.is_prerelease !== undefined) setIsPrerelease(config.is_prerelease)
@@ -143,6 +172,25 @@ export default function App() {
       if (config?.places_details_enabled !== undefined) setPlacesDetailsEnabled(config.places_details_enabled)
       if (config?.unsplash_configured !== undefined) setUnsplashConfigured(config.unsplash_configured)
       if (config?.permissions) usePermissionsStore.getState().setPermissions(config.permissions)
+      if (config?.branding) {
+        const b = config.branding
+        setBranding({
+          name: b.name || undefined,
+          logoLight: b.logo_light || undefined,
+          logoDark: b.logo_dark || undefined,
+          iconLight: b.icon_light || undefined,
+          iconDark: b.icon_dark || undefined,
+          accent: b.accent || undefined,
+          accentText: b.accent_text || undefined,
+          bgPrimary: b.bg_primary || undefined,
+          bgSecondary: b.bg_secondary || undefined,
+          textPrimary: b.text_primary || undefined,
+          textSecondary: b.text_secondary || undefined,
+          textMuted: b.text_muted || undefined,
+          navBg: b.nav_bg || undefined,
+          disableDarkMode: b.disable_dark_mode ?? undefined,
+        })
+      }
 
       if (config?.version) {
         const storedVersion = localStorage.getItem('trek_app_version')
@@ -186,8 +234,8 @@ export default function App() {
   const isSharedPage = location.pathname.startsWith('/shared/') || location.pathname.startsWith('/invite/')
 
   useEffect(() => {
-    // Shared page always forces light mode
-    if (isSharedPage) {
+    // Shared page or admin-disabled dark mode always forces light mode
+    if (isSharedPage || document.documentElement.hasAttribute('data-force-light')) {
       document.documentElement.classList.remove('dark')
       const meta = document.querySelector('meta[name="theme-color"]')
       if (meta) meta.setAttribute('content', '#ffffff')
@@ -217,6 +265,7 @@ export default function App() {
     || location.pathname.startsWith('/reset-password')
 
   return (
+    <BrandingProvider branding={branding}>
     <TranslationProvider>
       <ErrorBoundary>
       {!isAuthPage && <SystemNoticeHost />}
@@ -281,7 +330,7 @@ export default function App() {
         <Route
           path="/vacay"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="vacay">
               <VacayPage />
             </ProtectedRoute>
           }
@@ -289,7 +338,7 @@ export default function App() {
         <Route
           path="/atlas"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="atlas">
               <AtlasPage />
             </ProtectedRoute>
           }
@@ -313,7 +362,15 @@ export default function App() {
         <Route
           path="/groups"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="groups">
+              <GroupsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/groups/:id"
+          element={
+            <ProtectedRoute addonId="groups">
               <GroupsPage />
             </ProtectedRoute>
           }
@@ -321,7 +378,7 @@ export default function App() {
         <Route
           path="/explore"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="explore">
               <ExplorePage />
             </ProtectedRoute>
           }
@@ -329,7 +386,7 @@ export default function App() {
         <Route
           path="/creator-hub"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="creator_hub">
               <CreatorHubPage />
             </ProtectedRoute>
           }
@@ -337,7 +394,7 @@ export default function App() {
         <Route
           path="/worldmap"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="worldmap">
               <WorldMapPage />
             </ProtectedRoute>
           }
@@ -354,5 +411,6 @@ export default function App() {
       </Routes>
       </ErrorBoundary>
     </TranslationProvider>
+    </BrandingProvider>
   )
 }

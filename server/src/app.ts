@@ -42,7 +42,9 @@ import atlasRoutes from './routes/atlas';
 import groupsRoutes from './routes/groups';
 import exploreRoutes from './routes/explore';
 import explorePaymentsRoutes from './routes/payments';
-import creatorHubLibRoutes from './routes/creator-hub/link-in-bio';
+import creatorHubLibRoutes, { publicLibRouter } from './routes/creator-hub/link-in-bio';
+import creatorHubAffiliatesRoutes, { publicAffiliateRouter } from './routes/creator-hub/affiliates';
+import creatorHubTipsRoutes from './routes/creator-hub/tips';
 import mollieWebhookRoutes from './routes/mollieWebhook';
 import mollieConnectRoutes from './routes/mollieConnect';
 import worldmapRoutes from './routes/worldmap';
@@ -210,6 +212,8 @@ export function createApp(): express.Application {
   app.use('/uploads/covers', express.static(path.join(__dirname, '../uploads/covers')));
   app.use('/uploads/journey', express.static(path.join(__dirname, '../uploads/journey')));
   app.use('/uploads/place-photos', express.static(path.join(__dirname, '../uploads/place-photos')));
+  app.use('/uploads/branding', express.static(path.join(__dirname, '../uploads/branding')));
+  app.use('/uploads/group-covers', express.static(path.join(__dirname, '../uploads/group-covers')));
 
   // Photos require either a valid logged-in session (via JWT with the
   // password_version gate) OR a share token that covers the SPECIFIC
@@ -348,7 +352,10 @@ export function createApp(): express.Application {
   app.use('/api/addons/explore', exploreRoutes);
   app.use('/api/addons/explore/payments', explorePaymentsRoutes);
   app.use('/api/addons/explore/creator-hub/lib', creatorHubLibRoutes);
-  app.use('/api/public/lib', creatorHubLibRoutes);
+  app.use('/api/public/lib', publicLibRouter);
+  app.use('/api/addons/explore/creator-hub/affiliates', creatorHubAffiliatesRoutes);
+  app.use('/api/public/go', publicAffiliateRouter);
+  app.use('/api/addons/explore/creator-hub/tips', creatorHubTipsRoutes);
   app.use('/api/mollie', mollieConnectRoutes);
   app.use('/webhooks/mollie', mollieWebhookRoutes);
   app.use('/api/addons/worldmap', worldmapRoutes);

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { Info, Github, Shield, Key, Users, Database, Upload, Clock, Puzzle, CalendarDays, Globe, ArrowRightLeft, Map, Briefcase, ListChecks, Wallet, FileText, Plane } from 'lucide-react'
 import { useTranslation } from '../../i18n'
+import { useBranding } from '../../context/BrandingContext'
 
 interface DemoTexts {
   titleBefore: string
@@ -255,6 +256,7 @@ export default function DemoBanner(): React.ReactElement | null {
   const [dismissed, setDismissed] = useState<boolean>(false)
   const [minutesLeft, setMinutesLeft] = useState<number>(59 - new Date().getMinutes())
   const { language } = useTranslation()
+  const branding = useBranding()
   const t = texts[language] || texts.en
 
   useEffect(() => {
@@ -286,9 +288,9 @@ export default function DemoBanner(): React.ReactElement | null {
 
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-          <img src="/icons/icon-dark.svg" alt="" style={{ width: 36, height: 36, borderRadius: 10 }} />
+          <img src={branding.iconDark} alt="" style={{ width: 36, height: 36, borderRadius: 10 }} />
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: '#111827', display: 'flex', alignItems: 'center', gap: 5 }}>
-            {t.titleBefore}<img src="/text-dark.svg" alt="ROUTD" style={{ height: 18 }} />{t.titleAfter}
+            {t.titleBefore}<span style={{ fontWeight: 800 }}>{branding.name}</span>{t.titleAfter}
           </h2>
         </div>
 

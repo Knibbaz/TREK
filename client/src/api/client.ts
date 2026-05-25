@@ -437,6 +437,15 @@ export const adminApi = {
   updateGroupWelcomeNotice: (data: { title: string; body: string; icon: string }) => apiClient.put('/admin/group-welcome-notice', data).then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
   getUnsplash: () => apiClient.get('/admin/unsplash').then(r => r.data) as Promise<{ configured: boolean }>,
   updateUnsplash: (key: string) => apiClient.put('/admin/unsplash', { key }).then(r => r.data) as Promise<{ configured: boolean }>,
+  getBranding: () => apiClient.get('/admin/branding').then(r => r.data),
+  updateBranding: (data: { brand_name?: string; brand_accent?: string; brand_accent_text?: string; brand_bg_primary?: string; brand_bg_secondary?: string; brand_text_primary?: string; brand_text_secondary?: string; brand_text_muted?: string; brand_nav_bg?: string; disable_dark_mode?: string }) => apiClient.put('/admin/branding', data).then(r => r.data),
+  uploadBrandingLogo: (key: string, file: File) => {
+    const fd = new FormData()
+    fd.append('key', key)
+    fd.append('file', file)
+    return apiClient.post('/admin/branding/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data) as Promise<{ url: string }>
+  },
+  deleteBrandingLogo: (key: string) => apiClient.delete('/admin/branding/logo', { data: { key } }).then(r => r.data),
 }
 
 export const addonsApi = {
@@ -763,6 +772,47 @@ export const groupsApi = {
     apiClient.post(`/addons/groups/${id}/trips`, { trip_id: tripId }).then(r => r.data),
   removeTrip: (id: number, tripId: number) =>
     apiClient.delete(`/addons/groups/${id}/trips/${tripId}`).then(r => r.data),
+  getTripParticipants: (groupId: number, tripId: number) =>
+    apiClient.get(`/addons/groups/${groupId}/trips/${tripId}/participants`).then(r => r.data),
+  setTripParticipants: (groupId: number, tripId: number, userIds: number[]) =>
+    apiClient.put(`/addons/groups/${groupId}/trips/${tripId}/participants`, { user_ids: userIds }).then(r => r.data),
+  setMyVacaySharing: (groupId: number, share_vacay: boolean | null) =>
+    apiClient.patch(`/addons/groups/${groupId}/my-vacay-sharing`, { share_vacay }).then(r => r.data),
+  updateWelcome: (id: number, data: { welcome_title?: string | null; welcome_body?: string | null; welcome_icon?: string | null }) =>
+    apiClient.patch(`/addons/groups/${id}/welcome`, data).then(r => r.data),
+  uploadCover: (id: number, file: File) => {
+    const fd = new FormData(); fd.append('cover', file);
+    return apiClient.post(`/addons/groups/${id}/cover`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data as { url: string });
+  },
+  deleteCover: (id: number) => apiClient.delete(`/addons/groups/${id}/cover`).then(r => r.data),
+  rsvpTrip: (id: number, tripId: number) =>
+    apiClient.post(`/addons/groups/${id}/trips/${tripId}/rsvp`).then(r => r.data as { participating: boolean; participants: Array<{ id: number; username: string; avatar?: string | null }> }),
+  getStats: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/stats`).then(r => r.data as { trip_count: number; country_count: number; total_days: number }),
+  getAtlas: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/atlas`).then(r => r.data as { countries: Array<{ code: string; place_count: number }> }),
+  getActivity: (id: number, options?: { limit?: number; before?: number }) =>
+    apiClient.get(`/addons/groups/${id}/activity`, { params: options }).then(r => r.data as { events: Array<{ id: number; actor_id: number | null; actor_name: string | null; event_type: string; resource_id: number | null; resource_title: string | null; created_at: string }>; hasMore: boolean }),
+  setBrandColor: (id: number, brand_color: string | null) =>
+    apiClient.patch(`/addons/groups/${id}/brand-color`, { brand_color }).then(r => r.data),
+
+  // Prikbord
+  listIdeas: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/ideas`).then(r => r.data as { ideas: Array<{ id: number; user_id: number; username: string | null; title: string; body: string | null; created_at: string }> }),
+  createIdea: (id: number, data: { title: string; body?: string }) =>
+    apiClient.post(`/addons/groups/${id}/ideas`, data).then(r => r.data as { idea: { id: number; user_id: number; username: string | null; title: string; body: string | null; created_at: string } }),
+  deleteIdea: (id: number, ideaId: number) =>
+    apiClient.delete(`/addons/groups/${id}/ideas/${ideaId}`).then(r => r.data),
+
+  // Taakverdeling
+  listTasks: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/tasks`).then(r => r.data as { tasks: Array<{ id: number; title: string; done: number; assigned_to: number | null; assigned_username: string | null; assigned_avatar: string | null; created_by: number; sort_order: number; created_at: string }> }),
+  createTask: (id: number, data: { title: string; assigned_to?: number | null }) =>
+    apiClient.post(`/addons/groups/${id}/tasks`, data).then(r => r.data as { task: { id: number; title: string; done: number; assigned_to: number | null; assigned_username: string | null; assigned_avatar: string | null; created_by: number; sort_order: number; created_at: string } }),
+  updateTask: (id: number, taskId: number, data: { done?: number; title?: string; assigned_to?: number | null }) =>
+    apiClient.patch(`/addons/groups/${id}/tasks/${taskId}`, data).then(r => r.data),
+  deleteTask: (id: number, taskId: number) =>
+    apiClient.delete(`/addons/groups/${id}/tasks/${taskId}`).then(r => r.data),
 
   searchUsers: (q: string) => apiClient.get('/addons/groups/users/search', { params: { q } }).then(r => r.data),
 
@@ -965,6 +1015,21 @@ export const creatorHubApi = {
     apiClient.patch('/addons/explore/creator-hub/lib/blocks/reorder', { order }).then(r => r.data),
   // Public
   getPublicLib: (slug: string) => apiClient.get(`/public/lib/${slug}`).then(r => r.data),
+}
+
+export const affiliatesApi = {
+  getLinks: () => apiClient.get('/addons/explore/creator-hub/affiliates').then(r => r.data),
+  getStats: () => apiClient.get('/addons/explore/creator-hub/affiliates/stats').then(r => r.data),
+  createLink: (data: Record<string, unknown>) =>
+    apiClient.post('/addons/explore/creator-hub/affiliates', data).then(r => r.data),
+  updateLink: (id: string, data: Record<string, unknown>) =>
+    apiClient.patch(`/addons/explore/creator-hub/affiliates/${id}`, data).then(r => r.data),
+  deleteLink: (id: string) =>
+    apiClient.delete(`/addons/explore/creator-hub/affiliates/${id}`).then(r => r.data),
+}
+
+export const tipsApi = {
+  getTips: () => apiClient.get('/addons/explore/creator-hub/tips').then(r => r.data),
 }
 
 export default apiClient

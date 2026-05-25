@@ -220,6 +220,7 @@ export interface Settings {
   route_walking_threshold?: number
   route_driving_threshold?: number
   blur_booking_codes?: boolean
+  share_vacay_in_groups?: boolean
   map_booking_labels?: boolean
   map_provider?: 'leaflet' | 'mapbox-gl'
   mapbox_access_token?: string
@@ -283,6 +284,7 @@ export interface DateProposal {
   vacationDays?: VacationDay[]
   companyHolidays?: CompanyHoliday[]
   vacayEntries?: Array<{ user_id: number; date: string }>
+  tripDateRanges?: Array<{ user_id: number; start_date: string; end_date: string }>
   guestTokens?: Array<{ id: number; token: string; guest_name: string | null; created_at: string; expires_at: string | null }>
 }
 
@@ -588,4 +590,34 @@ export interface LibConfig {
   show_tip_jar: boolean
   view_count: number
   updated_at: string
+}
+
+export interface AffiliateLink {
+  id: string
+  creator_id: number
+  title: string
+  destination_url: string
+  short_code: string
+  category: 'accommodation' | 'flights' | 'activities' | 'gear' | 'insurance' | 'other' | null
+  icon: string | null
+  description: string | null
+  linked_listing_id: string | null
+  linked_guide_id: string | null
+  click_count: number
+  network: string | null
+  estimated_commission_rate: number | null
+  is_active: boolean
+  created_at: string
+}
+
+export interface CreatorTip {
+  id: string
+  creator_id: number
+  amount_cents: number
+  currency: string
+  tipper_name: string | null
+  tipper_message: string | null
+  mollie_payment_id: string | null
+  status: string
+  created_at: string
 }

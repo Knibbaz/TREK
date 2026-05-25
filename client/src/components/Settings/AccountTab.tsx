@@ -40,21 +40,27 @@ export default function AccountTab(): React.ReactElement {
     loadSettings()
   }, [loadSettings])
 
-  // Load export preview on mount
+  // Load export preview + existing export status on mount
   useEffect(() => {
     userExportApi.preview()
       .then(data => {
-        setExportStats(data.stats || { trips: 0, places: 0, files_mb: 0 })
-        setExportStatus(data.status || null)
-        if (data.status === 'ready') {
-          setExportToken(data.token)
-          setExportExpiresAt(data.expires_at)
-          setExportDownloadsLeft(data.downloads_left)
-        }
+        setExportStats({ trips: data.trips || 0, places: data.places || 0, files_mb: data.files_mb || 0 })
       })
       .catch(() => {
         setExportStats({ trips: 0, places: 0, files_mb: 0 })
       })
+    userExportApi.status()
+      .then(data => {
+        if (data.status === 'ready' && data.canDownload && data.token) {
+          setExportStatus('ready')
+          setExportToken(data.token)
+          setExportExpiresAt(data.expiresAt)
+          setExportDownloadsLeft(data.downloads_left)
+        } else if (data.status === 'processing') {
+          setExportStatus('processing')
+        }
+      })
+      .catch(() => {})
   }, [])
 
   // Password
@@ -836,7 +842,7 @@ export default function AccountTab(): React.ReactElement {
             <input
               ref={importInputRef}
               type="file"
-              accept=".trek"
+              accept=".routd"
               onChange={handleImportFile}
               disabled={importLoading}
               style={{ display: 'none' }}

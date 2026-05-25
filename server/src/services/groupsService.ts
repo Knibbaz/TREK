@@ -30,6 +30,8 @@ export interface GroupTrip {
   added_at: string;
   trip_title?: string;
   trip_cover_image?: string | null;
+  trip_start_date?: string | null;
+  trip_end_date?: string | null;
 }
 
 export interface GroupWithDetails extends Group {
@@ -75,7 +77,8 @@ export function getGroup(userId: number, groupId: number): GroupWithDetails | nu
   `).all(groupId) as GroupMember[];
 
   group.trips = db.prepare(`
-    SELECT gt.*, t.title AS trip_title, t.cover_image AS trip_cover_image
+    SELECT gt.*, t.title AS trip_title, t.cover_image AS trip_cover_image,
+           t.start_date AS trip_start_date, t.end_date AS trip_end_date
     FROM group_trips gt
     JOIN trips t ON t.id = gt.trip_id
     WHERE gt.group_id = ?
@@ -122,6 +125,15 @@ export function updateGroup(groupId: number, userId: number, data: { name?: stri
   db.prepare(`UPDATE groups SET ${fields.join(', ')} WHERE id = ?`).run(...values);
 
   return getGroup(userId, groupId);
+}
+
+// ── Update group welcome message ────────────────────────────────────────────
+export function updateGroupWelcome(groupId: number, userId: number, data: { welcome_title?: string | null; welcome_body?: string | null; welcome_icon?: string | null }): boolean {
+  const member = db.prepare(`SELECT role FROM group_members WHERE group_id = ? AND user_id = ?`).get(groupId, userId) as { role: string } | undefined;
+  if (!member || (member.role !== 'owner' && member.role !== 'admin')) return false;
+  db.prepare(`UPDATE groups SET welcome_title = ?, welcome_body = ?, welcome_icon = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?`)
+    .run(data.welcome_title ?? null, data.welcome_body ?? null, data.welcome_icon ?? null, groupId);
+  return true;
 }
 
 // ── Delete a group ──────────────────────────────────────────────────────────

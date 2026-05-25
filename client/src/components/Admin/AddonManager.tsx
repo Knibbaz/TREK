@@ -4,6 +4,7 @@ import { useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useAddonStore } from '../../store/addonStore'
 import { useToast } from '../shared/Toast'
+import { useBranding } from '../../context/BrandingContext'
 import { Puzzle, ListChecks, Wallet, FileText, CalendarDays, Globe, Briefcase, Image, Terminal, Link2, Compass, BookOpen, MessageCircle, StickyNote, BarChart3, Sparkles, Luggage, CreditCard } from 'lucide-react'
 
 const ICON_MAP = {
@@ -78,6 +79,7 @@ export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, 
   const { t } = useTranslation()
   const dm = useSettingsStore(s => s.settings.dark_mode)
   const dark = dm === true || dm === 'dark' || (dm === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const branding = useBranding()
   const toast = useToast()
   const refreshGlobalAddons = useAddonStore(s => s.loadAddons)
   const [addons, setAddons] = useState<Addon[]>([])
@@ -179,7 +181,7 @@ export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, 
         <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border-secondary)' }}>
           <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>{t('admin.addons.title')}</h2>
           <p className="text-xs mt-1" style={{ color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-            {t('admin.addons.subtitleBefore')}<img src={dark ? '/text-light.svg' : '/text-dark.svg'} alt="ROUTD" style={{ height: 11, display: 'inline', verticalAlign: 'middle', opacity: 0.7 }} />{t('admin.addons.subtitleAfter')}
+            {t('admin.addons.subtitleBefore')}<span style={{ fontWeight: 700, opacity: 0.7 }}>{branding.name}</span>{t('admin.addons.subtitleAfter')}
           </p>
         </div>
 

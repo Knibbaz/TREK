@@ -176,7 +176,7 @@ router.post('/shared/:token/clone', authenticate, (req: Request, res: Response) 
   if (!data) return res.status(404).json({ error: 'Invalid or expired link' });
   if (!data.permissions?.allow_clone) return res.status(403).json({ error: 'Cloning not allowed for this link' });
 
-  const newTripId = copyTripById(data.trip.id, authReq.user.id);
+  const newTripId = copyTripById(data.trip.id, authReq.user.id, undefined, true);
   res.status(201).json({ tripId: newTripId });
 });
 

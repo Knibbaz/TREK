@@ -54,21 +54,46 @@ router.get('/', authenticate, (req: Request, res: Response) => {
 
   // Fetch all group members' vacation days that overlap any proposal period
   const memberIds = members.map(m => m.id).join(',');
-  const vacationDays = memberIds
+
+  // Determine which members share their vacay info in this group
+  // Global default: share_vacay_in_groups setting (default true if not set)
+  // Per-group override: group_members.share_vacay (null = use global)
+  const sharingMemberIds = new Set<number>();
+  for (const m of members) {
+    const memberRow = db.prepare('SELECT share_vacay FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, m.id) as { share_vacay: number | null } | undefined;
+    if (memberRow?.share_vacay === 0) continue; // explicitly opted out for this group
+    if (memberRow?.share_vacay === 1) { sharingMemberIds.add(m.id); continue; } // explicitly opted in
+    // null = follow global setting
+    const globalRow = db.prepare("SELECT value FROM settings WHERE user_id = ? AND key = 'share_vacay_in_groups'").get(m.id) as { value: string } | undefined;
+    const globalShare = globalRow ? globalRow.value !== 'false' && globalRow.value !== '0' : true; // default true
+    if (globalShare) sharingMemberIds.add(m.id);
+  }
+  const sharingIds = [...sharingMemberIds].join(',');
+
+  const vacationDays = sharingIds
     ? db.prepare(`
         SELECT id, user_id, start_date, end_date, label, color
         FROM user_vacation_days
-        WHERE user_id IN (${memberIds})
+        WHERE user_id IN (${sharingIds})
       `).all() as Array<{ id: number; user_id: number; start_date: string; end_date: string; label: string | null; color: string }>
     : [];
 
-  // Fetch scheduled vacay_entries (type='vacation') for group members
-  const vacayEntries = memberIds
+  // Fetch scheduled vacay_entries (type='vacation') for group members who share
+  const vacayEntries = sharingIds
     ? db.prepare(`
         SELECT user_id, date
         FROM vacay_entries
-        WHERE user_id IN (${memberIds}) AND type = 'vacation'
+        WHERE user_id IN (${sharingIds}) AND type = 'vacation'
       `).all() as Array<{ user_id: number; date: string }>
+    : [];
+
+  // Fetch planned trip date ranges for group members who share
+  const tripDateRanges = sharingIds
+    ? db.prepare(`
+        SELECT user_id, start_date, end_date
+        FROM trips
+        WHERE user_id IN (${sharingIds}) AND start_date IS NOT NULL AND end_date IS NOT NULL
+      `).all() as Array<{ user_id: number; start_date: string; end_date: string }>
     : [];
 
   // Fetch company holidays for the current + next year
@@ -102,6 +127,11 @@ router.get('/', authenticate, (req: Request, res: Response) => {
       e.date >= proposalStart && e.date <= proposalEnd
     );
 
+    // Filter trip date ranges overlapping this proposal
+    const overlappingTripRanges = tripDateRanges.filter(t =>
+      t.start_date <= proposalEnd && t.end_date >= proposalStart
+    );
+
     // Fetch guest tokens for this proposal
     const guestTokens = db.prepare(`
       SELECT id, token, guest_name, created_at, expires_at FROM date_proposal_guest_tokens
@@ -126,6 +156,7 @@ router.get('/', authenticate, (req: Request, res: Response) => {
       vacationDays: overlappingVacation,
       companyHolidays: overlappingCompany,
       vacayEntries: overlappingVacayEntries,
+      tripDateRanges: overlappingTripRanges,
     };
   });
 
@@ -141,7 +172,7 @@ router.post('/', authenticate, (req: Request, res: Response) => {
   if (!access) return res.status(404).json({ error: 'Group not found' });
   if (!canEdit(access.role)) return res.status(403).json({ error: 'No permission' });
 
-  let { title, period_start, period_end, deadline, reminder_days } = req.body;
+  let { title, period_start, period_end, deadline, reminder_days, response_threshold } = req.body;
   if (!period_start || !period_end) return res.status(400).json({ error: 'period_start and period_end are required' });
 
   // Generate a default title from the date range if not provided
@@ -165,11 +196,12 @@ router.post('/', authenticate, (req: Request, res: Response) => {
 
   const deadlineVal = deadline && !isNaN(new Date(deadline).getTime()) ? deadline : null;
   const reminderDaysVal = Number.isInteger(Number(reminder_days)) && Number(reminder_days) >= 0 ? Number(reminder_days) : 2;
+  const responseThresholdVal = response_threshold && Number.isInteger(Number(response_threshold)) && Number(response_threshold) > 0 ? Number(response_threshold) : null;
 
   const info = db.prepare(`
-    INSERT INTO date_proposals (group_id, created_by, title, period_start, period_end, deadline, reminder_days)
-    VALUES (?, ?, ?, ?, ?, ?, ?)
-  `).run(groupId, authReq.user.id, title.trim() || title, period_start, period_end, deadlineVal, reminderDaysVal);
+    INSERT INTO date_proposals (group_id, created_by, title, period_start, period_end, deadline, reminder_days, response_threshold)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(groupId, authReq.user.id, title.trim() || title, period_start, period_end, deadlineVal, reminderDaysVal, responseThresholdVal);
 
   const proposal = db.prepare(`
     SELECT dp.*, u.username AS creator_name
@@ -218,7 +250,7 @@ router.put('/:proposalId/availability', authenticate, (req: Request, res: Respon
   const access = getGroupAccess(groupId, authReq.user.id);
   if (!access) return res.status(404).json({ error: 'Group not found' });
 
-  const proposal = db.prepare('SELECT * FROM date_proposals WHERE id = ? AND group_id = ?').get(proposalId, groupId) as { period_start: string; period_end: string; status?: string } | undefined;
+  const proposal = db.prepare('SELECT * FROM date_proposals WHERE id = ? AND group_id = ?').get(proposalId, groupId) as { period_start: string; period_end: string; status?: string; created_by: number; title: string; response_threshold: number | null } | undefined;
   if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
 
   if (proposal.status === 'confirmed') return res.status(403).json({ error: 'Proposal is confirmed and read-only' });
@@ -282,6 +314,34 @@ router.put('/:proposalId/availability', authenticate, (req: Request, res: Respon
     userId: authReq.user.id,
     availability,
   }, req.headers['x-socket-id'] as string);
+
+  // Drempelmelding: notify if unique respondents just crossed the threshold
+  if (proposal.response_threshold) {
+    const respondentCount = (db.prepare(`
+      SELECT COUNT(DISTINCT user_id) as c FROM date_availability WHERE proposal_id = ?
+    `).get(proposalId) as { c: number }).c;
+    const memberCount = (db.prepare(`
+      SELECT COUNT(*) as c FROM group_members WHERE group_id = ?
+    `).get(groupId) as { c: number }).c;
+    if (respondentCount === proposal.response_threshold) {
+      const groupInfo = db.prepare('SELECT name FROM groups WHERE id = ?').get(groupId) as { name: string } | undefined;
+      import('../services/notificationService').then(({ send }) => {
+        send({
+          event: 'date_proposal_threshold_reached',
+          actorId: authReq.user.id,
+          scope: 'group',
+          targetId: Number(groupId),
+          params: {
+            group: groupInfo?.name || 'Group',
+            proposal: proposal.title,
+            respondents: String(respondentCount),
+            members: String(memberCount),
+            groupId: String(groupId),
+          },
+        }).catch(() => {});
+      }).catch(() => {});
+    }
+  }
 });
 
 // ── GET /groups/:groupId/date-proposals/:proposalId/analysis ──────────────────

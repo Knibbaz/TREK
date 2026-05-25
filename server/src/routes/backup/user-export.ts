@@ -19,8 +19,8 @@ const importUpload = multer({
   dest: uploadsDir,
   limits: { fileSize: 500 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    if (file.originalname.endsWith('.trek')) cb(null, true);
-    else cb(new Error('Only .trek files allowed'));
+    if (file.originalname.endsWith('.routd')) cb(null, true);
+    else cb(new Error('Only .routd files allowed'));
   },
 });
 
@@ -134,6 +134,8 @@ router.post('/export', authenticate, async (req: Request, res: Response) => {
       status: 'ready',
       fileSize: result.fileSize,
       expiresAt,
+      token,
+      downloads_left: 3,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -192,6 +194,7 @@ router.get('/export/status', authenticate, (req: Request, res: Response) => {
       record.status = 'expired';
     }
 
+    const canDownload = record.status === 'ready' && record.download_token !== null;
     res.json({
       hasExport: true,
       exportId: record.id,
@@ -201,7 +204,9 @@ router.get('/export/status', authenticate, (req: Request, res: Response) => {
       requestedAt: record.requested_at,
       readyAt: record.ready_at,
       expiresAt: record.expires_at,
-      canDownload: record.status === 'ready' && record.download_token !== null,
+      canDownload,
+      token: canDownload ? record.download_token : null,
+      downloads_left: canDownload ? Math.max(0, 3 - record.download_count) : null,
     });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -278,7 +283,7 @@ router.get('/export/preview', authenticate, (req: Request, res: Response) => {
 
     // Count places
     const placeCount = (db.prepare(`
-      SELECT COUNT(*) as c FROM places p
+      SELECT COUNT(DISTINCT p.id) as c FROM places p
       JOIN trips t ON t.id = p.trip_id
       LEFT JOIN trip_members tm ON tm.trip_id = t.id
       WHERE t.user_id = ? OR tm.user_id = ?
@@ -300,29 +305,34 @@ router.get('/export/preview', authenticate, (req: Request, res: Response) => {
       WHERE t.user_id = ? OR tm.user_id = ?
     `).get(userId, userId) as { c: number }).c;
 
-    // Count files (photos + trip_files)
-    const photoCount = (db.prepare(`
-      SELECT COUNT(*) as c FROM photos ph
+    // Count files (photos + trip_files) and sum sizes
+    const photoStats = (db.prepare(`
+      SELECT COUNT(*) as c, COALESCE(SUM(ph.file_size), 0) as total_bytes FROM photos ph
       JOIN trips t ON t.id = ph.trip_id
       LEFT JOIN trip_members tm ON tm.trip_id = t.id
       WHERE t.user_id = ? OR tm.user_id = ?
-    `).get(userId, userId) as { c: number }).c;
+    `).get(userId, userId) as { c: number; total_bytes: number });
+    const photoCount = photoStats.c;
 
-    const fileCount = (db.prepare(`
-      SELECT COUNT(*) as c FROM trip_files tf
+    const fileStats = (db.prepare(`
+      SELECT COUNT(*) as c, COALESCE(SUM(tf.file_size), 0) as total_bytes FROM trip_files tf
       JOIN trips t ON t.id = tf.trip_id
       LEFT JOIN trip_members tm ON tm.trip_id = t.id
-      WHERE t.user_id = ? OR tm.user_id = ? AND tf.deleted_at IS NULL
-    `).get(userId, userId) as { c: number }).c;
+      WHERE (t.user_id = ? OR tm.user_id = ?) AND tf.deleted_at IS NULL
+    `).get(userId, userId) as { c: number; total_bytes: number });
+    const fileCount = fileStats.c;
+    const totalBytes = (photoStats.total_bytes || 0) + (fileStats.total_bytes || 0);
+    const files_mb = Math.round(totalBytes / (1024 * 1024) * 10) / 10; // 1 decimal
 
     // Count explore data
-    const listingCount = (db.prepare(`SELECT COUNT(*) as c FROM explore_published WHERE user_id = ?`).get(userId) as { c: number }).c;
+    const listingCount = (db.prepare(`SELECT COUNT(*) as c FROM explore_published ep JOIN trips t ON t.id = ep.trip_id WHERE t.user_id = ?`).get(userId) as { c: number }).c;
     const purchaseCount = (db.prepare(`SELECT COUNT(*) as c FROM explore_user_trips WHERE user_id = ?`).get(userId) as { c: number }).c;
     const reviewCount = (db.prepare(`SELECT COUNT(*) as c FROM explore_reviews WHERE user_id = ?`).get(userId) as { c: number }).c;
 
     res.json({
       trips: tripCount,
       places: placeCount,
+      files_mb,
       budgetItems: budgetCount,
       reservations: reservationCount,
       photos: photoCount,

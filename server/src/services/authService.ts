@@ -314,6 +314,22 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
     unsplash_configured: unsplashConfigured,
     permissions: authenticatedUser ? getAllPermissions() : undefined,
     dev_mode: process.env.NODE_ENV === 'development',
+    branding: {
+      name: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_name'").get() as { value: string } | undefined)?.value || 'ROUTD',
+      logo_light: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_logo_light'").get() as { value: string } | undefined)?.value || '',
+      logo_dark: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_logo_dark'").get() as { value: string } | undefined)?.value || '',
+      icon_light: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_icon_light'").get() as { value: string } | undefined)?.value || '',
+      icon_dark: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_icon_dark'").get() as { value: string } | undefined)?.value || '',
+      accent: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_accent'").get() as { value: string } | undefined)?.value || '#111827',
+      accent_text: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_accent_text'").get() as { value: string } | undefined)?.value || '#ffffff',
+      bg_primary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_bg_primary'").get() as { value: string } | undefined)?.value || '',
+      bg_secondary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_bg_secondary'").get() as { value: string } | undefined)?.value || '',
+      text_primary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_text_primary'").get() as { value: string } | undefined)?.value || '',
+      text_secondary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_text_secondary'").get() as { value: string } | undefined)?.value || '',
+      text_muted: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_text_muted'").get() as { value: string } | undefined)?.value || '',
+      nav_bg: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_nav_bg'").get() as { value: string } | undefined)?.value || '',
+      disable_dark_mode: (db.prepare("SELECT value FROM app_settings WHERE key = 'disable_dark_mode'").get() as { value: string } | undefined)?.value === 'true',
+    },
   };
 }
 

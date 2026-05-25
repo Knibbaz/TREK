@@ -49,13 +49,13 @@ export default function GroupJoinPage(): React.ReactElement {
       // Reset notice store so the group-welcome notice appears on /groups
       resetNotices()
       fetchNotices()
-      setTimeout(() => navigate('/groups'), 1500)
+      setTimeout(() => navigate(`/groups/${group.groupId}`), 1500)
     } catch (err: any) {
       const msg = err?.response?.data?.error || 'Failed to join group'
       toast.error(msg)
       if (msg.includes('already a member')) {
         setJoined(true)
-        setTimeout(() => navigate('/groups'), 1500)
+        setTimeout(() => navigate(group?.groupId ? `/groups/${group.groupId}` : '/groups'), 1500)
       }
     } finally {
       setJoining(false)

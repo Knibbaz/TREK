@@ -21,7 +21,7 @@ import { useCountUp } from '../hooks/useCountUp'
 import {
   Plus, Calendar, Trash2, Edit2, Map, ChevronDown, ChevronUp,
   Archive, ArchiveRestore, Clock, MapPin, Settings, X, ArrowRightLeft, Users,
-  LayoutGrid, List, Copy, Bell, Compass, Upload, Download,
+  LayoutGrid, List, Copy, Bell, Compass, Upload, Download, ExternalLink,
 } from 'lucide-react'
 import { useCanDo } from '../store/permissionsStore'
 import { useAddonStore } from '../store/addonStore'
@@ -41,6 +41,13 @@ interface DashboardTrip {
   shared_count?: number
   from_explore?: number
   source_trip_id?: number
+  cloned_from_trip_id?: number | null
+  cloned_from_trip_title?: string | null
+  cloned_from_username?: string | null
+  cloned_from_creator_name?: string | null
+  cloned_from_creator_slug?: string | null
+  cloned_from_creator_avatar?: string | null
+  cloned_from_social_links?: string | null
   [key: string]: string | number | boolean | null | undefined
 }
 
@@ -382,6 +389,28 @@ function TripCard({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, onPush
               <Users size={9} /> {t('dashboard.sharedBy', { name: trip.owner_username })}
             </span>
           )}
+          {trip.cloned_from_trip_id && (() => {
+            const socialLinks = trip.cloned_from_social_links ? (() => { try { return JSON.parse(trip.cloned_from_social_links as string) } catch { return {} } })() : {}
+            const website = socialLinks.website || null
+            const name = trip.cloned_from_creator_name || trip.cloned_from_username || null
+            if (!name) return null
+            const avatar = trip.cloned_from_creator_avatar
+            const inner = (
+              <span className="inline-flex items-center gap-1.5 self-start px-2 py-0.5 bg-white/10 backdrop-blur-sm border border-white/15 rounded-full text-[9px] font-semibold mb-2"
+                style={{ cursor: website ? 'pointer' : 'default' }}
+                onClick={website ? (e) => { e.stopPropagation(); window.open(website, '_blank', 'noopener') } : undefined}
+                title={website ? website : undefined}
+              >
+                {avatar
+                  ? <img src={avatar} alt="" style={{ width: 12, height: 12, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                  : <Compass size={9} />
+                }
+                {name}
+                {website && <ExternalLink size={8} style={{ opacity: 0.7 }} />}
+              </span>
+            )
+            return inner
+          })()}
           <h2 className="text-[32px] font-extrabold tracking-[-0.03em] leading-[0.95] mb-1.5">{trip.title}</h2>
           <p className="text-[12px] opacity-80 font-medium">
             {formatDateShort(trip.start_date, locale)} — {formatDateShort(trip.end_date, locale)}
@@ -498,6 +527,25 @@ function TripListItem({ trip, onEdit, onCopy, onDelete, onArchive, onPublish, on
             {trip.description}
           </p>
         )}
+        {trip.cloned_from_trip_id && (() => {
+          const socialLinks = trip.cloned_from_social_links ? (() => { try { return JSON.parse(trip.cloned_from_social_links as string) } catch { return {} } })() : {}
+          const website = socialLinks.website || null
+          const name = trip.cloned_from_creator_name || trip.cloned_from_username || null
+          if (!name) return null
+          return (
+            <span
+              onClick={website ? (e) => { e.stopPropagation(); window.open(website, '_blank', 'noopener') } : undefined}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3, fontSize: 10, color: 'var(--text-faint)', cursor: website ? 'pointer' : 'default' }}
+            >
+              {trip.cloned_from_creator_avatar
+                ? <img src={trip.cloned_from_creator_avatar} alt="" style={{ width: 11, height: 11, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                : <Compass size={9} />
+              }
+              {name}
+              {website && <ExternalLink size={8} />}
+            </span>
+          )
+        })()}
       </div>
 
       {/* Date & stats */}

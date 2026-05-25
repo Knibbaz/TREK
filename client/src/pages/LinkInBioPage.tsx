@@ -103,7 +103,7 @@ export function LinkInBioPage() {
           color: 'var(--lib-text-secondary)',
           textAlign: 'center',
         }}>
-          <p>Created with TREK Creator Hub</p>
+          <p>Created with ROUTD Creator Hub</p>
         </div>
       </div>
     </div>

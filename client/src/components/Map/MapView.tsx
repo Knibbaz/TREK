@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useMemo, useCallback, createElement, memo } from 'react'
+import { Route as RouteIcon } from 'lucide-react'
 import DOM from 'react-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Circle, useMap } from 'react-leaflet'
@@ -429,6 +430,8 @@ export const MapView = memo(function MapView({
     return { paddingTopLeft: [left, top], paddingBottomRight: [right, bottom] }
   }, [leftWidth, rightWidth, hasInspector, hasDayDetail, hasBottomBar])
 
+  const [showRouteLabels, setShowRouteLabels] = useState(false)
+
   // Hover state for the single tooltip overlay (replaces per-marker <Tooltip>)
   const [hoveredPlace, setHoveredPlace] = useState<any>(null)
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
@@ -618,7 +621,7 @@ export const MapView = memo(function MapView({
               dashArray="6, 5"
             />
           ))}
-          {routeSegments.map((seg, i) => (
+          {showRouteLabels && routeSegments.map((seg, i) => (
             <RouteLabel key={i} midpoint={seg.mid} from={seg.from} to={seg.to} walkingText={seg.walkingText} drivingText={seg.drivingText} distanceText={seg.distanceText} />
           ))}
         </>
@@ -640,6 +643,23 @@ export const MapView = memo(function MapView({
       onClick={cycleTrackingMode}
       bottomOffset={locationButtonBottom as unknown as number}
     />}
+    {routeSegments.length > 0 && (
+      <button
+        onClick={() => setShowRouteLabels(v => !v)}
+        title={showRouteLabels ? 'Verberg reistijden' : 'Toon reistijden'}
+        style={{
+          position: 'absolute', top: 10, right: 10, zIndex: 1000,
+          background: showRouteLabels ? '#111827' : 'rgba(255,255,255,0.95)',
+          color: showRouteLabels ? '#fff' : '#374151',
+          border: '1px solid rgba(0,0,0,0.15)',
+          borderRadius: 8, padding: '5px 7px',
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.12)',
+        }}
+      >
+        <RouteIcon size={14} />
+      </button>
+    )}
     </div>
 
     {TooltipOverlay && (

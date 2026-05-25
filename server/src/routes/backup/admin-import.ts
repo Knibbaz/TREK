@@ -20,12 +20,12 @@ const upload = multer({
   dest: uploadsDir,
   limits: { fileSize: 500 * 1024 * 1024 }, // 500 MB
   fileFilter: (_req, file, cb) => {
-    if (file.originalname.endsWith('.trek')) cb(null, true);
-    else cb(new Error('Only .trek files allowed'));
+    if (file.originalname.endsWith('.routd')) cb(null, true);
+    else cb(new Error('Only .routd files allowed'));
   },
 });
 
-// Track uploaded .trek files for preview/restore
+// Track uploaded .routd files for preview/restore
 const uploadSessions = new Map<string, { filePath: string; uploadedAt: number }>();
 
 function generateUploadId(): string {
@@ -45,7 +45,7 @@ router.post('/upload', upload.single('trek'), async (req: Request, res: Response
     const validation = await validateTrek(filePath);
     if (!validation.valid) {
       fs.unlinkSync(filePath);
-      return res.status(400).json({ error: validation.error || 'Invalid .trek file' });
+      return res.status(400).json({ error: validation.error || 'Invalid .routd file' });
     }
 
     const uploadId = generateUploadId();

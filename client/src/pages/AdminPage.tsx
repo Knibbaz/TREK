@@ -22,7 +22,8 @@ import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
 import PermissionsPanel from '../components/Admin/PermissionsPanel'
 import GdprAdminPanel from '../components/Admin/GdprAdminPanel'
 import { CreatorApplicationQueue } from '../components/Admin/CreatorApplicationQueue'
-import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown } from 'lucide-react'
+import BrandingPanel from '../components/Admin/BrandingPanel'
+import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown, Palette } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 
@@ -214,6 +215,7 @@ export default function AdminPage(): React.ReactElement {
   const loadSettings = useSettingsStore(s => s.loadSettings)
   const mcpEnabled = useAddonStore(s => s.isEnabled('mcp'))
   const exploreEnabled = useAddonStore(s => s.isEnabled('explore'))
+  const packingEnabled = useAddonStore(s => s.isEnabled('packing'))
   const devMode = useAuthStore(s => s.devMode)
   const TABS: PageSidebarTab[] = [
     { id: 'users', label: t('admin.tabs.users'), icon: Users },
@@ -222,6 +224,8 @@ export default function AdminPage(): React.ReactElement {
     { id: 'config', label: t('admin.tabs.config'), icon: SlidersHorizontal },
     { id: 'defaults', label: t('admin.tabs.defaults'), icon: UserCog },
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
+    { id: 'groups', label: t('admin.tabs.groups') || 'Groups', icon: Users },
+    { id: 'branding', label: t('admin.tabs.branding') || 'Branding', icon: Palette },
     { id: 'settings', label: t('admin.tabs.settings'), icon: SettingsIcon },
     { id: 'notifications', label: t('admin.tabs.notifications'), icon: Bell },
     { id: 'backup', label: t('admin.tabs.backup'), icon: Database },
@@ -1373,7 +1377,7 @@ export default function AdminPage(): React.ReactElement {
 
           {activeTab === 'config' && (
             <div className="space-y-6">
-              <PackingTemplateManager />
+              {packingEnabled && <PackingTemplateManager />}
               <CategoryManager />
             </div>
           )}
@@ -1389,41 +1393,48 @@ export default function AdminPage(): React.ReactElement {
                 setCollabFeatures(next)
                 try { await adminApi.updateCollabFeatures({ [key]: next[key] }) } catch { setCollabFeatures(collabFeatures) }
               }} />
+            </div>
+          )}
 
-              {/* Group welcome notice */}
-              <div className="bg-white rounded-xl border border-slate-200 overflow-hidden">
-                <div className="px-6 py-4 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-900">Group welcome message</h2>
-                  <p className="text-xs text-slate-400 mt-0.5">Shown as a modal when someone joins a group via invite link (within 30 minutes of joining).</p>
+          {activeTab === 'groups' && (
+            <div className="space-y-6">
+              {/* Global group welcome message */}
+              <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+                <div className="px-6 py-4 border-b" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+                  <h2 className="font-semibold" style={{ color: 'var(--text-primary)' }}>Group welcome message</h2>
+                  <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>Default message shown when someone joins a group via invite link. Group admins can override this per group.</p>
                 </div>
                 <div className="p-6 space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Title</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Title</label>
                     <input
                       type="text"
                       value={groupWelcome.title}
                       onChange={e => setGroupWelcome(g => ({ ...g, title: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm rounded-lg border"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
                       placeholder="Welcome to the group!"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Body (markdown supported)</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Body (markdown supported)</label>
                     <textarea
                       rows={4}
                       value={groupWelcome.body}
                       onChange={e => setGroupWelcome(g => ({ ...g, body: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-y"
+                      className="w-full px-3 py-2 text-sm rounded-lg border resize-y"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
                       placeholder="You're now a member. Start exploring shared trips and availability together."
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-slate-600 mb-1">Icon (Lucide icon name)</label>
+                    <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>Icon (Lucide icon name)</label>
                     <input
                       type="text"
                       value={groupWelcome.icon}
                       onChange={e => setGroupWelcome(g => ({ ...g, icon: e.target.value }))}
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full px-3 py-2 text-sm rounded-lg border"
+                      style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
                       placeholder="Users"
                     />
                   </div>
@@ -2455,6 +2466,8 @@ export default function AdminPage(): React.ReactElement {
               </div>
             </>)
           })()}
+
+          {activeTab === 'branding' && <BrandingPanel />}
 
           {activeTab === 'backup' && <BackupPanel />}
 

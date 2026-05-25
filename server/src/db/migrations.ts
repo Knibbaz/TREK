@@ -3092,6 +3092,208 @@ function runMigrations(db: Database.Database): void {
 
       console.log('[migrations] Added parent_id to addons, seeded Explore sub-addons');
     },
+
+    // Migration 170: creator_affiliate_links + creator_affiliate_clicks
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_affiliate_links (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          creator_id      INTEGER NOT NULL REFERENCES explore_creators(id) ON DELETE CASCADE,
+          title           TEXT NOT NULL,
+          destination_url TEXT NOT NULL,
+          short_code      TEXT NOT NULL UNIQUE,
+          category        TEXT,
+          icon            TEXT,
+          description     TEXT,
+          linked_listing_id TEXT,
+          linked_guide_id TEXT,
+          click_count     INTEGER NOT NULL DEFAULT 0,
+          network         TEXT,
+          estimated_commission_rate REAL,
+          is_active       INTEGER NOT NULL DEFAULT 1,
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_affiliate_creator ON creator_affiliate_links(creator_id);
+        CREATE TABLE IF NOT EXISTS creator_affiliate_clicks (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          link_id         TEXT NOT NULL REFERENCES creator_affiliate_links(id) ON DELETE CASCADE,
+          referrer        TEXT,
+          country_code    TEXT,
+          device_type     TEXT,
+          source          TEXT,
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_clicks_link ON creator_affiliate_clicks(link_id);
+        CREATE INDEX IF NOT EXISTS idx_clicks_date ON creator_affiliate_clicks(created_at);
+      `);
+      console.log('[migrations] Created creator_affiliate_links and creator_affiliate_clicks tables');
+    },
+
+    // Migration 171: creator_tips
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_tips (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          creator_id      INTEGER NOT NULL REFERENCES explore_creators(id) ON DELETE CASCADE,
+          amount_cents    INTEGER NOT NULL,
+          currency        TEXT NOT NULL DEFAULT 'EUR',
+          tipper_name     TEXT,
+          tipper_message  TEXT,
+          mollie_payment_id TEXT,
+          status          TEXT NOT NULL DEFAULT 'completed',
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_tips_creator ON creator_tips(creator_id);
+      `);
+      console.log('[migrations] Created creator_tips table');
+    },
+    // Migration 172: group_trip_participants
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_trip_participants (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          trip_id    INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, trip_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_gtp_group_trip ON group_trip_participants(group_id, trip_id);
+      `);
+      console.log('[migrations] Created group_trip_participants table');
+    },
+    // Migration 173: share_vacay per group member
+    () => {
+      db.exec(`ALTER TABLE group_members ADD COLUMN share_vacay INTEGER DEFAULT NULL`);
+      console.log('[migrations] Added share_vacay to group_members');
+    },
+    // Migration 169: White-label branding keys
+    () => {
+      const keys = [
+        ['brand_name', 'ROUTD'],
+        ['brand_logo_light', ''],
+        ['brand_logo_dark', ''],
+        ['brand_icon_light', ''],
+        ['brand_icon_dark', ''],
+        ['brand_accent', '#111827'],
+        ['brand_accent_text', '#ffffff'],
+      ];
+      for (const [key, value] of keys) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Inserted brand_* keys into app_settings');
+    },
+    // Migration 170: Default user settings seed
+    () => {
+      const defaults: [string, string][] = [
+        ['default_user_setting_dark_mode', '"auto"'],
+        ['default_user_setting_temperature_unit', '"celsius"'],
+        ['default_user_setting_time_format', '"24h"'],
+        ['default_user_setting_route_calculation', 'true'],
+        ['default_user_setting_blur_booking_codes', 'true'],
+      ];
+      for (const [key, value] of defaults) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Seeded default_user_setting_* keys');
+    },
+    // Migration 171: Per-group welcome message columns
+    () => {
+      db.exec(`ALTER TABLE groups ADD COLUMN welcome_title TEXT`);
+      db.exec(`ALTER TABLE groups ADD COLUMN welcome_body TEXT`);
+      db.exec(`ALTER TABLE groups ADD COLUMN welcome_icon TEXT`);
+      console.log('[migrations] Added welcome_title/body/icon to groups');
+    },
+    // Migration 172: Add response_threshold to date_proposals
+    () => {
+      try { db.exec(`ALTER TABLE date_proposals ADD COLUMN response_threshold INTEGER DEFAULT NULL`); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added response_threshold to date_proposals');
+    },
+    // Migration 174: Extended branding color keys
+    () => {
+      const keys = [
+        ['brand_bg_primary', ''],
+        ['brand_bg_secondary', ''],
+        ['brand_text_primary', ''],
+        ['brand_nav_bg', ''],
+      ];
+      for (const [key, value] of keys) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Inserted extended brand_* color keys into app_settings');
+    },
+    // Migration 175: Group activity feed
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_activity (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          actor_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          actor_name  TEXT,
+          event_type  TEXT NOT NULL,
+          resource_id INTEGER,
+          resource_title TEXT,
+          created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_activity_group ON group_activity(group_id, created_at DESC);
+      `);
+      console.log('[migrations] Created group_activity table');
+    },
+    // Migration 177: Additional brand text color keys + disable_dark_mode setting
+    () => {
+      const keys = [
+        ['brand_text_secondary', ''],
+        ['brand_text_muted', ''],
+        ['disable_dark_mode', ''],
+      ];
+      for (const [key, value] of keys) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Inserted brand_text_secondary, brand_text_muted, disable_dark_mode into app_settings');
+    },
+    // Migration 176: Group brand_color column
+    () => {
+      try { db.exec(`ALTER TABLE groups ADD COLUMN brand_color TEXT`); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added brand_color to groups');
+    },
+    // Migration 179: Group ideas (prikbord)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_ideas (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title       TEXT NOT NULL,
+          body        TEXT,
+          created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_ideas_group ON group_ideas(group_id, created_at DESC);
+      `);
+      console.log('[migrations] Created group_ideas table');
+    },
+    // Migration 180: Group tasks (taakverdeling)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_tasks (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          title       TEXT NOT NULL,
+          done        INTEGER NOT NULL DEFAULT 0,
+          assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_by  INTEGER NOT NULL REFERENCES users(id),
+          sort_order  INTEGER NOT NULL DEFAULT 0,
+          created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_tasks_group ON group_tasks(group_id, sort_order);
+      `);
+      console.log('[migrations] Created group_tasks table');
+    },
+    // Migration 181: Track origin of cloned trips (share-link clones)
+    () => {
+      try { db.exec('ALTER TABLE trips ADD COLUMN cloned_from_trip_id INTEGER REFERENCES trips(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added cloned_from_trip_id to trips');
+    },
   ];
 
   if (currentVersion < migrations.length) {

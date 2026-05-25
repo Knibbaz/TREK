@@ -5,48 +5,10 @@ import { db } from '../../db/database';
 
 const router = Router();
 
-// Public endpoint — no auth required (GET /:slug when mounted at /api/public/lib)
-router.get('/:slug', (req: Request, res: Response) => {
-  try {
-    const { slug } = req.params;
-
-    // Get creator by slug
-    const creator = db
-      .prepare('SELECT id, user_id FROM explore_creators WHERE slug = ?')
-      .get(slug) as { id: number; user_id: number } | undefined;
-
-    if (!creator) {
-      return res.status(404).json({ error: 'Creator not found' });
-    }
-
-    // Get LiB config
-    const config = db
-      .prepare('SELECT * FROM creator_lib_config WHERE creator_id = ?')
-      .get(creator.id);
-
-    if (!config) {
-      return res.status(404).json({ error: 'Link-in-Bio not found' });
-    }
-
-    // Get blocks
-    const blocks = db
-      .prepare('SELECT * FROM creator_lib_blocks WHERE creator_id = ? AND is_visible = 1 ORDER BY sort_order ASC')
-      .all(creator.id);
-
-    // Increment view count
-    db.prepare('UPDATE creator_lib_config SET view_count = view_count + 1 WHERE creator_id = ?').run(creator.id);
-
-    return res.json({ config, blocks });
-  } catch (err) {
-    console.error('[LiB] GET /public/:slug error:', err);
-    return res.status(500).json({ error: 'Server error' });
-  }
-});
-
 // Creator routes require auth
 router.use(authenticate);
 
-// GET /config — haal LiB config op
+// GET /config — haal LiB config op, auto-init if not exists
 router.get('/config', (req: AuthRequest, res: Response) => {
   try {
     const user = req.user;
@@ -55,19 +17,42 @@ router.get('/config', (req: AuthRequest, res: Response) => {
     }
 
     const creatorRow = db
-      .prepare('SELECT id FROM explore_creators WHERE user_id = ?')
-      .get(user.id) as { id: number } | undefined;
+      .prepare('SELECT id, slug FROM explore_creators WHERE user_id = ?')
+      .get(user.id) as { id: number; slug: string } | undefined;
 
     if (!creatorRow) {
-      return res.status(404).json({ error: 'Creator profile not found' });
+      return res.status(404).json({ error: 'Creator profile not found', code: 'NO_CREATOR_PROFILE' });
     }
 
-    const config = db
+    // Require at least 1 published + approved listing
+    const publishedCount = (db
+      .prepare('SELECT COUNT(*) as cnt FROM explore_published WHERE submitted_by = ? AND status = ? AND is_published = 1')
+      .get(user.id, 'approved') as { cnt: number }).cnt;
+
+    if (publishedCount === 0) {
+      return res.status(403).json({ error: 'Publish and approve at least one trip on Explore first', code: 'NO_PUBLISHED_LISTINGS' });
+    }
+
+    let config = db
       .prepare('SELECT * FROM creator_lib_config WHERE creator_id = ?')
       .get(creatorRow.id);
 
+    // Auto-initialize on first visit
     if (!config) {
-      return res.status(404).json({ error: 'Link-in-Bio not yet configured' });
+      db.prepare(
+        `INSERT INTO creator_lib_config
+         (creator_id, slug, theme, background_type, background_value, accent_color, font_family)
+         VALUES (?, ?, 'minimal', 'solid', '#ffffff', '#0066cc', 'Inter')`
+      ).run(creatorRow.id, creatorRow.slug);
+
+      // Insert fixed profile block (always first, pinned)
+      const blockId = Math.random().toString(36).substring(2, 18);
+      db.prepare(
+        `INSERT INTO creator_lib_blocks (id, creator_id, type, title, url, icon, content, sort_order, is_visible)
+         VALUES (?, ?, 'link', 'My Explore Profile', ?, '🌍', '{}', 0, 1)`
+      ).run(blockId, creatorRow.id, `/creator/${creatorRow.slug}`);
+
+      config = db.prepare('SELECT * FROM creator_lib_config WHERE creator_id = ?').get(creatorRow.id);
     }
 
     return res.json(config);
@@ -320,6 +305,42 @@ router.patch('/blocks/reorder', (req: AuthRequest, res: Response) => {
     return res.json(blocks);
   } catch (err) {
     console.error('[LiB] PATCH /blocks/reorder error:', err);
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Public endpoint — must be LAST to avoid catching /config /blocks etc.
+// Only matched when this router is also mounted at /api/public/lib
+export const publicLibRouter = Router();
+publicLibRouter.get('/:slug', (req: Request, res: Response) => {
+  try {
+    const { slug } = req.params;
+
+    const creator = db
+      .prepare('SELECT id, user_id FROM explore_creators WHERE slug = ?')
+      .get(slug) as { id: number; user_id: number } | undefined;
+
+    if (!creator) {
+      return res.status(404).json({ error: 'Creator not found' });
+    }
+
+    const config = db
+      .prepare('SELECT * FROM creator_lib_config WHERE creator_id = ?')
+      .get(creator.id);
+
+    if (!config) {
+      return res.status(404).json({ error: 'Link-in-Bio not found' });
+    }
+
+    const blocks = db
+      .prepare('SELECT * FROM creator_lib_blocks WHERE creator_id = ? AND is_visible = 1 ORDER BY sort_order ASC')
+      .all(creator.id);
+
+    db.prepare('UPDATE creator_lib_config SET view_count = view_count + 1 WHERE creator_id = ?').run(creator.id);
+
+    return res.json({ config, blocks });
+  } catch (err) {
+    console.error('[LiB] GET /public/:slug error:', err);
     return res.status(500).json({ error: 'Server error' });
   }
 });

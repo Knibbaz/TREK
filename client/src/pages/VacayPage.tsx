@@ -112,21 +112,21 @@ export default function VacayPage(): React.ReactElement {
       <VacayPersons />
 
       {/* Legend */}
-      {(plan?.holidays_enabled || plan?.company_holidays_enabled || plan?.block_weekends) && (
-        <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
-          <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>{t('vacay.legend')}</span>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
-            {plan?.holidays_enabled && (plan?.holiday_calendars ?? []).length === 0 && (
-              <LegendItem color="#fecaca" label={t('vacay.publicHoliday')} />
-            )}
-            {plan?.holidays_enabled && (plan?.holiday_calendars ?? []).map(cal => (
-              <LegendItem key={cal.id} color={cal.color} label={cal.label || cal.region} />
-            ))}
-            {plan?.company_holidays_enabled && <LegendItem color="#fde68a" label={t('vacay.companyHoliday')} />}
-            {plan?.block_weekends && <LegendItem color="#e5e7eb" label={t('vacay.weekend')} />}
-          </div>
+      <div className="rounded-xl border p-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+        <span className="text-[11px] font-medium uppercase tracking-wider" style={{ color: 'var(--text-faint)' }}>{t('vacay.legend')}</span>
+        <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
+          {plan?.holidays_enabled && (plan?.holiday_calendars ?? []).length === 0 && (
+            <LegendItem color="#fecaca" label={t('vacay.publicHoliday')} />
+          )}
+          {plan?.holidays_enabled && (plan?.holiday_calendars ?? []).map(cal => (
+            <LegendItem key={cal.id} color={cal.color} label={cal.label || cal.region} />
+          ))}
+          {plan?.company_holidays_enabled && <LegendItem color="#fde68a" label={t('vacay.companyHoliday')} />}
+          {plan?.block_weekends && <LegendItem color="#e5e7eb" label={t('vacay.weekend')} />}
+          <LegendDotItem color="#3b82f6" label={t('vacay.tripDates') || 'Geplande reis'} />
+          <LegendDotItem color="#f97316" label={t('vacay.proposalDates') || 'Beschikbaarheidsvoorstel'} />
         </div>
-      )}
+      </div>
 
       <VacayStats />
     </>
@@ -324,6 +324,15 @@ function LegendItem({ color, label }: { color: string; label: string }): React.R
   return (
     <div className="flex items-center gap-2">
       <span className="w-4 h-3 rounded" style={{ background: color, border: `1px solid ${color}` }} />
+      <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
+    </div>
+  )
+}
+
+function LegendDotItem({ color, label }: { color: string; label: string }): React.ReactElement {
+  return (
+    <div className="flex items-center gap-2">
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: color }} />
       <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{label}</span>
     </div>
   )

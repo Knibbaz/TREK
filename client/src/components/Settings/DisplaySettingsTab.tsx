@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Palette, Sun, Moon, Monitor, ChevronDown, Check } from 'lucide-react'
+import { Palette, Sun, Moon, Monitor, ChevronDown, Check, Footprints, Car, Plane } from 'lucide-react'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
@@ -269,65 +269,85 @@ export default function DisplaySettingsTab(): React.ReactElement {
         </div>
       </div>
 
-      {/* Route Walking Threshold */}
+      {/* Route Thresholds */}
       {(settings.route_calculation !== false) && (
-        <>
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-              {t('settings.routeWalkingThreshold') || 'Wandelen tot'}
-            </label>
-            <input
-              type="range"
-              min={1000}
-              max={100000}
-              step={1000}
-              value={settings.route_walking_threshold ?? 30000}
-              onChange={async (e) => {
-                const val = Number(e.target.value)
-                try { await updateSetting('route_walking_threshold', val) }
-                catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
-              }}
-              style={{ width: '100%' }}
-            />
-            <div className="flex justify-between text-xs" style={{ color: 'var(--text-faint)' }}>
-              <span>1 km</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                {(settings.route_walking_threshold ?? 30000) >= 1000
-                  ? `${Math.round((settings.route_walking_threshold ?? 30000) / 1000)} km`
-                  : `${settings.route_walking_threshold ?? 30000} m`}
-              </span>
-              <span>100 km</span>
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border-primary)' }}>
+          {/* Walking threshold */}
+          <div className="p-4 border-b" style={{ borderColor: 'var(--border-primary)' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Footprints size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {t('settings.routeWalkingThreshold') || 'Wandelen tot'}
+              </label>
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('settings.routeWalkingThresholdHint') || 'Tot deze afstand wordt wandelen getoond; daarboven auto.'}</p>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-faint)', paddingLeft: 22 }}>
+              {t('settings.routeWalkingThresholdHint') || 'Routes tot deze afstand tonen wandeltijd; daarboven auto.'}
+            </p>
+            <div className="flex gap-2 flex-wrap" style={{ paddingLeft: 22 }}>
+              {[1000, 5000, 15000, 30000, 100000].map(val => {
+                const current = settings.route_walking_threshold ?? 30000
+                return (
+                  <button
+                    key={val}
+                    onClick={async () => {
+                      try { await updateSetting('route_walking_threshold', val) }
+                      catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                      border: current === val ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
+                      background: current === val ? 'var(--bg-hover)' : 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {val / 1000} km
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
-              {t('settings.routeDrivingThreshold') || 'Auto tot'}
-            </label>
-            <input
-              type="range"
-              min={50000}
-              max={2000000}
-              step={10000}
-              value={settings.route_driving_threshold ?? 500000}
-              onChange={async (e) => {
-                const val = Number(e.target.value)
-                try { await updateSetting('route_driving_threshold', val) }
-                catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
-              }}
-              style={{ width: '100%' }}
-            />
-            <div className="flex justify-between text-xs" style={{ color: 'var(--text-faint)' }}>
-              <span>50 km</span>
-              <span style={{ color: 'var(--text-primary)', fontWeight: 600 }}>
-                {`${Math.round((settings.route_driving_threshold ?? 500000) / 1000)} km`}
-              </span>
-              <span>2000 km</span>
+          {/* Driving threshold */}
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Car size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {t('settings.routeDrivingThreshold') || 'Auto tot'}
+              </label>
             </div>
-            <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('settings.routeDrivingThresholdHint') || 'Tot deze afstand wordt auto getoond; daarboven vlucht.'}</p>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-faint)', paddingLeft: 22 }}>
+              {t('settings.routeDrivingThresholdHint') || 'Routes tot deze afstand tonen rijtijd; daarboven vlucht.'}
+            </p>
+            <div className="flex gap-2 flex-wrap" style={{ paddingLeft: 22 }}>
+              {[50000, 100000, 250000, 500000, 1000000, 2000000].map(val => {
+                const current = settings.route_driving_threshold ?? 500000
+                return (
+                  <button
+                    key={val}
+                    onClick={async () => {
+                      try { await updateSetting('route_driving_threshold', val) }
+                      catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                      border: current === val ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
+                      background: current === val ? 'var(--bg-hover)' : 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {val >= 1000000 ? `${val / 1000000}k` : `${val / 1000}`} km
+                  </button>
+                )
+              })}
+            </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Booking route labels */}
@@ -388,6 +408,44 @@ export default function DisplaySettingsTab(): React.ReactElement {
               {opt.label}
             </button>
           ))}
+        </div>
+      </div>
+
+      {/* Share vacay info in groups */}
+      <div>
+        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+          {t('settings.shareVacayInGroups') || 'Deel verlof & reizen in groepen'}
+        </label>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-faint)' }}>
+          {t('settings.shareVacayInGroupsHint') || 'Je verlof en geplande reizen tellen mee als blokkering in beschikbaarheidsvoorstellen. Per groep aanpasbaar.'}
+        </p>
+        <div className="flex gap-3">
+          {[
+            { value: true, label: t('settings.on') || 'Aan' },
+            { value: false, label: t('settings.off') || 'Uit' },
+          ].map(opt => {
+            const current = settings.share_vacay_in_groups !== false
+            return (
+              <button
+                key={String(opt.value)}
+                onClick={async () => {
+                  try { await updateSetting('share_vacay_in_groups', opt.value) }
+                  catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                  border: current === opt.value ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
+                  background: current === opt.value ? 'var(--bg-hover)' : 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
         </div>
       </div>
     </Section>

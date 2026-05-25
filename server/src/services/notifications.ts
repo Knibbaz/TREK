@@ -112,6 +112,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Dates confirmed: ' + p.proposal, body: `The dates for "${p.proposal}" have been confirmed: ${p.confirmed_start} to ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal + '', body: 'The availability poll "' + p.proposal + '" in group "' + p.group + '" closes on ' + p.deadline + '. Please fill in your availability before then.' }),
     date_proposal_ping: p => ({ title: 'Reminder: fill in your availability', body: `${p.actor} asks you to fill in your availability for "${p.proposal}" in group "${p.group}". Currently ${p.filled} members have responded.` }),
+    date_proposal_threshold_reached: p => ({ title: `Availability threshold reached: ${p.proposal}`, body: `${p.respondents} of ${p.members} members have filled in their availability for "${p.proposal}" in group "${p.group}".` }),
   },
   de: {
     trip_invite: p => ({ title: `Einladung zu "${p.trip}"`, body: `${p.actor} hat ${p.invitee || 'ein Mitglied'} zur Reise "${p.trip}" eingeladen.` }),
@@ -128,6 +129,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Daten bestätigt: ' + p.proposal, body: `Die Daten für "${p.proposal}" wurden bestätigt: ${p.confirmed_start} bis ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Verfuegbarkeit: Frist laeuft ab - ' + p.proposal + '', body: 'Die Umfrage "' + p.proposal + '" in der Gruppe "' + p.group + '" endet am ' + p.deadline + '. Bitte trage deine Verfuegbarkeit noch ein.' }),
     date_proposal_ping: p => ({ title: 'Erinnerung: Trage deine Verfügbarkeit ein', body: `${p.actor} fragt dich, deine Verfügbarkeit für "${p.proposal}" in der Gruppe "${p.group}" einzutragen. Derzeit haben ${p.filled} Mitglieder geantwortet.` }),
+    date_proposal_threshold_reached: p => ({ title: `Schwelle erreicht: ${p.proposal}`, body: `${p.respondents} von ${p.members} Mitgliedern haben ihre Verfügbarkeit für "${p.proposal}" in der Gruppe "${p.group}" eingetragen.` }),
   },
   fr: {
     trip_invite: p => ({ title: `Invitation à "${p.trip}"`, body: `${p.actor} a invité ${p.invitee || 'un membre'} au voyage "${p.trip}".` }),
@@ -144,6 +146,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Dates confirmées : ' + p.proposal, body: `Les dates pour "${p.proposal}" ont été confirmées : ${p.confirmed_start} au ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Sondage de disponibilite : ' + p.proposal, body: 'Le sondage "' + p.proposal + '" dans le groupe "' + p.group + '" se termine le ' + p.deadline + '. Veuillez indiquer vos disponibilites.' }),
     date_proposal_ping: p => ({ title: 'Rappel : indiquez votre disponibilité', body: `${p.actor} vous demande d'indiquer votre disponibilité pour "${p.proposal}" dans le groupe "${p.group}". Actuellement, ${p.filled} membres ont répondu.` }),
+    date_proposal_threshold_reached: p => ({ title: `Seuil atteint : ${p.proposal}`, body: `${p.respondents} sur ${p.members} membres ont indiqué leur disponibilité pour "${p.proposal}" dans le groupe "${p.group}".` }),
   },
   es: {
     trip_invite: p => ({ title: `Invitación a "${p.trip}"`, body: `${p.actor} invitó a ${p.invitee || 'un miembro'} al viaje "${p.trip}".` }),
@@ -160,6 +163,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Fechas confirmadas: ' + p.proposal, body: `Las fechas para "${p.proposal}" han sido confirmadas: ${p.confirmed_start} a ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Disponibilidad: ' + p.proposal, body: 'La encuesta "' + p.proposal + '" en el grupo "' + p.group + '" cierra el ' + p.deadline + '. Indica tu disponibilidad antes.' }),
     date_proposal_ping: p => ({ title: 'Recordatorio: completa tu disponibilidad', body: `${p.actor} te pide que indiques tu disponibilidad para "${p.proposal}" en el grupo "${p.group}". Actualmente ${p.filled} miembros han respondido.` }),
+    date_proposal_threshold_reached: p => ({ title: `Umbral alcanzado: ${p.proposal}`, body: `${p.respondents} de ${p.members} miembros han indicado su disponibilidad para "${p.proposal}" en el grupo "${p.group}".` }),
   },
   nl: {
     trip_invite: p => ({ title: `Uitnodiging voor "${p.trip}"`, body: `${p.actor} heeft ${p.invitee || 'een lid'} uitgenodigd voor de reis "${p.trip}".` }),
@@ -176,6 +180,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Datums bevestigd: ' + p.proposal, body: `De datums voor "${p.proposal}" zijn bevestigd: ${p.confirmed_start} tot ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Beschikbaarheid invullen: ' + p.proposal + '', body: 'De peilingsvraag "' + p.proposal + '" in groep "' + p.group + '" sluit op ' + p.deadline + '. Vul je beschikbaarheid nog in voor die datum.' }),
     date_proposal_ping: p => ({ title: 'Herinnering: vul je beschikbaarheid in', body: `${p.actor} vraagt je je beschikbaarheid in te vullen voor "${p.proposal}" in groep "${p.group}". Momenteel hebben ${p.filled} leden gereageerd.` }),
+    date_proposal_threshold_reached: p => ({ title: `Drempel bereikt: ${p.proposal}`, body: `${p.respondents} van ${p.members} leden hebben hun beschikbaarheid ingevuld voor "${p.proposal}" in groep "${p.group}".` }),
   },
   ru: {
     trip_invite: p => ({ title: `Приглашение в "${p.trip}"`, body: `${p.actor} пригласил ${p.invitee || 'участника'} в поездку "${p.trip}".` }),
@@ -192,6 +197,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Даты подтверждены: ' + p.proposal, body: `Даты для "${p.proposal}" подтверждены: ${p.confirmed_start} по ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Srok dostupnosti: ' + p.proposal, body: 'Opros "' + p.proposal + '" v gruppe "' + p.group + '" zakryvaetsya ' + p.deadline + '.' }),
     date_proposal_ping: p => ({ title: 'Напоминание: укажите свою доступность', body: `${p.actor} просит вас указать вашу доступность для "${p.proposal}" в группе "${p.group}". В настоящее время ${p.filled} членов ответили.` }),
+    date_proposal_threshold_reached: p => ({ title: `Порог достигнут: ${p.proposal}`, body: `${p.respondents} из ${p.members} членов указали свою доступность для "${p.proposal}" в группе "${p.group}".` }),
   },
   zh: {
     trip_invite: p => ({ title: `邀请加入"${p.trip}"`, body: `${p.actor} 邀请了 ${p.invitee || '成员'} 加入旅行"${p.trip}"。` }),
@@ -207,6 +213,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: '日期已确认: ' + p.proposal, body: `"${p.proposal}" 的日期已确认: ${p.confirmed_start} 至 ${p.confirmed_end}。` }),
     date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),
     date_proposal_ping: p => ({ title: '提醒：填写您的可用时间', body: `${p.actor} 要求您填写"${p.proposal}"在"${p.group}"中的可用时间。目前有 ${p.filled} 成员已回应。` }),
+    date_proposal_threshold_reached: p => ({ title: `已达到阈值：${p.proposal}`, body: `"${p.group}"群组中"${p.proposal}"的 ${p.members} 位成员中已有 ${p.respondents} 位填写了可用时间。` }),
   },
   'zh-TW': {
     trip_invite: p => ({ title: `邀請加入「${p.trip}」`, body: `${p.actor} 邀請了 ${p.invitee || '成員'} 加入行程「${p.trip}」。` }),
@@ -222,6 +229,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: '日期已確認: ' + p.proposal, body: `"${p.proposal}" 的日期已確認: ${p.confirmed_start} 至 ${p.confirmed_end}。` }),
     date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),
     date_proposal_ping: p => ({ title: '提醒：填寫您的可用時間', body: `${p.actor} 要求您填寫「${p.proposal}」在「${p.group}」中的可用時間。目前有 ${p.filled} 位成員已回應。` }),
+    date_proposal_threshold_reached: p => ({ title: `已達到門檻：${p.proposal}`, body: `「${p.group}」群組中「${p.proposal}」的 ${p.members} 位成員中已有 ${p.respondents} 位填寫了可用時間。` }),
   },
   ar: {
     trip_invite: p => ({ title: `دعوة إلى "${p.trip}"`, body: `${p.actor} دعا ${p.invitee || 'عضو'} إلى الرحلة "${p.trip}".` }),
@@ -236,6 +244,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     synology_session_cleared: () => ({ title: 'تمت إعادة تعيين جلسة Synology', body: 'تغيّر حسابك أو رابط Synology. تم تسجيل خروجك من Synology Photos.' }),
     date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),
     date_proposal_ping: p => ({ title: 'تذكير: حدد توفرك', body: `${p.actor} يطلب منك تحديد توفرك لـ "${p.proposal}" في مجموعة "${p.group}". حالياً ${p.filled} من الأعضاء ردوا.` }),
+    date_proposal_threshold_reached: p => ({ title: `تم الوصول إلى الحد: ${p.proposal}`, body: `أجاب ${p.respondents} من أصل ${p.members} من أعضاء مجموعة "${p.group}" عن "${p.proposal}".` }),
   },
   br: {
     trip_invite: p => ({ title: `Convite para "${p.trip}"`, body: `${p.actor} convidou ${p.invitee || 'um membro'} para a viagem "${p.trip}".` }),
@@ -251,6 +260,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Datas confirmadas: ' + p.proposal, body: `As datas para "${p.proposal}" foram confirmadas: ${p.confirmed_start} a ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Disponibilidade: ' + p.proposal, body: 'A enquete "' + p.proposal + '" no grupo "' + p.group + '" encerra em ' + p.deadline + '. Preencha sua disponibilidade antes.' }),
     date_proposal_ping: p => ({ title: 'Lembrete: preencha sua disponibilidade', body: `${p.actor} solicita que você preencha sua disponibilidade para "${p.proposal}" no grupo "${p.group}". Atualmente ${p.filled} membros responderam.` }),
+    date_proposal_threshold_reached: p => ({ title: `Limite atingido: ${p.proposal}`, body: `${p.respondents} de ${p.members} membros do grupo "${p.group}" preencheram a disponibilidade para "${p.proposal}".` }),
   },
   cs: {
     trip_invite: p => ({ title: `Pozvánka do "${p.trip}"`, body: `${p.actor} pozval ${p.invitee || 'člena'} na výlet "${p.trip}".` }),
@@ -266,6 +276,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Data potvrzena: ' + p.proposal, body: `Termíny pro "${p.proposal}" byly potvrzeny: ${p.confirmed_start} až ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Dostupnost: ' + p.proposal, body: 'Hlasovani "' + p.proposal + '" ve skupin\u011b "' + p.group + '" konci ' + p.deadline + '. Prosim, vyplnte svou dostupnost.' }),
     date_proposal_ping: p => ({ title: 'Připomenutí: vyplňte svou dostupnost', body: `${p.actor} vás žádá o vyplnění vaší dostupnosti pro "${p.proposal}" ve skupině "${p.group}". Dosud odpovědělo ${p.filled} členů.` }),
+    date_proposal_threshold_reached: p => ({ title: `Dosažen práh: ${p.proposal}`, body: `${p.respondents} z ${p.members} členů skupiny "${p.group}" vyplnilo dostupnost pro "${p.proposal}".` }),
   },
   hu: {
     trip_invite: p => ({ title: `Meghívó a(z) "${p.trip}" utazásra`, body: `${p.actor} meghívta ${p.invitee || 'egy tagot'} a(z) "${p.trip}" utazásra.` }),
@@ -281,6 +292,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Dátumok megerősítve: ' + p.proposal, body: `A "${p.proposal}" dátumai megerősítve: ${p.confirmed_start} - ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Elérhetőség határideje: ' + p.proposal, body: 'A(z) "' + p.proposal + '" szavazas a(z) "' + p.group + '" csoportban ' + p.deadline + '-en zarul.' }),
     date_proposal_ping: p => ({ title: 'Emlékeztetõ: adja meg az elérhetõségét', body: `${p.actor} arra kéri Önt, hogy adja meg elérhetõségét a(z) "${p.proposal}" számára a(z) "${p.group}" csoportban. Jelenleg ${p.filled} tag válaszolt.` }),
+    date_proposal_threshold_reached: p => ({ title: `Küszöb elérve: ${p.proposal}`, body: `A(z) "${p.group}" csoport ${p.members} tagjából ${p.respondents} adta meg elérhetőségét a(z) "${p.proposal}" esetén.` }),
   },
   it: {
     trip_invite: p => ({ title: `Invito a "${p.trip}"`, body: `${p.actor} ha invitato ${p.invitee || 'un membro'} al viaggio "${p.trip}".` }),
@@ -296,6 +308,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     date_proposal_confirmed: p => ({ title: 'Date confermate: ' + p.proposal, body: `Le date per "${p.proposal}" sono state confermate: da ${p.confirmed_start} a ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Disponibilità in scadenza: ' + p.proposal, body: 'Il sondaggio "' + p.proposal + '" nel gruppo "' + p.group + '" chiude il ' + p.deadline + '. Inserisci la tua disponibilità.' }),
     date_proposal_ping: p => ({ title: 'Promemoria: inserisci la tua disponibilità', body: `${p.actor} ti chiede di inserire la tua disponibilità per "${p.proposal}" nel gruppo "${p.group}". Attualmente ${p.filled} membri hanno risposto.` }),
+    date_proposal_threshold_reached: p => ({ title: `Soglia raggiunta: ${p.proposal}`, body: `${p.respondents} su ${p.members} membri del gruppo "${p.group}" hanno indicato la disponibilità per "${p.proposal}".` }),
   },
   pl: {
     trip_invite: p => ({ title: `Zaproszenie do "${p.trip}"`, body: `${p.actor} zaprosił ${p.invitee || 'członka'} do podróży "${p.trip}".` }),
@@ -310,6 +323,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     synology_session_cleared: () => ({ title: 'Sesja Synology wyczyszczona', body: 'Twoje konto lub URL Synology uległo zmianie. Zostałeś wylogowany z Synology Photos.' }),
     date_proposal_deadline: p => ({ title: 'Termin dostępności: ' + p.proposal, body: 'Ankieta "' + p.proposal + '" w grupie "' + p.group + '" zamyka się ' + p.deadline + '.' }),
     date_proposal_ping: p => ({ title: 'Przypomnienie: podaj swoją dostępność', body: `${p.actor} prosi cię o podanie dostępności dla "${p.proposal}" w grupie "${p.group}". Obecnie odpowiedziało ${p.filled} członków.` }),
+    date_proposal_threshold_reached: p => ({ title: `Osiągnięto próg: ${p.proposal}`, body: `${p.respondents} z ${p.members} członków grupy "${p.group}" podało dostępność dla "${p.proposal}".` }),
   },
   id: {
     trip_invite: p => ({ title: `Undangan perjalanan: "${p.trip}"`, body: `${p.actor} mengundang ${p.invitee || 'seorang anggota'} ke perjalanan "${p.trip}".` }),

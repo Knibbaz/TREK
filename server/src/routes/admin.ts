@@ -1,5 +1,9 @@
 import express, { Request, Response } from 'express';
 import { randomBytes } from 'crypto';
+import path from 'node:path';
+import fs from 'node:fs';
+import multer from 'multer';
+import { v4 as uuid } from 'uuid';
 import { authenticate, adminOnly } from '../middleware/auth';
 import { AuthRequest } from '../types';
 import { db } from '../db/database';
@@ -815,5 +819,102 @@ if (process.env.NODE_ENV?.toLowerCase() === 'development') {
     }
   });
 }
+
+// ── White-label branding ────────────────────────────────────────────────────
+
+const BRANDING_KEYS = ['brand_name', 'brand_logo_light', 'brand_logo_dark', 'brand_icon_light', 'brand_icon_dark', 'brand_accent', 'brand_accent_text', 'brand_bg_primary', 'brand_bg_secondary', 'brand_text_primary', 'brand_text_secondary', 'brand_text_muted', 'brand_nav_bg', 'disable_dark_mode'] as const;
+
+const brandingDir = path.join(__dirname, '../../uploads/branding');
+if (!fs.existsSync(brandingDir)) fs.mkdirSync(brandingDir, { recursive: true });
+
+const brandingStorage = multer.diskStorage({
+  destination: (_req, _file, cb) => cb(null, brandingDir),
+  filename: (_req, file, cb) => cb(null, uuid() + path.extname(file.originalname).toLowerCase()),
+});
+const ALLOWED_BRANDING_EXTS = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg'];
+const brandingUpload = multer({
+  storage: brandingStorage,
+  limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (!ALLOWED_BRANDING_EXTS.includes(ext)) {
+      const err: Error & { statusCode?: number } = new Error('Only image files (jpg, png, gif, webp, svg) are allowed');
+      err.statusCode = 400;
+      return cb(err);
+    }
+    cb(null, true);
+  },
+});
+
+router.get('/branding', (_req: Request, res: Response) => {
+  try {
+    const result: Record<string, string> = {};
+    for (const key of BRANDING_KEYS) {
+      const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined;
+      result[key] = row?.value ?? '';
+    }
+    res.json(result);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch branding' });
+  }
+});
+
+router.put('/branding', (req: Request, res: Response) => {
+  try {
+    const allowed = ['brand_name', 'brand_accent', 'brand_accent_text', 'brand_bg_primary', 'brand_bg_secondary', 'brand_text_primary', 'brand_text_secondary', 'brand_text_muted', 'brand_nav_bg', 'disable_dark_mode'];
+    for (const key of allowed) {
+      if (key in req.body) {
+        const value = String(req.body[key] ?? '');
+        db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, value);
+      }
+    }
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to update branding' });
+  }
+});
+
+router.post('/branding/logo', brandingUpload.single('file'), (req: Request, res: Response) => {
+  try {
+    const { key } = req.body;
+    const logoKeys = ['brand_logo_light', 'brand_logo_dark', 'brand_icon_light', 'brand_icon_dark'];
+    if (!logoKeys.includes(key)) {
+      return res.status(400).json({ error: 'Invalid key. Must be one of: ' + logoKeys.join(', ') });
+    }
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
+    // Delete old file if it was a custom upload
+    const existing = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined;
+    if (existing?.value?.startsWith('/uploads/branding/')) {
+      const oldPath = path.join(__dirname, '../..', existing.value);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+    const url = `/uploads/branding/${req.file.filename}`;
+    db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, url);
+    res.json({ url });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to upload logo' });
+  }
+});
+
+router.delete('/branding/logo', (req: Request, res: Response) => {
+  try {
+    const { key } = req.body;
+    const logoKeys = ['brand_logo_light', 'brand_logo_dark', 'brand_icon_light', 'brand_icon_dark'];
+    if (!logoKeys.includes(key)) {
+      return res.status(400).json({ error: 'Invalid key' });
+    }
+    const existing = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key) as { value: string } | undefined;
+    if (existing?.value?.startsWith('/uploads/branding/')) {
+      const oldPath = path.join(__dirname, '../..', existing.value);
+      if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+    }
+    db.prepare('INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value').run(key, '');
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to reset logo' });
+  }
+});
 
 export default router;

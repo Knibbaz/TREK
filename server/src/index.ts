@@ -9,10 +9,12 @@ const photosDir = path.join(uploadsDir, 'photos');
 const filesDir = path.join(uploadsDir, 'files');
 const coversDir = path.join(uploadsDir, 'covers');
 const avatarsDir = path.join(uploadsDir, 'avatars');
+const brandingDir = path.join(uploadsDir, 'branding');
+const groupCoversDir = path.join(uploadsDir, 'group-covers');
 const backupsDir = path.join(__dirname, '../data/backups');
 const tmpDir = path.join(__dirname, '../data/tmp');
 
-[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, backupsDir, tmpDir].forEach(dir => {
+[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, brandingDir, groupCoversDir, backupsDir, tmpDir].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 

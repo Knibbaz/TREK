@@ -137,6 +137,13 @@ const EVENT_NOTIFICATION_CONFIG: Record<string, EventNotifConfig> = {
     navigateTextKey: 'notif.action.view_trip',
     navigateTarget: p => (p.tripId ? `/trips/${p.tripId}` : null),
   },
+  date_proposal_threshold_reached: {
+    inAppType: 'navigate',
+    titleKey: 'notif.date_proposal_threshold.title',
+    textKey: 'notif.date_proposal_threshold.text',
+    navigateTextKey: 'notif.action.view_group',
+    navigateTarget: p => (p.groupId ? `/groups/${p.groupId}` : null),
+  },
 };
 
 // ── Fallback config for unknown event types ────────────────────────────────
@@ -154,7 +161,7 @@ export interface NotificationPayload {
   event: NotifEventType;
   actorId: number | null;
   params: Record<string, string>;
-  scope: 'trip' | 'user' | 'admin';
+  scope: 'trip' | 'user' | 'admin' | 'group';
   targetId: number; // tripId for trip scope, userId for user scope, 0 for admin
   /** Optional in-app overrides (e.g. boolean type with callbacks) */
   inApp?: {

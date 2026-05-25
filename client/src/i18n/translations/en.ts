@@ -250,6 +250,8 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'settings.routeDrivingThresholdHint': 'Routes up to this distance show driving time; above it shows flight.',
   'settings.bookingLabels': 'Booking route labels',
   'settings.bookingLabelsHint': 'Show station / airport names on the map. When off, only the icon is shown.',
+  'settings.shareVacayInGroups': 'Share vacay & trips in groups',
+  'settings.shareVacayInGroupsHint': 'Your vacay entries and planned trips are automatically counted in group availability analyses.',
   'settings.blurBookingCodes': 'Blur Booking Codes',
   'settings.notifications': 'Notifications',
   'settings.notifyTripInvite': 'Trip invitations',
@@ -801,6 +803,10 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'admin.packingTemplates.createError': 'Failed to create template',
   'admin.packingTemplates.deleteError': 'Failed to delete template',
   'admin.packingTemplates.saveError': 'Failed to save',
+
+  // Groups & Branding tabs
+  'admin.tabs.groups': 'Groups',
+  'admin.tabs.branding': 'Branding',
 
   // Addons
   'admin.tabs.addons': 'Addons',
@@ -1730,7 +1736,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
 
   // Backup V2 — User Export & Import
   'backup.v2.export.title': 'Export Your Data',
-  'backup.v2.export.preview': 'Download a copy of your trips, places, and files in a .trek file.',
+  'backup.v2.export.preview': 'Download a copy of your trips, places, and files in a .routd file.',
   'backup.v2.export.start': 'Export my data',
   'backup.v2.export.downloading': 'Creating export…',
   'backup.v2.export.ready': 'Download export',
@@ -1739,11 +1745,11 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'backup.v2.export.success': 'Export created successfully',
   'backup.v2.import.title': 'Import Data',
   'backup.v2.import.warning': 'Importing data creates new copies of your trips, places, and files. Existing data is not affected.',
-  'backup.v2.import.start': 'Select .trek file to import',
+  'backup.v2.import.start': 'Select .routd file to import',
   'backup.v2.import.success': 'Data imported successfully',
   'backup.v2.import.error': 'Import failed',
   'backup.v2.restore.title': 'Restore from Backup',
-  'backup.v2.restore.upload': 'Upload .trek file',
+  'backup.v2.restore.upload': 'Upload .routd file',
   'backup.v2.restore.preview': 'Preview',
   'backup.v2.restore.strategy': 'Conflict resolution',
   'backup.v2.restore.dryRun': 'Dry run (preview only)',
@@ -2167,6 +2173,9 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'notif.packing_tagged.text': '{actor} assigned you to {category} in {trip}',
   'notif.version_available.title': 'New Version Available',
   'notif.version_available.text': 'ROUTD {version} is now available',
+  'notif.date_proposal_threshold.title': 'Threshold reached',
+  'notif.date_proposal_threshold.text': '{respondents} of {members} members have filled in their availability for {proposal}',
+  'notif.action.view_group': 'View Group',
   'notif.action.view_trip': 'View Trip',
   'notif.action.view_collab': 'View Messages',
   'notif.action.view_packing': 'View Packing',
@@ -2741,6 +2750,7 @@ const en: Record<string, string | { name: string; category: string }[]> = {
   'dateAvail.deadline': 'Deadline',
   'dateAvail.reminderDays': 'Reminder days before deadline',
   'dateAvail.reminderHint': 'A reminder email will be sent {days} day(s) before the deadline to members who haven\'t responded yet.',
+  'dateAvail.responseThreshold': 'Notify after X responses',
   'dateAvail.myAvailability': 'My availability',
   'dateAvail.group': 'Group',
   // Notes

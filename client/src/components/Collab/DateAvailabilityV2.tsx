@@ -299,7 +299,13 @@ function MonthGrid({ year, month, proposal, myStatus, myNotes, onToggle, onNoteO
     proposal.vacayEntries?.forEach(e => {
       if (e.date === date) {
         const member = proposal.members.find(m => m.id === e.user_id)
-        overlays.push({ type: 'vacayEntry', color: '#7c3aed', label: `${member?.username || ''} — ${t('dateAvail.scheduledVacation') || 'Scheduled vacation'}`, userId: e.user_id })
+        overlays.push({ type: 'vacayEntry', color: '#7c3aed', label: `${member?.username || ''} — ${t('dateAvail.scheduledVacation') || 'Geplande vakantie'}`, userId: e.user_id })
+      }
+    })
+    proposal.tripDateRanges?.forEach(t => {
+      if (date >= t.start_date && date <= t.end_date) {
+        const member = proposal.members.find(m => m.id === t.user_id)
+        overlays.push({ type: 'vacayEntry', color: '#7c3aed', label: `${member?.username || ''} — Geplande reis`, userId: t.user_id })
       }
     })
     return overlays
@@ -730,7 +736,10 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
       const hasVacayEntry = proposal.vacayEntries?.some(
         e => e.user_id === currentUserId && e.date === dateStr
       )
-      prefill[dateStr] = (onVacation || hasVacayEntry) ? 'no' : 'yes'
+      const onTrip = proposal.tripDateRanges?.some(
+        t => t.user_id === currentUserId && dateStr >= t.start_date && dateStr <= t.end_date
+      )
+      prefill[dateStr] = (onVacation || hasVacayEntry || onTrip) ? 'no' : 'yes'
     }
     setPending(prefill)
     dateProposalsApi.setAvailability(groupId, proposal.id, prefill)
@@ -878,6 +887,7 @@ function ProposalCard({ proposal, groupId, currentUserId, isAdmin, groupTrips, o
     { icon: <Plane size={10} />, color: '#3b82f6', label: 'Verlof' },
     { icon: <Briefcase size={10} />, color: '#ef4444', label: 'Bedrijfsfeestdag' },
     { icon: <Globe size={10} />, color: '#f59e0b', label: 'Feestdag' },
+    { icon: <Plane size={10} />, color: '#7c3aed', label: 'Geplande vakantie' },
   ]
 
   const confirmedRange = isConfirmed && proposal.confirmed_start && proposal.confirmed_end
@@ -1189,6 +1199,7 @@ function CreateProposalForm({ groupId, onCreated, onCancel }: CreateFormProps) {
   const [toMonth, setToMonth] = useState(monthKey(now.getFullYear(), now.getMonth() + 1))
   const [deadline, setDeadline] = useState('')
   const [reminderDays, setReminderDays] = useState(2)
+  const [responseThreshold, setResponseThreshold] = useState<number | ''>('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
@@ -1208,6 +1219,7 @@ function CreateProposalForm({ groupId, onCreated, onCancel }: CreateFormProps) {
         period_end: end,
         deadline: deadline || null,
         reminder_days: reminderDays,
+        response_threshold: responseThreshold || undefined,
       })
       onCreated(data.proposal as DateProposal)
     } catch (err: unknown) {
@@ -1250,6 +1262,14 @@ function CreateProposalForm({ groupId, onCreated, onCancel }: CreateFormProps) {
           {t('dateAvail.reminderHint', { days: reminderDays })}
         </div>
       )}
+
+      {/* Threshold */}
+      <div style={{ width: 180 }}>
+        <label style={labelStyle}>{t('dateAvail.responseThreshold')}</label>
+        <input type="number" value={responseThreshold} onChange={e => setResponseThreshold(e.target.value === '' ? '' : Math.max(1, parseInt(e.target.value) || 1))}
+          min={1} placeholder="—"
+          style={{ ...inputStyle, textAlign: 'center' }} />
+      </div>
 
       {error && <div style={{ fontSize: 12, color: '#dc2626' }}>{error}</div>}
       <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>

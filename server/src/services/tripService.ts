@@ -20,11 +20,21 @@ export const TRIP_SELECT = `
     (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count,
     CASE WHEN ep.trip_id IS NOT NULL AND ep.is_published = 1 THEN 1 ELSE 0 END as is_published,
     COALESCE(eut.source_trip_id, NULL) as source_trip_id,
-    CASE WHEN eut.id IS NOT NULL THEN 1 ELSE 0 END as from_explore
+    CASE WHEN eut.id IS NOT NULL THEN 1 ELSE 0 END as from_explore,
+    -- Attribution for share-link clones
+    cft.title as cloned_from_trip_title,
+    cfu.username as cloned_from_username,
+    cfc.display_name as cloned_from_creator_name,
+    cfc.slug as cloned_from_creator_slug,
+    cfc.avatar as cloned_from_creator_avatar,
+    cfc.social_links as cloned_from_social_links
   FROM trips t
   JOIN users u ON u.id = t.user_id
   LEFT JOIN explore_published ep ON ep.trip_id = t.id
   LEFT JOIN explore_user_trips eut ON eut.trip_id = t.id
+  LEFT JOIN trips cft ON cft.id = t.cloned_from_trip_id
+  LEFT JOIN users cfu ON cfu.id = cft.user_id
+  LEFT JOIN explore_creators cfc ON cfc.user_id = cft.user_id
 `;
 
 // ── Access helpers ────────────────────────────────────────────────────────
@@ -592,7 +602,7 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
  * Packing items are reset to unchecked. Budget paid status is cleared.
  * Returns the new trip's ID.
  */
-export function copyTripById(sourceTripId: string | number, newOwnerId: number, title?: string): number {
+export function copyTripById(sourceTripId: string | number, newOwnerId: number, title?: string, trackCloneOrigin = false): number {
   const src = db.prepare('SELECT * FROM trips WHERE id = ?').get(sourceTripId) as any;
   if (!src) throw new NotFoundError('Trip not found');
 
@@ -600,9 +610,9 @@ export function copyTripById(sourceTripId: string | number, newOwnerId: number, 
 
   const fn = db.transaction(() => {
     const tripResult = db.prepare(`
-      INSERT INTO trips (user_id, title, description, start_date, end_date, currency, cover_image, is_archived, reminder_days)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
-    `).run(newOwnerId, newTitle, src.description, src.start_date, src.end_date, src.currency, src.cover_image, src.reminder_days ?? 3);
+      INSERT INTO trips (user_id, title, description, start_date, end_date, currency, cover_image, is_archived, reminder_days, cloned_from_trip_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    `).run(newOwnerId, newTitle, src.description, src.start_date, src.end_date, src.currency, src.cover_image, src.reminder_days ?? 3, trackCloneOrigin ? sourceTripId : null);
     const newTripId = tripResult.lastInsertRowid;
 
     const oldDays = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number').all(sourceTripId) as any[];

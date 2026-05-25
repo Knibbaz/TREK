@@ -74,14 +74,30 @@ export function getActiveNoticesFor(userId: number): SystemNoticeDTO[] {
     })
     .map(({ conditions: _c, publishedAt: _p, minVersion: _mn, maxVersion: _mx, priority: _pr, ...dto }) => {
       if (dto.id === 'group-welcome-v1') {
-        const row = db.prepare("SELECT value FROM app_settings WHERE key = 'group_welcome_notice'").get() as { value: string } | undefined;
-        if (row?.value) {
-          try {
-            const stored = JSON.parse(row.value) as { title?: string; body?: string; icon?: string };
-            if (stored.title) dto = { ...dto, titleKey: stored.title };
-            if (stored.body)  dto = { ...dto, bodyKey:  stored.body  };
-            if (stored.icon)  dto = { ...dto, icon:     stored.icon  };
-          } catch { /* keep registry defaults */ }
+        // Check if the most recently joined group has a custom welcome message
+        const perGroup = db.prepare(`
+          SELECT g.welcome_title, g.welcome_body, g.welcome_icon
+          FROM group_members gm
+          JOIN groups g ON g.id = gm.group_id
+          WHERE gm.user_id = ?
+          ORDER BY gm.added_at DESC LIMIT 1
+        `).get(userId) as { welcome_title: string | null; welcome_body: string | null; welcome_icon: string | null } | undefined;
+
+        if (perGroup?.welcome_title || perGroup?.welcome_body) {
+          if (perGroup.welcome_title) dto = { ...dto, titleKey: perGroup.welcome_title };
+          if (perGroup.welcome_body)  dto = { ...dto, bodyKey:  perGroup.welcome_body  };
+          if (perGroup.welcome_icon)  dto = { ...dto, icon:     perGroup.welcome_icon  };
+        } else {
+          // Fall back to global welcome notice setting
+          const row = db.prepare("SELECT value FROM app_settings WHERE key = 'group_welcome_notice'").get() as { value: string } | undefined;
+          if (row?.value) {
+            try {
+              const stored = JSON.parse(row.value) as { title?: string; body?: string; icon?: string };
+              if (stored.title) dto = { ...dto, titleKey: stored.title };
+              if (stored.body)  dto = { ...dto, bodyKey:  stored.body  };
+              if (stored.icon)  dto = { ...dto, icon:     stored.icon  };
+            } catch { /* keep registry defaults */ }
+          }
         }
       }
       return dto;

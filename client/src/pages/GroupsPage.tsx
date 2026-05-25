@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { useGroupsStore } from '../store/groupsStore'
 import { useAuthStore } from '../store/authStore'
@@ -10,10 +10,13 @@ import Modal from '../components/shared/Modal'
 import {
   Users, Plus, X, Trash2, ChevronLeft, Crown, Shield,
   User, MapPin, CalendarDays, ExternalLink, MoreHorizontal,
-  Link2, Copy, Check
+  Link2, Copy, Check, BarChart2, Globe, Clock, Share2, UserCheck,
+  Activity, Palette
 } from 'lucide-react'
 import DateAvailabilityV2 from '../components/Collab/DateAvailabilityV2'
 import GroupPolls from '../components/Groups/GroupPolls'
+import GroupMap from '../components/Groups/GroupMap'
+import type { GroupMapCountry } from '../components/Groups/GroupMap'
 import TripFormModal from '../components/Trips/TripFormModal'
 import toast from 'react-hot-toast'
 
@@ -28,6 +31,7 @@ interface TripOption {
 export default function GroupsPage(): React.ReactElement {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const { id: urlGroupId } = useParams<{ id?: string }>()
   const { user } = useAuthStore()
   const {
     groups, currentGroup, loading, error,
@@ -49,6 +53,12 @@ export default function GroupsPage(): React.ReactElement {
   const [editingGroup, setEditingGroup] = useState(false)
   const [editName, setEditName] = useState('')
   const [editDesc, setEditDesc] = useState('')
+  const [editWelcomeTitle, setEditWelcomeTitle] = useState('')
+  const [editWelcomeBody, setEditWelcomeBody] = useState('')
+  const [editWelcomeIcon, setEditWelcomeIcon] = useState('')
+  const [savingWelcome, setSavingWelcome] = useState(false)
+  const [uploadingCover, setUploadingCover] = useState(false)
+  const coverInputRef = useRef<HTMLInputElement>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [memberMenuOpen, setMemberMenuOpen] = useState<number | null>(null)
@@ -63,8 +73,70 @@ export default function GroupsPage(): React.ReactElement {
   const [showAdminReassignModal, setShowAdminReassignModal] = useState(false)
   const [selectedNewAdmin, setSelectedNewAdmin] = useState<number | null>(null)
 
+  type Participant = { id: number; username: string; avatar?: string | null }
+  const [participantsMap, setParticipantsMap] = useState<Record<number, Participant[]>>({})
+  const [editParticipantsTripId, setEditParticipantsTripId] = useState<number | null>(null)
+  const [editParticipantsSelected, setEditParticipantsSelected] = useState<Set<number>>(new Set())
+  const [editParticipantsSaving, setEditParticipantsSaving] = useState(false)
+
+  type GroupStats = { trip_count: number; country_count: number; total_days: number; milestones: string[] }
+  const [groupStats, setGroupStats] = useState<GroupStats | null>(null)
+  const [rsvpLoading, setRsvpLoading] = useState<Record<number, boolean>>({})
+  const [atlasCountries, setAtlasCountries] = useState<GroupMapCountry[]>([])
+
+  type ActivityEvent = { id: number; actor_id: number | null; actor_name: string | null; event_type: string; resource_id: number | null; resource_title: string | null; created_at: string }
+  const [activityFeed, setActivityFeed] = useState<ActivityEvent[]>([])
+  const [activityHasMore, setActivityHasMore] = useState(false)
+  const [activityLoading, setActivityLoading] = useState(false)
+
+  const [editBrandColor, setEditBrandColor] = useState('')
+  const [savingBrandColor, setSavingBrandColor] = useState(false)
+
+  type Idea = { id: number; user_id: number; username: string | null; title: string; body: string | null; created_at: string }
+  const [ideas, setIdeas] = useState<Idea[]>([])
+  const [newIdeaTitle, setNewIdeaTitle] = useState('')
+  const [newIdeaBody, setNewIdeaBody] = useState('')
+  const [savingIdea, setSavingIdea] = useState(false)
+
+  type GroupTask = { id: number; title: string; done: number; assigned_to: number | null; assigned_username: string | null; assigned_avatar: string | null; created_by: number; sort_order: number; created_at: string }
+  const [tasks, setTasks] = useState<GroupTask[]>([])
+  const [newTaskTitle, setNewTaskTitle] = useState('')
+  const [newTaskAssignee, setNewTaskAssignee] = useState<number | ''>('')
+  const [savingTask, setSavingTask] = useState(false)
+
   useEffect(() => { loadGroups() }, [])
   useEffect(() => { clearError() }, [view])
+
+  // Load participants whenever the current group's trips change
+  useEffect(() => {
+    if (currentGroup?.id && currentGroup.trips && currentGroup.trips.length > 0) {
+      loadParticipants(currentGroup.id, currentGroup.trips)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentGroup?.trips])
+
+  // Load stats + atlas + activity when entering group detail
+  useEffect(() => {
+    if (currentGroup?.id) {
+      groupsApi.getStats(currentGroup.id).then(setGroupStats).catch(() => setGroupStats(null))
+      groupsApi.getAtlas(currentGroup.id).then(r => setAtlasCountries(r.countries)).catch(() => setAtlasCountries([]))
+      setActivityFeed([])
+      setActivityLoading(true)
+      groupsApi.getActivity(currentGroup.id).then(r => {
+        setActivityFeed(r.events)
+        setActivityHasMore(r.hasMore)
+      }).catch(() => {}).finally(() => setActivityLoading(false))
+      setEditBrandColor(currentGroup.brand_color || '')
+      groupsApi.listIdeas(currentGroup.id).then(r => setIdeas(r.ideas)).catch(() => setIdeas([]))
+      groupsApi.listTasks(currentGroup.id).then(r => setTasks(r.tasks)).catch(() => setTasks([]))
+    } else {
+      setGroupStats(null)
+      setAtlasCountries([])
+      setActivityFeed([])
+      setIdeas([])
+      setTasks([])
+    }
+  }, [currentGroup?.id])
 
   // Join WebSocket rooms for all groups and listen for live updates
   useEffect(() => {
@@ -78,9 +150,8 @@ export default function GroupsPage(): React.ReactElement {
         if (event.type === 'group:memberLeft' && currentGroup?.id === gid) {
           const removedUserId = (event as any).userId as number
           if (removedUserId === user?.id) {
-            setView('list')
-            setCurrentGroup(null)
             loadGroups()
+            navigate('/groups')
             return
           }
         }
@@ -114,12 +185,12 @@ export default function GroupsPage(): React.ReactElement {
   const handleCreate = async () => {
     if (!createName.trim()) return
     try {
-      await createGroup({ name: createName.trim(), description: createDesc.trim() || undefined })
+      const group = await createGroup({ name: createName.trim(), description: createDesc.trim() || undefined })
       toast.success(t('groups.toast.created') || 'Group created')
       setShowCreate(false)
       setCreateName('')
       setCreateDesc('')
-      loadGroups()
+      navigate(`/groups/${group.id}`)
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -128,9 +199,13 @@ export default function GroupsPage(): React.ReactElement {
   const handleOpenGroup = async (groupId: number) => {
     const group = await getGroup(groupId)
     if (group) {
+      navigate(`/groups/${groupId}`)
       setView('detail')
       setEditName(group.name)
       setEditDesc(group.description || '')
+      setEditWelcomeTitle(group.welcome_title || '')
+      setEditWelcomeBody(group.welcome_body || '')
+      setEditWelcomeIcon(group.welcome_icon || '')
       setInviteLink(null)
       setInviteError(null)
       // Try to load existing invite link (owner/admin only)
@@ -147,12 +222,25 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
+  // Sync view with URL param
+  useEffect(() => {
+    if (urlGroupId) {
+      const gid = parseInt(urlGroupId, 10)
+      if (!currentGroup || currentGroup.id !== gid) {
+        handleOpenGroup(gid)
+      }
+    } else {
+      setView('list')
+      setCurrentGroup(null)
+      setEditingGroup(false)
+      setInviteLink(null)
+      setInviteError(null)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urlGroupId])
+
   const handleBack = () => {
-    setView('list')
-    setCurrentGroup(null)
-    setEditingGroup(false)
-    setInviteLink(null)
-    setInviteError(null)
+    navigate('/groups')
   }
 
   const handleUpdateGroup = async () => {
@@ -166,13 +254,164 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
+  const handleCoverUpload = async (file: File) => {
+    if (!currentGroup) return
+    setUploadingCover(true)
+    try {
+      await groupsApi.uploadCover(currentGroup.id, file)
+      await getGroup(currentGroup.id)
+      toast.success(t('groups.toast.coverUpdated') || 'Cover updated')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setUploadingCover(false)
+    }
+  }
+
+  const handleCoverDelete = async () => {
+    if (!currentGroup) return
+    try {
+      await groupsApi.deleteCover(currentGroup.id)
+      await getGroup(currentGroup.id)
+      toast.success(t('groups.toast.coverRemoved') || 'Cover removed')
+    } catch (err: any) {
+      toast.error(err.message)
+    }
+  }
+
+  const handleSaveWelcome = async () => {
+    if (!currentGroup) return
+    setSavingWelcome(true)
+    try {
+      await groupsApi.updateWelcome(currentGroup.id, {
+        welcome_title: editWelcomeTitle.trim() || null,
+        welcome_body: editWelcomeBody.trim() || null,
+        welcome_icon: editWelcomeIcon.trim() || null,
+      })
+      toast.success(t('groups.toast.welcomeSaved') || 'Welcome message saved')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSavingWelcome(false)
+    }
+  }
+
+  const handleRsvp = async (tripId: number) => {
+    if (!currentGroup || !user) return
+    setRsvpLoading(prev => ({ ...prev, [tripId]: true }))
+    try {
+      const result = await groupsApi.rsvpTrip(currentGroup.id, tripId)
+      setParticipantsMap(prev => ({ ...prev, [tripId]: result.participants }))
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setRsvpLoading(prev => ({ ...prev, [tripId]: false }))
+    }
+  }
+
+  const handleLoadMoreActivity = async () => {
+    if (!currentGroup || activityLoading) return
+    const oldest = activityFeed[activityFeed.length - 1]
+    setActivityLoading(true)
+    try {
+      const r = await groupsApi.getActivity(currentGroup.id, { before: oldest?.id })
+      setActivityFeed(prev => [...prev, ...r.events])
+      setActivityHasMore(r.hasMore)
+    } catch { /* ignore */ } finally {
+      setActivityLoading(false)
+    }
+  }
+
+  const handleSaveBrandColor = async () => {
+    if (!currentGroup) return
+    setSavingBrandColor(true)
+    try {
+      await groupsApi.setBrandColor(currentGroup.id, editBrandColor || null)
+      await getGroup(currentGroup.id)
+      toast.success('Kleur opgeslagen')
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setSavingBrandColor(false)
+    }
+  }
+
+  const handleAddIdea = async () => {
+    if (!currentGroup || !newIdeaTitle.trim()) return
+    setSavingIdea(true)
+    try {
+      const r = await groupsApi.createIdea(currentGroup.id, { title: newIdeaTitle.trim(), body: newIdeaBody.trim() || undefined })
+      setIdeas(prev => [r.idea, ...prev])
+      setNewIdeaTitle('')
+      setNewIdeaBody('')
+    } catch (err: any) { toast.error(err.message) } finally { setSavingIdea(false) }
+  }
+
+  const handleDeleteIdea = async (ideaId: number) => {
+    if (!currentGroup) return
+    try {
+      await groupsApi.deleteIdea(currentGroup.id, ideaId)
+      setIdeas(prev => prev.filter(i => i.id !== ideaId))
+    } catch (err: any) { toast.error(err.message) }
+  }
+
+  const handleAddTask = async () => {
+    if (!currentGroup || !newTaskTitle.trim()) return
+    setSavingTask(true)
+    try {
+      const r = await groupsApi.createTask(currentGroup.id, { title: newTaskTitle.trim(), assigned_to: newTaskAssignee || undefined })
+      setTasks(prev => [...prev, r.task])
+      setNewTaskTitle('')
+      setNewTaskAssignee('')
+    } catch (err: any) { toast.error(err.message) } finally { setSavingTask(false) }
+  }
+
+  const handleToggleTask = async (taskId: number, current: number) => {
+    if (!currentGroup) return
+    try {
+      await groupsApi.updateTask(currentGroup.id, taskId, { done: current ? 0 : 1 })
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, done: current ? 0 : 1 } : t))
+    } catch (err: any) { toast.error(err.message) }
+  }
+
+  const handleDeleteTask = async (taskId: number) => {
+    if (!currentGroup) return
+    try {
+      await groupsApi.deleteTask(currentGroup.id, taskId)
+      setTasks(prev => prev.filter(t => t.id !== taskId))
+    } catch (err: any) { toast.error(err.message) }
+  }
+
+  const handleWhatsAppShare = () => {
+    if (!currentGroup) return
+    const trips = currentGroup.trips || []
+    const members = currentGroup.members || []
+    const lines = [
+      `*${currentGroup.name}*`,
+      currentGroup.description ? currentGroup.description : '',
+      '',
+      `👥 ${members.length} leden`,
+      `🗺️ ${trips.length} reizen`,
+      '',
+      ...trips.map(gt => {
+        const pts = participantsMap[gt.trip_id] || []
+        const dateStr = gt.trip_start_date ? `(${gt.trip_start_date}${gt.trip_end_date ? ' – ' + gt.trip_end_date : ''})` : ''
+        const goingStr = pts.length > 0 ? ` · ${pts.length} gaan mee` : ''
+        return `• ${gt.trip_title || `Reis #${gt.trip_id}`} ${dateStr}${goingStr}`
+      }),
+      '',
+      `🔗 ${window.location.href}`,
+    ].filter(l => l !== undefined).join('\n').trim()
+    window.open(`https://wa.me/?text=${encodeURIComponent(lines)}`, '_blank')
+  }
+
   const handleDeleteGroup = async () => {
     if (!currentGroup) return
     try {
       await deleteGroup(currentGroup.id)
       toast.success(t('groups.toast.deleted') || 'Group deleted')
       setShowDeleteConfirm(false)
-      setView('list')
+      navigate('/groups')
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -192,8 +431,7 @@ export default function GroupsPage(): React.ReactElement {
       await removeMember(currentGroup.id, user.id)
       toast.success(t('groups.toast.left') || 'Left group')
       setShowLeaveConfirm(false)
-      setView('list')
-      setCurrentGroup(null)
+      navigate('/groups')
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -210,9 +448,8 @@ export default function GroupsPage(): React.ReactElement {
       toast.success(t('groups.toast.left') || 'Left group')
       setShowAdminReassignModal(false)
       setShowLeaveConfirm(false)
-      setView('list')
-      setCurrentGroup(null)
       setSelectedNewAdmin(null)
+      navigate('/groups')
     } catch (err: any) {
       toast.error(err.message)
     }
@@ -324,6 +561,35 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
+  const loadParticipants = async (groupId: number, trips: { trip_id: number }[]) => {
+    const results = await Promise.all(
+      trips.map(gt => groupsApi.getTripParticipants(groupId, gt.trip_id).catch(() => ({ participants: [] })))
+    )
+    const map: Record<number, Participant[]> = {}
+    trips.forEach((gt, i) => { map[gt.trip_id] = results[i].participants || [] })
+    setParticipantsMap(map)
+  }
+
+  const handleOpenEditParticipants = (tripId: number) => {
+    const current = participantsMap[tripId] || []
+    setEditParticipantsSelected(new Set(current.map(p => p.id)))
+    setEditParticipantsTripId(tripId)
+  }
+
+  const handleSaveParticipants = async () => {
+    if (!currentGroup || editParticipantsTripId === null) return
+    setEditParticipantsSaving(true)
+    try {
+      const result = await groupsApi.setTripParticipants(currentGroup.id, editParticipantsTripId, [...editParticipantsSelected])
+      setParticipantsMap(prev => ({ ...prev, [editParticipantsTripId]: result.participants || [] }))
+      setEditParticipantsTripId(null)
+    } catch (err: any) {
+      toast.error(err.message)
+    } finally {
+      setEditParticipantsSaving(false)
+    }
+  }
+
   const handleCreateInvite = async () => {
     if (!currentGroup) return
     setInviteLoading(true)
@@ -402,20 +668,31 @@ export default function GroupsPage(): React.ReactElement {
                 <ChevronLeft size={20} />
               </button>
               {editingGroup ? (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-col gap-2 min-w-0 flex-1">
                   <input
                     value={editName}
                     onChange={e => setEditName(e.target.value)}
-                    className="px-3 py-1.5 rounded-lg text-lg font-semibold border"
+                    className="px-3 py-1.5 rounded-lg text-base font-semibold border"
                     style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
                     autoFocus
+                    placeholder={t('groups.namePlaceholder') || 'Group name'}
                   />
-                  <button onClick={handleUpdateGroup} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>
-                    {t('common.save') || 'Save'}
-                  </button>
-                  <button onClick={() => { setEditingGroup(false); setEditName(currentGroup.name); setEditDesc(currentGroup.description || '') }} className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
-                    {t('common.cancel') || 'Cancel'}
-                  </button>
+                  <textarea
+                    value={editDesc}
+                    onChange={e => setEditDesc(e.target.value)}
+                    rows={2}
+                    className="px-3 py-1.5 rounded-lg text-sm border resize-none"
+                    style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+                    placeholder={t('groups.descriptionPlaceholder') || 'Optional description...'}
+                  />
+                  <div className="flex gap-2">
+                    <button onClick={handleUpdateGroup} className="px-3 py-1.5 rounded-lg text-sm font-medium text-white" style={{ background: 'var(--accent)' }}>
+                      {t('common.save') || 'Save'}
+                    </button>
+                    <button onClick={() => { setEditingGroup(false); setEditName(currentGroup.name); setEditDesc(currentGroup.description || '') }} className="px-3 py-1.5 rounded-lg text-sm" style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}>
+                      {t('common.cancel') || 'Cancel'}
+                    </button>
+                  </div>
                 </div>
               ) : (
                 <div>
@@ -444,6 +721,14 @@ export default function GroupsPage(): React.ReactElement {
             </button>
           ) : currentGroup && !editingGroup ? (
             <div className="flex items-center gap-2">
+              <button
+                onClick={handleWhatsAppShare}
+                className="p-2 rounded-lg transition-colors"
+                style={{ background: 'var(--bg-secondary)', color: '#25D366' }}
+                title="Delen via WhatsApp"
+              >
+                <Share2 size={16} />
+              </button>
               {canManageMembers && (
                 <button
                   onClick={() => setEditingGroup(true)}
@@ -530,6 +815,187 @@ export default function GroupsPage(): React.ReactElement {
           </div>
         )}
 
+        {/* Cover image upload (owner/admin only) */}
+        {view === 'detail' && currentGroup && canManageMembers && (
+          <div className="mb-4 p-3 rounded-xl border flex items-center gap-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <div
+              className="w-14 h-14 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden"
+              style={{ background: currentGroup.cover_image ? undefined : 'var(--bg-secondary)', backgroundImage: currentGroup.cover_image ? `url(${currentGroup.cover_image})` : undefined, backgroundSize: 'cover', backgroundPosition: 'center' }}
+            >
+              {!currentGroup.cover_image && <Users size={22} style={{ color: 'var(--text-faint)' }} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{t('groups.cover.title') || 'Groepsfoto'}</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>{t('groups.cover.hint') || 'JPG, PNG of WebP · max 8 MB'}</p>
+            </div>
+            <input ref={coverInputRef} type="file" accept="image/*" className="hidden" onChange={async e => {
+              const file = e.target.files?.[0]
+              if (file) await handleCoverUpload(file)
+              e.target.value = ''
+            }} />
+            <div className="flex gap-2 flex-shrink-0">
+              <button
+                onClick={() => coverInputRef.current?.click()}
+                disabled={uploadingCover}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors"
+                style={{ borderColor: 'var(--border-primary)', color: 'var(--text-secondary)', background: 'var(--bg-secondary)' }}
+              >
+                {uploadingCover
+                  ? <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin inline-block" />
+                  : null}
+                {t('groups.cover.upload') || 'Uploaden'}
+              </button>
+              {currentGroup.cover_image && (
+                <button
+                  onClick={handleCoverDelete}
+                  className="px-2.5 py-1.5 rounded-lg text-xs border transition-colors text-red-500 hover:bg-red-50"
+                  style={{ borderColor: 'var(--border-primary)' }}
+                >
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Per-group vacay sharing toggle */}
+        {view === 'detail' && currentGroup && (() => {
+          const myMember = currentGroup.members?.find(m => m.user_id === user?.id)
+          if (!myMember) return null
+          const shareVacay = myMember.share_vacay
+          // null = use global default (true), true/false = explicit override
+          const isSharing = shareVacay === null ? true : !!shareVacay
+          return (
+            <div className="mb-4 p-3 rounded-xl border flex items-center justify-between" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+              <div>
+                <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Deel mijn verlof & reizen</p>
+                <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>
+                  {isSharing ? 'Jouw verlof en geplande reizen zijn zichtbaar in beschikbaarheidsvoorstellen' : 'Jouw verlof en reizen zijn verborgen voor deze groep'}
+                  {shareVacay === null && ' (volgt je standaardinstelling)'}
+                </p>
+              </div>
+              <div className="flex gap-1.5 ml-3 flex-shrink-0">
+                <button
+                  onClick={async () => {
+                    const next = isSharing ? false : null // toggle off = explicit false; toggle on = reset to null (global default)
+                    await groupsApi.setMyVacaySharing(currentGroup.id, next)
+                    await getGroup(currentGroup.id)
+                  }}
+                  className="px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                  style={{ background: isSharing ? 'var(--accent)' : 'var(--bg-secondary)', color: isSharing ? 'white' : 'var(--text-muted)' }}
+                >
+                  {isSharing ? 'Aan' : 'Uit'}
+                </button>
+              </div>
+            </div>
+          )
+        })()}
+
+        {/* Brand color (owner/admin only) */}
+        {view === 'detail' && currentGroup && canManageMembers && (
+          <div className="mb-4 p-3 rounded-xl border flex items-center gap-3" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <Palette size={16} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>Groepskleur</p>
+              <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>Accentkleur voor deze groep — laat leeg voor standaard</p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <input
+                type="color"
+                value={editBrandColor || '#111827'}
+                onChange={e => setEditBrandColor(e.target.value)}
+                className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
+                title="Kies kleur"
+              />
+              <input
+                type="text"
+                value={editBrandColor}
+                onChange={e => setEditBrandColor(e.target.value)}
+                placeholder="#111827"
+                className="w-24 px-2 py-1 rounded-lg border text-xs font-mono"
+                style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+              />
+              {editBrandColor && (
+                <button onClick={() => setEditBrandColor('')} className="text-xs px-1.5 py-1 rounded" style={{ color: 'var(--text-faint)' }}>✕</button>
+              )}
+              <button
+                onClick={handleSaveBrandColor}
+                disabled={savingBrandColor}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--accent)' }}
+              >
+                {savingBrandColor ? <span className="w-3 h-3 border border-white border-t-transparent rounded-full animate-spin inline-block" /> : 'Opslaan'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Welcome message editor (owner/admin only) */}
+        {view === 'detail' && currentGroup && canManageMembers && (
+          <div className="mb-4 rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>
+                {t('groups.welcomeMessage.title') || 'Welcome message'}
+              </span>
+            </div>
+            <div className="p-4 space-y-3">
+              <p className="text-xs" style={{ color: 'var(--text-faint)' }}>
+                {t('groups.welcomeMessage.hint') || 'Shown as a modal when someone joins this group via invite link. Leave empty to use the default message.'}
+              </p>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  {t('groups.welcomeMessage.titleLabel') || 'Title'}
+                </label>
+                <input
+                  type="text"
+                  value={editWelcomeTitle}
+                  onChange={e => setEditWelcomeTitle(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+                  placeholder={t('groups.welcomeMessage.titlePlaceholder') || 'Welcome to the group!'}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  {t('groups.welcomeMessage.bodyLabel') || 'Body (markdown supported)'}
+                </label>
+                <textarea
+                  rows={3}
+                  value={editWelcomeBody}
+                  onChange={e => setEditWelcomeBody(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border resize-y"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+                  placeholder={t('groups.welcomeMessage.bodyPlaceholder') || "You're now a member. Start exploring shared trips and availability."}
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+                  {t('groups.welcomeMessage.iconLabel') || 'Icon (Lucide icon name)'}
+                </label>
+                <input
+                  type="text"
+                  value={editWelcomeIcon}
+                  onChange={e => setEditWelcomeIcon(e.target.value)}
+                  className="w-full px-3 py-2 rounded-lg text-sm border"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)' }}
+                  placeholder="Users"
+                />
+              </div>
+              <button
+                onClick={handleSaveWelcome}
+                disabled={savingWelcome}
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+                style={{ background: 'var(--accent)' }}
+              >
+                {savingWelcome ? (
+                  <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin inline-block" />
+                ) : null}
+                {t('common.save') || 'Save'}
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* Error */}
         {error && (
           <div className="mb-4 p-3 rounded-lg text-sm" style={{ background: 'var(--bg-danger-soft)', color: 'var(--text-danger)' }}>
@@ -592,7 +1058,53 @@ export default function GroupsPage(): React.ReactElement {
 
         {/* Detail view */}
         {view === 'detail' && currentGroup && (
-          <div className="flex flex-col gap-6">
+          <div
+            className="flex flex-col gap-6"
+            style={currentGroup.brand_color ? { '--accent': currentGroup.brand_color } as React.CSSProperties : undefined}
+          >
+
+          {/* Stats bar + milestones */}
+          {groupStats && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-3 gap-3">
+                {[
+                  { icon: MapPin, label: 'Reizen', value: groupStats.trip_count },
+                  { icon: Globe, label: 'Landen', value: groupStats.country_count },
+                  { icon: Clock, label: 'Dagen', value: groupStats.total_days },
+                ].map(({ icon: Icon, label, value }) => (
+                  <div key={label} className="rounded-xl border p-3 flex flex-col items-center" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+                    <Icon size={16} className="mb-1" style={{ color: 'var(--accent)' }} />
+                    <span className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{value}</span>
+                    <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>{label}</span>
+                  </div>
+                ))}
+              </div>
+              {groupStats.milestones.length > 0 && (() => {
+                const MILESTONE_LABELS: Record<string, string> = {
+                  first_trip: '🗺️ Eerste reis',
+                  trips_5: '✈️ 5 reizen',
+                  trips_10: '🏆 10 reizen',
+                  trips_25: '🌟 25 reizen',
+                  countries_3: '🌍 3 landen',
+                  countries_10: '🌐 10 landen',
+                  countries_25: '🗺️ 25 landen',
+                  anniversary_1y: '🎂 1 jaar samen',
+                  anniversary_2y: '🎂 2 jaar samen',
+                  anniversary_5y: '🏅 5 jaar samen',
+                }
+                return (
+                  <div className="flex flex-wrap gap-2">
+                    {groupStats.milestones.map(m => (
+                      <span key={m} className="inline-flex items-center px-2.5 py-1 rounded-full text-[11px] font-medium border" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)', color: 'var(--text-muted)' }}>
+                        {MILESTONE_LABELS[m] || m}
+                      </span>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Members */}
             <div className="lg:col-span-2">
@@ -709,38 +1221,91 @@ export default function GroupsPage(): React.ReactElement {
                   )}
                 </div>
 
-                <div className="space-y-2">
-                  {currentGroup.trips?.map(gt => (
-                    <div
-                      key={gt.id}
-                      className="flex items-center justify-between p-2.5 rounded-lg group"
-                      style={{ background: 'var(--bg-secondary)' }}
-                    >
-                      <button
-                        onClick={() => navigate(`/trips/${gt.trip_id}`)}
-                        className="flex items-center gap-2 text-left flex-1 min-w-0"
+                <div className="space-y-3">
+                  {currentGroup.trips?.map(gt => {
+                    const tripParticipants = participantsMap[gt.trip_id] || []
+                    return (
+                      <div
+                        key={gt.id}
+                        className="rounded-lg p-2.5 group"
+                        style={{ background: 'var(--bg-secondary)' }}
                       >
-                        {gt.trip_cover_image ? (
-                          <img src={gt.trip_cover_image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
-                        ) : (
-                          <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)' }}>
-                            <CalendarDays size={12} style={{ color: 'var(--text-faint)' }} />
-                          </div>
-                        )}
-                        <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{gt.trip_title || `Trip #${gt.trip_id}`}</span>
-                        <ExternalLink size={10} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-faint)' }} />
-                      </button>
-                      {canManageMembers && (
-                        <button
-                          onClick={() => handleRemoveTrip(gt.trip_id)}
-                          className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                          style={{ color: 'var(--text-danger)' }}
-                        >
-                          <X size={12} />
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => navigate(`/trips/${gt.trip_id}`)}
+                            className="flex items-center gap-2 text-left flex-1 min-w-0"
+                          >
+                            {gt.trip_cover_image ? (
+                              <img src={gt.trip_cover_image} alt="" className="w-8 h-8 rounded object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="w-8 h-8 rounded flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-card)' }}>
+                                <CalendarDays size={12} style={{ color: 'var(--text-faint)' }} />
+                              </div>
+                            )}
+                            <span className="text-sm truncate" style={{ color: 'var(--text-primary)' }}>{gt.trip_title || `Trip #${gt.trip_id}`}</span>
+                            <ExternalLink size={10} className="flex-shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: 'var(--text-faint)' }} />
+                          </button>
+                          {canManageMembers && (
+                            <button
+                              onClick={() => handleRemoveTrip(gt.trip_id)}
+                              className="p-1 rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ color: 'var(--text-danger)' }}
+                            >
+                              <X size={12} />
+                            </button>
+                          )}
+                        </div>
+                        {/* Participants row */}
+                        <div className="flex items-center gap-1.5 mt-2">
+                          {tripParticipants.length > 0 ? (
+                            <div className="flex items-center -space-x-1">
+                              {tripParticipants.slice(0, 6).map(p => (
+                                p.avatar
+                                  ? <img key={p.id} src={p.avatar} title={p.username} className="w-5 h-5 rounded-full ring-1 object-cover" style={{ ringColor: 'var(--bg-secondary)' }} />
+                                  : <div key={p.id} title={p.username} className="w-5 h-5 rounded-full ring-1 flex items-center justify-center text-[9px] font-bold" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', outline: '1px solid var(--bg-secondary)' }}>{p.username[0]?.toUpperCase()}</div>
+                              ))}
+                              {tripParticipants.length > 6 && (
+                                <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', outline: '1px solid var(--bg-secondary)' }}>+{tripParticipants.length - 6}</div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-[11px]" style={{ color: 'var(--text-faint)' }}>Geen deelnemers</span>
+                          )}
+                          {canManageMembers && (
+                            <button
+                              onClick={() => handleOpenEditParticipants(gt.trip_id)}
+                              className="text-[11px] underline ml-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ color: 'var(--text-muted)' }}
+                            >
+                              Bewerken
+                            </button>
+                          )}
+                        </div>
+                        {/* RSVP toggle */}
+                        {(() => {
+                          const going = tripParticipants.some(p => p.id === user?.id)
+                          return (
+                            <button
+                              onClick={() => handleRsvp(gt.trip_id)}
+                              disabled={!!rsvpLoading[gt.trip_id]}
+                              className="flex items-center gap-1 mt-2 px-2 py-1 rounded-md text-[11px] font-medium transition-colors"
+                              style={{
+                                background: going ? 'var(--accent)' : 'var(--bg-card)',
+                                color: going ? 'white' : 'var(--text-muted)',
+                                border: `1px solid ${going ? 'transparent' : 'var(--border-primary)'}`,
+                              }}
+                            >
+                              {rsvpLoading[gt.trip_id]
+                                ? <span className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
+                                : <UserCheck size={10} />
+                              }
+                              {going ? 'Ik ga mee' : 'Ga je mee?'}
+                            </button>
+                          )
+                        })()}
+                      </div>
+                    )
+                  })}
 
                   {(!currentGroup.trips || currentGroup.trips.length === 0) && (
                     <p className="text-xs text-center py-4" style={{ color: 'var(--text-faint)' }}>
@@ -750,6 +1315,94 @@ export default function GroupsPage(): React.ReactElement {
                 </div>
               </div>
             </div>
+          </div>
+
+          {/* Reisarchief tijdlijn */}
+          {(currentGroup.trips || []).length > 0 && (
+            <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+              <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+                <BarChart2 size={14} style={{ color: 'var(--text-muted)' }} />
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Reisarchief</span>
+              </div>
+              <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                {[...(currentGroup.trips || [])]
+                  .sort((a, b) => {
+                    const da = a.trip_start_date || '0000'
+                    const db2 = b.trip_start_date || '0000'
+                    return db2.localeCompare(da) // newest first
+                  })
+                  .map(gt => {
+                    const pts = participantsMap[gt.trip_id] || []
+                    const going = pts.some(p => p.id === user?.id)
+                    return (
+                      <div key={gt.trip_id} className="flex items-center gap-3 px-4 py-3">
+                        {gt.trip_cover_image ? (
+                          <img src={gt.trip_cover_image} alt="" className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                        ) : (
+                          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--bg-secondary)' }}>
+                            <MapPin size={14} style={{ color: 'var(--text-faint)' }} />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <button
+                            onClick={() => navigate(`/trips/${gt.trip_id}`)}
+                            className="text-sm font-medium text-left hover:underline"
+                            style={{ color: 'var(--text-primary)' }}
+                          >
+                            {gt.trip_title || `Reis #${gt.trip_id}`}
+                          </button>
+                          <div className="flex items-center gap-2 mt-0.5 text-[11px]" style={{ color: 'var(--text-faint)' }}>
+                            {gt.trip_start_date && (
+                              <span>{gt.trip_start_date}{gt.trip_end_date ? ` – ${gt.trip_end_date}` : ''}</span>
+                            )}
+                            {pts.length > 0 && (
+                              <span className="flex items-center gap-0.5">
+                                <Users size={9} />
+                                {pts.length}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => handleRsvp(gt.trip_id)}
+                          disabled={!!rsvpLoading[gt.trip_id]}
+                          className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-colors"
+                          style={{
+                            background: going ? 'var(--accent)' : 'var(--bg-secondary)',
+                            color: going ? 'white' : 'var(--text-muted)',
+                          }}
+                        >
+                          {rsvpLoading[gt.trip_id]
+                            ? <span className="w-2.5 h-2.5 border border-current border-t-transparent rounded-full animate-spin" />
+                            : <UserCheck size={10} />
+                          }
+                          {going ? 'Ik ga' : 'Ga mee?'}
+                        </button>
+                      </div>
+                    )
+                  })}
+              </div>
+            </div>
+          )}
+
+          {/* Groepskaart */}
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <div className="px-4 py-3 border-b flex items-center justify-between" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+              <div className="flex items-center gap-2">
+                <Globe size={14} style={{ color: 'var(--text-muted)' }} />
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Groepskaart</span>
+              </div>
+              {atlasCountries.length > 0 && (
+                <span className="text-xs" style={{ color: 'var(--text-faint)' }}>{atlasCountries.length} land{atlasCountries.length !== 1 ? 'en' : ''}</span>
+              )}
+            </div>
+            {atlasCountries.length === 0 ? (
+              <div className="px-4 py-8 text-center text-xs" style={{ color: 'var(--text-faint)' }}>
+                Voeg plaatsen toe aan reizen om landen op de kaart te zien.
+              </div>
+            ) : (
+              <GroupMap countries={atlasCountries} height="280px" />
+            )}
           </div>
 
           {/* Date availability proposals */}
@@ -771,6 +1424,164 @@ export default function GroupsPage(): React.ReactElement {
               />
             </div>
           ))}
+
+          {/* Prikbord */}
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+              <span style={{ fontSize: 14 }}>💡</span>
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Prikbord</span>
+            </div>
+            <div className="p-4 flex flex-col gap-3">
+              {ideas.length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Nog geen ideeën. Voeg een reisidee toe!</p>
+              )}
+              {ideas.map(idea => (
+                <div key={idea.id} className="flex items-start gap-2 group">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{idea.title}</p>
+                    {idea.body && <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{idea.body}</p>}
+                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>{idea.username} · {new Date(idea.created_at).toLocaleDateString()}</p>
+                  </div>
+                  {(idea.user_id === user?.id || canManageMembers) && (
+                    <button onClick={() => handleDeleteIdea(idea.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-100" style={{ color: '#dc2626' }}>
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex flex-col gap-2 border-t pt-3" style={{ borderColor: 'var(--border-faint)' }}>
+                <input
+                  value={newIdeaTitle} onChange={e => setNewIdeaTitle(e.target.value)}
+                  placeholder="Nieuw idee…" maxLength={200}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAddIdea()}
+                  className="text-sm px-3 py-2 rounded-lg border w-full"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <textarea
+                  value={newIdeaBody} onChange={e => setNewIdeaBody(e.target.value)}
+                  placeholder="Toelichting (optioneel)…" maxLength={1000} rows={2}
+                  className="text-sm px-3 py-2 rounded-lg border w-full resize-none"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <button onClick={handleAddIdea} disabled={savingIdea || !newIdeaTitle.trim()}
+                  className="self-end px-3 py-1.5 rounded-lg text-xs font-medium disabled:opacity-50"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
+                  {savingIdea ? '…' : 'Voeg toe'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Taakverdeling */}
+          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+            <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+              <span style={{ fontSize: 14 }}>✅</span>
+              <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Taken</span>
+              {tasks.length > 0 && (
+                <span className="ml-auto text-xs" style={{ color: 'var(--text-faint)' }}>
+                  {tasks.filter(t => t.done).length}/{tasks.length} gedaan
+                </span>
+              )}
+            </div>
+            <div className="p-4 flex flex-col gap-2">
+              {tasks.length === 0 && (
+                <p className="text-xs" style={{ color: 'var(--text-faint)' }}>Nog geen taken. Voeg een taak toe!</p>
+              )}
+              {tasks.map(task => (
+                <div key={task.id} className="flex items-center gap-2 group">
+                  <button onClick={() => handleToggleTask(task.id, task.done)} className="flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-colors"
+                    style={{ borderColor: task.done ? 'var(--accent)' : 'var(--border-primary)', background: task.done ? 'var(--accent)' : 'transparent' }}>
+                    {task.done ? <Check size={10} style={{ color: 'var(--accent-text)' }} /> : null}
+                  </button>
+                  <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)', textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.5 : 1 }}>
+                    {task.title}
+                  </span>
+                  {task.assigned_username && (
+                    <span className="text-xs px-1.5 py-0.5 rounded-full" style={{ background: 'var(--bg-secondary)', color: 'var(--text-faint)' }}>
+                      {task.assigned_username}
+                    </span>
+                  )}
+                  {(task.created_by === user?.id || canManageMembers) && (
+                    <button onClick={() => handleDeleteTask(task.id)} className="opacity-0 group-hover:opacity-100 transition-opacity p-1 rounded hover:bg-red-100" style={{ color: '#dc2626' }}>
+                      <X size={12} />
+                    </button>
+                  )}
+                </div>
+              ))}
+              <div className="flex gap-2 border-t pt-3 items-end" style={{ borderColor: 'var(--border-faint)' }}>
+                <input
+                  value={newTaskTitle} onChange={e => setNewTaskTitle(e.target.value)}
+                  placeholder="Nieuwe taak…" maxLength={200}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && handleAddTask()}
+                  className="flex-1 text-sm px-3 py-2 rounded-lg border"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}
+                />
+                <select value={newTaskAssignee} onChange={e => setNewTaskAssignee(e.target.value === '' ? '' : Number(e.target.value))}
+                  className="text-sm px-2 py-2 rounded-lg border"
+                  style={{ background: 'var(--bg-input)', borderColor: 'var(--border-primary)', color: 'var(--text-primary)', outline: 'none', fontFamily: 'inherit' }}>
+                  <option value="">Niemand</option>
+                  {(currentGroup.members || []).map(m => (
+                    <option key={m.user_id} value={m.user_id}>{m.username}</option>
+                  ))}
+                </select>
+                <button onClick={handleAddTask} disabled={savingTask || !newTaskTitle.trim()}
+                  className="px-3 py-2 rounded-lg text-xs font-medium flex-shrink-0 disabled:opacity-50"
+                  style={{ background: 'var(--accent)', color: 'var(--accent-text)' }}>
+                  {savingTask ? '…' : '+'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Activiteitenfeed */}
+          {activityFeed.length > 0 && (
+            <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--bg-card)', borderColor: 'var(--border-primary)' }}>
+              <div className="px-4 py-3 border-b flex items-center gap-2" style={{ borderColor: 'var(--border-primary)', background: 'var(--bg-secondary)' }}>
+                <Activity size={14} style={{ color: 'var(--text-muted)' }} />
+                <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>Activiteit</span>
+              </div>
+              <div className="divide-y" style={{ borderColor: 'var(--border-primary)' }}>
+                {activityFeed.map(ev => {
+                  const actor = ev.actor_name || 'Iemand'
+                  const labels: Record<string, string> = {
+                    member_added: `${actor} heeft een lid toegevoegd`,
+                    trip_added: `${actor} heeft een reis toegevoegd`,
+                    trip_removed: `${actor} heeft een reis verwijderd`,
+                    member_left: `${actor} heeft de groep verlaten`,
+                  }
+                  const label = labels[ev.event_type] || ev.event_type
+                  const date = new Date(ev.created_at)
+                  const dateStr = date.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+                  return (
+                    <div key={ev.id} className="flex items-start gap-3 px-4 py-2.5">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5" style={{ background: 'var(--bg-secondary)' }}>
+                        <Activity size={10} style={{ color: 'var(--accent)' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs" style={{ color: 'var(--text-primary)' }}>
+                          {label}
+                          {ev.resource_title && (
+                            <span className="font-medium"> "{ev.resource_title}"</span>
+                          )}
+                        </p>
+                        <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-faint)' }}>{dateStr}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              {activityHasMore && (
+                <button
+                  onClick={handleLoadMoreActivity}
+                  disabled={activityLoading}
+                  className="w-full py-2.5 text-xs font-medium border-t transition-colors hover:opacity-80 disabled:opacity-50"
+                  style={{ borderColor: 'var(--border-primary)', color: 'var(--text-muted)', background: 'var(--bg-secondary)' }}
+                >
+                  {activityLoading ? 'Laden…' : 'Meer laden'}
+                </button>
+              )}
+            </div>
+          )}
 
           {/* No trips — show create/add prompt */}
           {(currentGroup.trips || []).length === 0 && (
@@ -1147,6 +1958,67 @@ export default function GroupsPage(): React.ReactElement {
               {t('admin.invite.createAndCopy')}
             </button>
           </div>
+        </div>
+      </Modal>
+
+      {/* Edit participants modal */}
+      <Modal
+        isOpen={editParticipantsTripId !== null}
+        onClose={() => setEditParticipantsTripId(null)}
+        title="Wie ging er mee?"
+        size="sm"
+        footer={
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => setEditParticipantsTripId(null)}
+              className="px-4 py-2 rounded-lg text-sm font-medium"
+              style={{ background: 'var(--bg-secondary)', color: 'var(--text-muted)' }}
+            >
+              {t('common.cancel') || 'Cancel'}
+            </button>
+            <button
+              onClick={handleSaveParticipants}
+              disabled={editParticipantsSaving}
+              className="px-4 py-2 rounded-lg text-sm font-medium text-white disabled:opacity-50"
+              style={{ background: 'var(--accent)' }}
+            >
+              {editParticipantsSaving ? '...' : (t('common.save') || 'Save')}
+            </button>
+          </div>
+        }
+      >
+        <div className="space-y-1 max-h-64 overflow-y-auto">
+          {(currentGroup?.members || []).map(member => (
+            <button
+              key={member.user_id}
+              onClick={() => setEditParticipantsSelected(prev => {
+                const next = new Set(prev)
+                if (next.has(member.user_id)) next.delete(member.user_id)
+                else next.add(member.user_id)
+                return next
+              })}
+              className="w-full flex items-center gap-3 p-2.5 rounded-lg text-left transition-colors"
+              style={{ background: editParticipantsSelected.has(member.user_id) ? 'var(--accent-soft, var(--bg-secondary))' : 'var(--bg-secondary)' }}
+            >
+              <div
+                className="w-4 h-4 rounded flex-shrink-0 border-2 flex items-center justify-center"
+                style={{
+                  borderColor: editParticipantsSelected.has(member.user_id) ? 'var(--accent)' : 'var(--border-primary)',
+                  background: editParticipantsSelected.has(member.user_id) ? 'var(--accent)' : 'transparent',
+                }}
+              >
+                {editParticipantsSelected.has(member.user_id) && <Check size={10} color="white" />}
+              </div>
+              {member.avatar
+                ? <img src={member.avatar} alt="" className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+                : <div className="w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 text-[10px] font-bold" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)' }}>{member.username?.[0]?.toUpperCase()}</div>
+              }
+              <div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{member.username}</p>
+                <p className="text-[11px]" style={{ color: 'var(--text-faint)' }}>{t(`groups.role.${member.role}`) || member.role}</p>
+              </div>
+            </button>
+          ))}
         </div>
       </Modal>
     </div>

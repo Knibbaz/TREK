@@ -44,7 +44,7 @@ export async function runExport(opts: ExportOptions): Promise<ExportResult> {
   const isUserExport = opts.exportType === 'user_export';
   const targetDir = isUserExport ? exportsDir : backupsDir;
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  const fileName = `${opts.exportType}-${opts.id}-${timestamp}.trek`;
+  const fileName = `${opts.exportType}-${opts.id}-${timestamp}.routd`;
   const filePath = path.join(targetDir, fileName);
 
   const archive = archiver('zip', { zlib: { level: 6 } });

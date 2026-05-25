@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useAddonStore } from '../../store/addonStore'
 import { useTranslation } from '../../i18n'
+import { useBranding } from '../../context/BrandingContext'
 import { Plane, LogOut, Settings, ChevronDown, Shield, ArrowLeft, Users, Moon, Sun, Monitor, CalendarDays, Briefcase, Globe, Compass, Upload, ExternalLink, Sparkles, CreditCard } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import InAppNotificationBell from './InAppNotificationBell.tsx'
@@ -47,6 +48,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
   const [scrolled, setScrolled] = useState<boolean>(false)
   const darkMode = settings.dark_mode
   const dark = darkMode === true || darkMode === 'dark' || (darkMode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const branding = useBranding()
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8 || (document.body.scrollTop || 0) > 8)
@@ -107,9 +109,11 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
 
   return (
     <nav style={{
-      background: dark
-        ? (scrolled ? 'rgba(9,9,11,0.78)' : 'rgba(9,9,11,0.95)')
-        : (scrolled ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.95)'),
+      background: branding.navBg
+        ? (scrolled ? `${branding.navBg}cc` : `${branding.navBg}f2`)
+        : dark
+          ? (scrolled ? 'rgba(9,9,11,0.78)' : 'rgba(9,9,11,0.95)')
+          : (scrolled ? 'rgba(255,255,255,0.72)' : 'rgba(255,255,255,0.95)'),
       backdropFilter: scrolled ? 'blur(28px) saturate(180%)' : 'blur(20px)',
       WebkitBackdropFilter: scrolled ? 'blur(28px) saturate(180%)' : 'blur(20px)',
       borderBottom: `1px solid ${dark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)'}`,
@@ -135,8 +139,8 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
         )}
 
         <Link to="/dashboard" className="flex items-center transition-colors flex-shrink-0">
-          <img src={dark ? '/icons/icon-white.svg' : '/icons/icon-dark.svg'} alt="ROUTD" className="sm:hidden" style={{ height: 22, width: 22 }} />
-          <img src={dark ? '/logo-light.svg' : '/logo-dark.svg'} alt="ROUTD" className="hidden sm:block" style={{ height: 28 }} />
+          <img src={dark ? branding.iconLight : branding.iconDark} alt={branding.name} className="sm:hidden" style={{ height: 22, width: 22 }} />
+          <img src={dark ? branding.logoLight : branding.logoDark} alt={branding.name} className="hidden sm:block" style={{ height: 28 }} />
         </Link>
 
         {/* Global addon nav items */}
@@ -320,7 +324,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
                     <div className="px-4 pt-2 pb-2.5 text-center" style={{ marginTop: 4, borderTop: '1px solid var(--border-secondary)' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'var(--bg-tertiary)', borderRadius: 99, padding: '4px 12px' }}>
-                          <img src={dark ? '/text-light.svg' : '/text-dark.svg'} alt="ROUTD" style={{ height: 10, opacity: 0.5 }} />
+                          <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-faint)', opacity: 0.5, letterSpacing: '0.05em' }}>{branding.name}</span>
                           <span style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-faint)' }}>v{appVersion}</span>
                         </div>
                       </div>
