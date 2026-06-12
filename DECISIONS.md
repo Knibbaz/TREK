@@ -54,7 +54,14 @@
 
 ## Openstaande verzoeken (nog te doen)
 
-### A. White-label verkoop + superadmin-rol  *(gevraagd 2026-06-13)*
+### A. ~~White-label verkoop + superadmin-rol~~  *(gevraagd én gebouwd 2026-06-13)*
+- **Gebouwd**: rol `superadmin` (instellen via env `SUPERADMIN_EMAIL`, wordt bij
+  boot gepromoveerd). Superadmin = admin + White-label-tab in /admin waarmee
+  per menu-item bepaald wordt wat het klant-adminaccount ziet
+  (`whitelabel_disabled_admin_tabs` in app_settings). Klant-admin kan het
+  superadmin-account niet bewerken/verwijderen. Default-naam blijft ROUTD
+  (brand_name-fallback).
+- Open: welke runtime-settings nog meer exclusief superadmin moeten worden.
 - App moet als white-label verkoopbaar zijn, met **ROUTD als default-naam**.
 - Nieuwe rol bóven admin (bijv. `superadmin`/`owner`): Bas houdt dit account,
   de klant krijgt het admin-account.
@@ -89,3 +96,11 @@
 ### G. P1.1.4 afmaken: poll-beslissing  *(gevraagd 2026-06-13)*
 - "Beslissing"-badge in het tripoverzicht na het sluiten van een poll.
 - Optioneel: automatisch een place aanmaken van de winnende poll-optie.
+
+### H. Template-bibliotheek / bucket-list per land  *(gevraagd 2026-06-13)*
+- Agency-spec 4.1 (template-bibliotheek) gecombineerd met de bucket-list-wens
+  uit verzoek B: herbruikbare lijst van mooiste plekken per land die opduikt
+  bij het plannen van een trip naar dat land.
+
+### I. Kaart laadt pas na page-reload  *(gevraagd 2026-06-13)*
+- Bug: pagina met kaart toont de kaart pas na een handmatige reload.

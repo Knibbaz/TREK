@@ -1,4 +1,5 @@
 import { useNavigate, useLocation, useMatch } from 'react-router-dom'
+import { isAdminRole } from '../../types'
 import { useAddonStore } from '../../store/addonStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
@@ -52,7 +53,7 @@ export default function BottomNav() {
   const darkMode = useSettingsStore(s => s.settings.dark_mode)
   const dark = darkMode === true || darkMode === 'dark' || (darkMode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
   const user = useAuthStore(s => s.user)
-  const isCreator = user?.role === 'creator' || user?.role === 'admin'
+  const isCreator = user?.role === 'creator' || isAdminRole(user?.role)
   const addons = useAddonStore(s => s.addons)
   const globalAddons = addons.filter(a => a.type === 'global' && a.enabled)
   const location = useLocation()

@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { isAdminRole } from '../types'
 import { useTranslation } from '../i18n'
 import { useAuthStore } from '../store/authStore'
 import { useAddonStore } from '../store/addonStore'
@@ -93,7 +94,7 @@ export default function DashboardPage(): React.ReactElement {
   // Publish to Explore (ROUTD fork): creators/admins can submit a trip from the dashboard
   const user = useAuthStore(st => st.user)
   const exploreEnabled = useAddonStore(st => st.isEnabled('explore'))
-  const canPublish = exploreEnabled && (user?.role === 'admin' || user?.role === 'creator')
+  const canPublish = exploreEnabled && (isAdminRole(user?.role) || user?.role === 'creator')
   const [publishingTrip, setPublishingTrip] = React.useState<DashboardTrip | null>(null)
 
   return (

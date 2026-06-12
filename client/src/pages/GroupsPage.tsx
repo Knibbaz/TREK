@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { isAdminRole } from '../types'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useTranslation } from '../i18n'
 import { useGroupsStore } from '../store/groupsStore'
@@ -209,7 +210,7 @@ export default function GroupsPage(): React.ReactElement {
       setInviteLink(null)
       setInviteError(null)
       // Try to load existing invite link (owner/admin only)
-      if (group.role === 'owner' || group.role === 'admin') {
+      if (group.role === 'owner' || isAdminRole(group.role)) {
         try {
           const linkData = await groupsApi.getInviteLink(groupId)
           if (linkData?.link?.token) {
@@ -421,7 +422,7 @@ export default function GroupsPage(): React.ReactElement {
     if (!currentGroup || !user) return
 
     // If admin, show reassignment modal
-    if (currentGroup.role === 'admin') {
+    if (isAdminRole(currentGroup.role)) {
       setShowAdminReassignModal(true)
       setShowLeaveConfirm(false)
       return
@@ -641,7 +642,7 @@ export default function GroupsPage(): React.ReactElement {
     }
   }
 
-  const canManageMembers = currentGroup?.role === 'owner' || currentGroup?.role === 'admin'
+  const canManageMembers = currentGroup?.role === 'owner' || isAdminRole(currentGroup?.role)
   const isOwner = currentGroup?.role === 'owner'
 
   // Cover image placeholder
@@ -1136,7 +1137,7 @@ export default function GroupsPage(): React.ReactElement {
                           <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{member.username}</p>
                           <div className="flex items-center gap-1 text-xs" style={{ color: 'var(--text-faint)' }}>
                             {member.role === 'owner' && <Crown size={10} />}
-                            {member.role === 'admin' && <Shield size={10} />}
+                            {isAdminRole(member.role) && <Shield size={10} />}
                             <span>{t(`groups.role.${member.role}`) || member.role}</span>
                           </div>
                         </div>

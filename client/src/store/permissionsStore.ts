@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { isAdminRole } from '../types'
 import { useAuthStore } from './authStore'
 
 export type PermissionLevel = 'admin' | 'trip_owner' | 'trip_member' | 'everybody'
@@ -29,7 +30,7 @@ export function useCanDo() {
     trip?: TripOwnerContext | null,
   ): boolean {
     if (!user) return false
-    if (user.role === 'admin') return true
+    if (isAdminRole(user.role)) return true
 
     const level = perms[actionKey]
     if (!level) return true // not configured = allow

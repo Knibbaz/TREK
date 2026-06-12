@@ -4,7 +4,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import multer from 'multer';
 import { v4 as uuid } from 'uuid';
-import { authenticate, adminOnly } from '../../middleware/auth';
+import { authenticate, adminOnly, superadminOnly } from '../../middleware/auth';
 import { AuthRequest } from '../../types';
 import { db } from '../../db/database';
 import { writeAudit, getClientIp, logInfo } from '../../services/auditLog';
@@ -408,5 +408,28 @@ router.post('/branding/logo', brandingUpload.single('file'), (req: Request, res:
   }
 });
 
+
+// ── White-label config (ROUTD) ────────────────────────────────────────────────
+// Which admin tabs the customer-admin sees. Managed by the superadmin only;
+// readable by any admin so the AdminPage can filter its menu.
+const WL_KEY = 'whitelabel_disabled_admin_tabs';
+
+router.get('/whitelabel-config', (req: Request, res: Response) => {
+  const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(WL_KEY) as { value: string } | undefined;
+  let disabled: string[] = [];
+  try { disabled = row ? JSON.parse(row.value) : []; } catch {}
+  res.json({ disabled_admin_tabs: disabled });
+});
+
+router.put('/whitelabel-config', superadminOnly, (req: Request, res: Response) => {
+  const { disabled_admin_tabs } = req.body as { disabled_admin_tabs?: unknown };
+  if (!Array.isArray(disabled_admin_tabs) || disabled_admin_tabs.some(v => typeof v !== 'string')) {
+    return res.status(400).json({ error: 'disabled_admin_tabs must be an array of tab ids' });
+  }
+  db.prepare(`INSERT INTO app_settings (key, value) VALUES (?, ?)
+              ON CONFLICT(key) DO UPDATE SET value = excluded.value`)
+    .run(WL_KEY, JSON.stringify(disabled_admin_tabs));
+  res.json({ disabled_admin_tabs });
+});
 
 export default router;

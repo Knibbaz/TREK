@@ -4,7 +4,7 @@ export interface User {
   id: number;
   username: string;
   email: string;
-  role: 'admin' | 'user' | 'creator';
+  role: 'admin' | 'user' | 'creator' | 'superadmin';
   password_hash?: string;
   maps_api_key?: string | null;
   unsplash_api_key?: string | null;

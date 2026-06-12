@@ -492,6 +492,8 @@ export const adminApi = {
   getMollieFees: () => apiClient.get('/admin/mollie-fees').then(r => r.data),
   setMollieFees: (methods: Array<{ name: string; fixed_cents: number; variable_pct: number }>) => apiClient.put('/admin/mollie-fees', { methods }).then(r => r.data),
   getPayouts: () => apiClient.get('/admin/payouts').then(r => r.data),
+  getWhitelabelConfig: () => apiClient.get('/admin/whitelabel-config').then(r => r.data) as Promise<{ disabled_admin_tabs: string[] }>,
+  updateWhitelabelConfig: (disabled_admin_tabs: string[]) => apiClient.put('/admin/whitelabel-config', { disabled_admin_tabs }).then(r => r.data) as Promise<{ disabled_admin_tabs: string[] }>,
   registerPayout: (data: { creator_user_id: number; amount_cents: number; description?: string }) => apiClient.post('/admin/payouts', data).then(r => r.data),
   saveDemoBaseline: () => apiClient.post('/admin/save-demo-baseline').then(r => r.data),
   getOidc: () => apiClient.get('/admin/oidc').then(r => r.data),

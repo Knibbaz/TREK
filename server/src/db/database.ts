@@ -48,6 +48,19 @@ function initDb(): void {
   runMigrations(_db);
 
   runSeeds(_db);
+
+  // White-label: promote the instance owner to superadmin (idempotent). The
+  // customer keeps the regular admin account; only this env-configured account
+  // can manage the white-label config.
+  const superEmail = process.env.SUPERADMIN_EMAIL?.trim().toLowerCase();
+  if (superEmail) {
+    try {
+      const r = _db.prepare("UPDATE users SET role = 'superadmin' WHERE LOWER(email) = ? AND role != 'superadmin'").run(superEmail);
+      if (r.changes > 0) console.log(`[DB] Promoted ${superEmail} to superadmin`);
+    } catch (err) {
+      console.error('[DB] Superadmin promotion failed:', err);
+    }
+  }
 }
 
 initDb();

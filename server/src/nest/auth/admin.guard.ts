@@ -10,7 +10,7 @@ import type { Request } from 'express';
 export class AdminGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest<Request>();
-    if (!req.user || req.user.role !== 'admin') {
+    if (!req.user || (req.user.role !== 'admin' && req.user.role !== 'superadmin')) {
       throw new HttpException({ error: 'Admin access required' }, 403);
     }
     return true;

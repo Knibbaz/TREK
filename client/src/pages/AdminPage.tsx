@@ -11,13 +11,15 @@ import AddonManager from '../components/Admin/AddonManager'
 import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
-import { Users, Map, Briefcase, Shield, FileText, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, CreditCard, Palette, BarChart3 } from 'lucide-react'
+import { Users, Map, Briefcase, Shield, FileText, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, CreditCard, Palette, BarChart3, Crown } from 'lucide-react'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 import { useAddonStore } from '../store/addonStore'
 import BrandingPanel from '../components/Admin/BrandingPanel'
 import VisitorInsightsPanel from '../components/Admin/VisitorInsightsPanel'
 import GdprAdminPanel from '../components/Admin/GdprAdminPanel'
 import { AdminExploreTab, AdminPayoutsTab } from './admin/AdminForkTabs'
+import { AdminWhitelabelTab } from './admin/AdminWhitelabelTab'
+import { useAuthStore } from '../store/authStore'
 import { useAdmin } from './admin/useAdmin'
 import AdminUpdateBanner from './admin/AdminUpdateBanner'
 import AdminStatCard from './admin/AdminStatCard'
@@ -32,6 +34,14 @@ export default function AdminPage(): React.ReactElement {
   // each tab/section renders from a dedicated sub-component.
   const admin = useAdmin()
   const exploreEnabled = useAddonStore(s => s.isEnabled('explore'))
+
+  // White-label (ROUTD): the superadmin decides which admin tabs the
+  // customer-admin gets to see; superadmin always sees everything.
+  const isSuperadmin = useAuthStore(s => s.user?.role === 'superadmin')
+  const [disabledTabs, setDisabledTabs] = React.useState<string[]>([])
+  React.useEffect(() => {
+    adminApi.getWhitelabelConfig().then(d => setDisabledTabs(d.disabled_admin_tabs || [])).catch(() => {})
+  }, [])
   const {
     demoMode, mcpEnabled, devMode, toast,
     activeTab, setActiveTab, stats,
@@ -57,8 +67,9 @@ export default function AdminPage(): React.ReactElement {
     { id: 'audit', label: t('admin.tabs.audit'), icon: ScrollText },
     ...(mcpEnabled ? [{ id: 'mcp-tokens', label: t('admin.tabs.mcpTokens'), icon: KeyRound }] : []),
     { id: 'github', label: t('admin.tabs.github'), icon: GitBranch },
+    ...(isSuperadmin ? [{ id: 'whitelabel', label: 'White-label', icon: Crown }] : []),
     ...(devMode ? [{ id: 'dev-notifications', label: 'Dev: Notifications', icon: Bug }] : []),
-  ]
+  ].filter(tab => isSuperadmin || !disabledTabs.includes(tab.id))
 
   return (
     <PageShell background="var(--bg-secondary)">
@@ -167,6 +178,10 @@ export default function AdminPage(): React.ReactElement {
           {activeTab === 'insights' && <VisitorInsightsPanel />}
 
           {activeTab === 'gdpr' && <GdprAdminPanel />}
+
+          {activeTab === 'whitelabel' && isSuperadmin && (
+            <AdminWhitelabelTab disabledTabs={disabledTabs} setDisabledTabs={setDisabledTabs} />
+          )}
 
           {activeTab === 'backup' && <BackupPanel />}
 

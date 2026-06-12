@@ -49,11 +49,16 @@ export type {
   Category,
 }
 
+/** White-label: superadmin (instance owner) has every admin capability. */
+export function isAdminRole(role?: string | null): boolean {
+  return role === 'admin' || role === 'superadmin'
+}
+
 export interface User {
   id: number
   username: string
   email: string
-  role: 'admin' | 'user' | 'creator'
+  role: 'admin' | 'user' | 'creator' | 'superadmin'
   avatar_url: string | null
   maps_api_key: string | null
   created_at: string

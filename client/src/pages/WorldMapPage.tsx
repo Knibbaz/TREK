@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
+import { isAdminRole } from '../types'
 import L from 'leaflet'
 import { Globe2, Plus, Trash2, X, MapPin, Utensils, Lightbulb, Bed, Activity, MoreHorizontal } from 'lucide-react'
 import { getLocaleForLanguage, useTranslation } from '../i18n'
@@ -383,7 +384,7 @@ export default function WorldMapPage(): React.ReactElement {
                             {entry.name}
                           </span>
                         </div>
-                        {(entry.added_by === user?.id || user?.role === 'admin') && (
+                        {(entry.added_by === user?.id || isAdminRole(user?.role)) && (
                           <button
                             onClick={() => handleDelete(entry.id, entry.country_code)}
                             style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: 2, flexShrink: 0 }}>

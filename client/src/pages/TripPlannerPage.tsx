@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { isAdminRole } from '../types'
 import ReactDOM from 'react-dom'
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useTripStore } from '../store/tripStore'
@@ -59,7 +60,7 @@ function ListsContainer({ tripId, packingItems, todoItems }: { tripId: number; p
   const [saveTemplateSignal, setSaveTemplateSignal] = useState(0)
   const [addTodoSignal, setAddTodoSignal] = useState(0)
   const { t } = useTranslation()
-  const isAdmin = useAuthStore(s => s.user?.role === 'admin')
+  const isAdmin = useAuthStore(s => isAdminRole(s.user?.role))
 
   const tabs = [
     { id: 'packing' as const, label: t('todo.subtab.packing'), icon: PackageCheck, count: packingItems.length },
@@ -216,7 +217,7 @@ export default function TripPlannerPage(): React.ReactElement | null {
   const exploreEnabled = isAddonEnabled('explore')
   const user = useAuthStore(st => st.user)
   const isOwner = trip ? (trip as { user_id?: number }).user_id === user?.id : false
-  const isCreatorOrAdmin = user?.role === 'admin' || user?.role === 'creator'
+  const isCreatorOrAdmin = isAdminRole(user?.role) || user?.role === 'creator'
   const canPublish = exploreEnabled && isOwner && isCreatorOrAdmin
 
   const [pubStatus, setPubStatus] = useState<{ is_published: boolean; status?: string; version?: number } | null>(null)

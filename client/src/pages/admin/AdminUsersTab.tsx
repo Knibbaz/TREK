@@ -1,4 +1,5 @@
 import React from 'react'
+import { isAdminRole } from '../../types'
 import { Shield, Trash2, Edit2, UserPlus, Link2, Copy, Plus } from 'lucide-react'
 import Modal from '../../components/shared/Modal'
 import PermissionsPanel from '../../components/Admin/PermissionsPanel'
@@ -83,12 +84,12 @@ export default function AdminUsersTab({ admin, t, locale }: AdminUsersTabProps):
                     <td className="px-5 py-3 text-sm text-slate-600">{u.email}</td>
                     <td className="px-5 py-3">
                       <span className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-0.5 rounded-full ${
-                        u.role === 'admin'
+                        isAdminRole(u.role)
                           ? 'bg-slate-900 text-white'
                           : 'bg-slate-100 text-slate-600'
                       }`}>
-                        {u.role === 'admin' && <Shield className="w-3 h-3" />}
-                        {u.role === 'admin' ? t('settings.roleAdmin') : t('settings.roleUser')}
+                        {isAdminRole(u.role) && <Shield className="w-3 h-3" />}
+                        {isAdminRole(u.role) ? t('settings.roleAdmin') : t('settings.roleUser')}
                       </span>
                     </td>
                     <td className="px-5 py-3 text-sm text-slate-500">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { isAdminRole } from '../../types'
 import { User, Save, Lock, KeyRound, AlertTriangle, Shield, Camera, Trash2, Copy, Download, Printer, Upload, FileDown, AlertCircle } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation, getLocaleForLanguage } from '../../i18n'
@@ -570,7 +571,7 @@ export default function AccountTab(): React.ReactElement {
           <div className="flex flex-col gap-1">
             <div className="text-sm text-content-muted">
               <span className="font-medium text-content-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
-                {user?.role === 'admin' ? <><Shield size={13} /> {t('settings.roleAdmin')}</> : t('settings.roleUser')}
+                {isAdminRole(user?.role) ? <><Shield size={13} /> {t('settings.roleAdmin')}</> : t('settings.roleUser')}
               </span>
               {(user as UserWithOidc)?.oidc_issuer && (
                 <span className="bg-[#dbeafe] text-[#1d4ed8]" style={{
@@ -640,10 +641,10 @@ export default function AccountTab(): React.ReactElement {
           ) : (
             <button
               onClick={async () => {
-                if (user?.role === 'admin') {
+                if (isAdminRole(user?.role)) {
                   try {
                     await adminApi.stats()
-                    const adminUsers = (await adminApi.users()).users.filter((u: { role: string }) => u.role === 'admin')
+                    const adminUsers = (await adminApi.users()).users.filter((u: { role: string }) => isAdminRole(u.role))
                     if (adminUsers.length <= 1) {
                       setShowDeleteConfirm('blocked')
                       return

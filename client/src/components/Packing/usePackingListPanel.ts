@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { isAdminRole } from '../../types'
 import type { ChangeEvent } from 'react'
 import { useTripStore } from '../../store/tripStore'
 import { useCanDo } from '../../store/permissionsStore'
@@ -48,7 +49,7 @@ export function usePackingList({ tripId, items, openImportSignal = 0, clearCheck
   const can = useCanDo()
   const trip = useTripStore((s) => s.trip)
   const canEdit = can('packing_edit', trip)
-  const isAdmin = useAuthStore((s) => s.user?.role === 'admin')
+  const isAdmin = useAuthStore((s) => isAdminRole(s.user?.role))
   const toast = useToast()
   const { t } = useTranslation()
 

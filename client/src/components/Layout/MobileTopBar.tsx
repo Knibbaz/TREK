@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { isAdminRole } from '../../types'
 import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
@@ -79,7 +80,7 @@ function ProfileSheet({ onClose }: { onClose: () => void }) {
               <p className="text-[15px] font-semibold text-zinc-900 dark:text-white">{user?.username}</p>
               <p className="text-[12px] text-zinc-500 truncate">{user?.email}</p>
             </div>
-            {user?.role === 'admin' && (
+            {isAdminRole(user?.role) && (
               <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-zinc-100 dark:bg-zinc-800 text-[10px] font-semibold text-zinc-600 dark:text-zinc-400 uppercase tracking-wide">
                 <Shield size={10} /> Admin
               </span>
@@ -98,7 +99,7 @@ function ProfileSheet({ onClose }: { onClose: () => void }) {
             <span className="text-[14px] font-medium text-zinc-900 dark:text-white">{t('nav.bottomSettings')}</span>
           </button>
 
-          {user?.role === 'admin' && (
+          {isAdminRole(user?.role) && (
             <button
               onClick={() => handleNav('/admin')}
               className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-left hover:bg-zinc-50 dark:hover:bg-zinc-800 active:bg-zinc-100 dark:active:bg-zinc-800 transition-colors"

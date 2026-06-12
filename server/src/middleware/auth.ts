@@ -100,8 +100,20 @@ const optionalAuth = (req: Request, res: Response, next: NextFunction): void => 
 
 const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
   const authReq = req as AuthRequest;
-  if (!authReq.user || authReq.user.role !== 'admin') {
+  if (!authReq.user || (authReq.user.role !== 'admin' && authReq.user.role !== 'superadmin')) {
     res.status(403).json({ error: 'Admin access required' });
+    return;
+  }
+  next();
+};
+
+// White-label: the instance owner's account. Superadmin can do everything an
+// admin can, plus manage the white-label config (which admin tabs the
+// customer-admin gets to see).
+const superadminOnly = (req: Request, res: Response, next: NextFunction): void => {
+  const authReq = req as AuthRequest;
+  if (!authReq.user || authReq.user.role !== 'superadmin') {
+    res.status(403).json({ error: 'Superadmin access required' });
     return;
   }
   next();
@@ -109,7 +121,7 @@ const adminOnly = (req: Request, res: Response, next: NextFunction): void => {
 
 const adminOrCreator = (req: Request, res: Response, next: NextFunction): void => {
   const authReq = req as AuthRequest;
-  if (!authReq.user || (authReq.user.role !== 'admin' && authReq.user.role !== 'creator')) {
+  if (!authReq.user || (authReq.user.role !== 'admin' && authReq.user.role !== 'superadmin' && authReq.user.role !== 'creator')) {
     res.status(403).json({ error: 'Admin or creator access required' });
     return;
   }
@@ -125,4 +137,4 @@ const demoUploadBlock = (req: Request, res: Response, next: NextFunction): void 
   next();
 };
 
-export { authenticate, requireCookieAuth, optionalAuth, adminOnly, adminOrCreator, demoUploadBlock };
+export { authenticate, requireCookieAuth, optionalAuth, adminOnly, superadminOnly, adminOrCreator, demoUploadBlock };

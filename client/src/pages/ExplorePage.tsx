@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useCallback } from 'react'
+import { isAdminRole } from '../types'
 import { Compass, Calendar, ShoppingBag, X, MapPin, ChevronDown, ChevronUp, Users, Upload, Clock, CheckCircle, XCircle, CreditCard, Tag, Plus, Trash2, Edit2, Search, SlidersHorizontal, Star, ArrowUpDown, ChevronLeft, ChevronRight, Filter, ExternalLink } from 'lucide-react'
 import { useTranslation } from '../i18n'
 import { useNavigate } from 'react-router-dom'
@@ -634,7 +635,7 @@ interface SubmitFormState {
 export default function ExplorePage(): React.ReactElement {
   const { t, language } = useTranslation()
   const user = useAuthStore(s => s.user)
-  const isCreator = user?.role === 'creator' || user?.role === 'admin'
+  const isCreator = user?.role === 'creator' || isAdminRole(user?.role)
   const navigate = useNavigate()
   const [featured, setFeatured] = useState<ExploreTrip[]>([])
   const [trips, setTrips] = useState<ExploreTrip[]>([])

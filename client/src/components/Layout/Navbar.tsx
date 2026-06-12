@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { isAdminRole } from '../../types'
 import ReactDOM from 'react-dom'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from '../../store/authStore'
@@ -62,7 +63,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
     }
   }, [])
 
-  const isCreator = user?.role === 'creator' || user?.role === 'admin'
+  const isCreator = user?.role === 'creator' || isAdminRole(user?.role)
   // Only show 'global' type addons without a parent (sub-addons like creator_hub handled separately)
   const globalAddons = allAddons.filter((a: Addon) => {
     if (a.type !== 'global' || !a.enabled || a.parent_id) return false
@@ -282,7 +283,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
                 <div className="px-4 py-3 border-b border-edge-secondary">
                   <p className="text-sm font-medium text-content">{user.username}</p>
                   <p className="text-xs truncate text-content-muted">{user.email}</p>
-                  {user.role === 'admin' && (
+                  {isAdminRole(user.role) && (
                     <span className="inline-flex items-center gap-1 text-xs font-medium mt-1 text-content-secondary">
                       <Shield className="w-3 h-3" /> {t('nav.administrator')}
                     </span>
@@ -298,7 +299,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
                     {t('nav.settings')}
                   </Link>
 
-                  {user.role === 'admin' && (
+                  {isAdminRole(user.role) && (
                     <Link to="/admin" onClick={() => setUserMenuOpen(false)}
                       className="flex items-center gap-2 px-4 py-2 text-sm transition-colors text-content-secondary"
                       onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}

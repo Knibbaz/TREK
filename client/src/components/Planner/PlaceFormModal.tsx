@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
+import { isAdminRole } from '../../types'
 import Modal from '../shared/Modal'
 import CustomSelect from '../shared/CustomSelect'
 import { mapsApi } from '../../api/client'
@@ -720,7 +721,7 @@ export default function PlaceFormModal({
       <form onSubmit={handleSubmit} className="space-y-4" onPaste={handlePaste}>
         {/* Place Search */}
         <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
-          {!hasMapsKey && currentUser?.role === 'admin' && (
+          {!hasMapsKey && isAdminRole(currentUser?.role) && (
             <div className="mb-2 flex items-start gap-1.5 rounded-md px-2 py-1.5" style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.25)' }}>
               <span className="text-[10px] font-medium" style={{ color: '#d97706' }}>{t('places.osmActive')}</span>
             </div>

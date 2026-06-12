@@ -1,4 +1,5 @@
 import { Body, Controller, Delete, Get, HttpCode, HttpException, NotFoundException, Param, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { db } from '../../db/database';
 import type { Request } from 'express';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -30,6 +31,14 @@ function ok<T>(result: T): Exclude<T, { error: string }> {
 @Controller('api/admin')
 @UseGuards(JwtAuthGuard, AdminGuard)
 export class AdminController {
+
+  /** White-label: only the superadmin may modify the superadmin account. */
+  private guardSuperadminTarget(actor: User, targetId: string) {
+    const target = db.prepare('SELECT role FROM users WHERE id = ?').get(targetId) as { role?: string } | undefined;
+    if (target?.role === 'superadmin' && actor.role !== 'superadmin') {
+      throw new HttpException({ error: 'This account can only be managed by the instance owner' }, 403);
+    }
+  }
   constructor(private readonly admin: AdminService) {}
 
   // ── Users ──
@@ -46,6 +55,7 @@ export class AdminController {
 
   @Put('users/:id')
   updateUser(@CurrentUser() user: User, @Param('id') id: string, @Body() body: unknown, @Req() req: Request) {
+    this.guardSuperadminTarget(user, id);
     const result = ok(this.admin.updateUser(id, body));
     writeAudit({ userId: user.id, action: 'admin.user_update', resource: String(id), ip: getClientIp(req), details: { targetUser: result.previousEmail, fields: result.changed } });
     logInfo(`Admin ${user.email} edited user ${result.previousEmail} (fields: ${result.changed.join(', ')})`);
@@ -54,6 +64,7 @@ export class AdminController {
 
   @Delete('users/:id')
   deleteUser(@CurrentUser() user: User, @Param('id') id: string, @Req() req: Request) {
+    this.guardSuperadminTarget(user, id);
     const result = ok(this.admin.deleteUser(id, user.id));
     writeAudit({ userId: user.id, action: 'admin.user_delete', resource: String(id), ip: getClientIp(req), details: { targetUser: result.email } });
     logInfo(`Admin ${user.email} deleted user ${result.email}`);

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { isAdminRole } from '../../types'
 import Modal from '../shared/Modal'
 import { tripsApi, shareApi, groupsApi, addonsApi, authApi } from '../../api/client'
 import CustomSelect from '../shared/CustomSelect'
@@ -50,7 +51,7 @@ function ShareLinkSection({ tripId, t, enabledAddons }: { tripId: number; t: (ke
   }, [])
 
   useEffect(() => {
-    setIsAdmin(user?.role === 'admin')
+    setIsAdmin(isAdminRole(user?.role))
   }, [user])
 
   useEffect(() => {
