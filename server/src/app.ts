@@ -144,6 +144,18 @@ export function createApp(): express.Application {
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
 
+  // Allow /shared/* pages to be embedded in iframes (e.g. travel blogs)
+  const allowFraming = (_req: Request, res: Response, next: NextFunction) => {
+    res.removeHeader('X-Frame-Options');
+    const csp = res.getHeader('Content-Security-Policy') as string | undefined;
+    if (csp) {
+      res.setHeader('Content-Security-Policy', csp.replace(/frame-ancestors [^;]+/, "frame-ancestors *"));
+    }
+    next();
+  };
+  app.use('/shared', allowFraming);
+  app.use('/api/shared', allowFraming);
+
   if (shouldForceHttps) {
     app.use((req: Request, res: Response, next: NextFunction) => {
       if (req.path === '/api/health') return next();
