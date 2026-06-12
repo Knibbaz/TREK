@@ -11,8 +11,13 @@ import AddonManager from '../components/Admin/AddonManager'
 import PackingTemplateManager from '../components/Admin/PackingTemplateManager'
 import AuditLogPanel from '../components/Admin/AuditLogPanel'
 import AdminMcpTokensPanel from '../components/Admin/AdminMcpTokensPanel'
-import { Users, Map, Briefcase, Shield, FileText, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug } from 'lucide-react'
+import { Users, Map, Briefcase, Shield, FileText, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, CreditCard, Palette, BarChart3 } from 'lucide-react'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
+import { useAddonStore } from '../store/addonStore'
+import BrandingPanel from '../components/Admin/BrandingPanel'
+import VisitorInsightsPanel from '../components/Admin/VisitorInsightsPanel'
+import GdprAdminPanel from '../components/Admin/GdprAdminPanel'
+import { AdminExploreTab, AdminPayoutsTab } from './admin/AdminForkTabs'
 import { useAdmin } from './admin/useAdmin'
 import AdminUpdateBanner from './admin/AdminUpdateBanner'
 import AdminStatCard from './admin/AdminStatCard'
@@ -26,6 +31,7 @@ export default function AdminPage(): React.ReactElement {
   // Page = wiring container: all admin data slices + handlers live in the hook,
   // each tab/section renders from a dedicated sub-component.
   const admin = useAdmin()
+  const exploreEnabled = useAddonStore(s => s.isEnabled('explore'))
   const {
     demoMode, mcpEnabled, devMode, toast,
     activeTab, setActiveTab, stats,
@@ -40,6 +46,11 @@ export default function AdminPage(): React.ReactElement {
     { id: 'config', label: t('admin.tabs.config'), icon: SlidersHorizontal },
     { id: 'defaults', label: t('admin.tabs.defaults'), icon: UserCog },
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
+    ...(exploreEnabled ? [{ id: 'explore', label: 'Explore', icon: Compass }] : []),
+    ...(exploreEnabled ? [{ id: 'payouts', label: t('admin.tabs.payouts') || 'Payouts', icon: CreditCard }] : []),
+    { id: 'branding', label: t('admin.tabs.branding') || 'Branding', icon: Palette },
+    { id: 'insights', label: t('admin.tabs.insights') || 'Visitor Insights', icon: BarChart3 },
+    { id: 'gdpr', label: t('admin.tabs.gdpr') || 'GDPR', icon: Shield },
     { id: 'settings', label: t('admin.tabs.settings'), icon: SettingsIcon },
     { id: 'notifications', label: t('admin.tabs.notifications'), icon: Bell },
     { id: 'backup', label: t('admin.tabs.backup'), icon: Database },
@@ -146,6 +157,16 @@ export default function AdminPage(): React.ReactElement {
           {activeTab === 'notifications' && (
             <AdminNotificationsTab admin={admin} t={t} />
           )}
+
+          {activeTab === 'explore' && exploreEnabled && <AdminExploreTab />}
+
+          {activeTab === 'payouts' && exploreEnabled && <AdminPayoutsTab />}
+
+          {activeTab === 'branding' && <BrandingPanel />}
+
+          {activeTab === 'insights' && <VisitorInsightsPanel />}
+
+          {activeTab === 'gdpr' && <GdprAdminPanel />}
 
           {activeTab === 'backup' && <BackupPanel />}
 

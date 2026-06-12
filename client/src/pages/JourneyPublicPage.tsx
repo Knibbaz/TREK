@@ -14,6 +14,8 @@ import MobileEntryView from '../components/Journey/MobileEntryView'
 import { formatLocationName } from '../utils/formatters'
 import { DAY_COLORS } from '../components/Journey/dayColors'
 import { useJourneyPublic } from './journeyPublic/useJourneyPublic'
+import { useTrackVisit } from '../hooks/useTrackVisit'
+import VisitorPoll from '../components/shared/VisitorPoll'
 
 const MOOD_CONFIG: Record<string, { icon: typeof Smile; label: string; bg: string; text: string }> = {
   amazing: { icon: Laugh,  label: 'Amazing', bg: 'bg-pink-50 dark:bg-pink-900/20',   text: 'text-pink-600 dark:text-pink-400' },
@@ -56,6 +58,9 @@ export default function JourneyPublicPage() {
     timelineEntries, groupedEntries, sortedDates, sidebarMapItems, allPhotos,
     desktopTwoColumn,
   } = useJourneyPublic()
+
+  // ROUTD fork: anonymous visit tracking for public journey pages
+  useTrackVisit('journey', token)
 
   if (loading) {
     return (
@@ -327,6 +332,7 @@ export default function JourneyPublicPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <VisitorPoll pageType="journey" pageRef={token} />
       {/* Hero */}
       <div className="relative text-center text-white" style={{ background: 'linear-gradient(135deg, #000 0%, #0f172a 50%, #1e293b 100%)', padding: '32px 20px 28px', overflow: 'hidden' }}>
         {journey.cover_image && (

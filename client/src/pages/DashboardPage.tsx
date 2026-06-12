@@ -1,5 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { useTranslation } from '../i18n'
+import { useAuthStore } from '../store/authStore'
+import { useAddonStore } from '../store/addonStore'
+import { PublishModal } from '../components/Explore/PublishModal'
 import Navbar from '../components/Layout/Navbar'
 import DemoBanner from '../components/Layout/DemoBanner'
 import TripFormModal from '../components/Trips/TripFormModal'
@@ -16,7 +19,7 @@ import {
 import {
   Plus, Edit2, Trash2, Archive, Copy, ArrowRight, MapPin,
   Plane, Hotel, Utensils, Clock, RefreshCw, ArrowRightLeft, Calendar,
-  LayoutGrid, List, SlidersHorizontal, Ticket, X,
+  LayoutGrid, List, SlidersHorizontal, Ticket, X, Compass,
 } from 'lucide-react'
 import '../styles/dashboard.css'
 
@@ -87,6 +90,12 @@ export default function DashboardPage(): React.ReactElement {
     handleCreate, handleUpdate, confirmDelete, handleArchive, handleUnarchive, confirmCopy,
   } = useDashboard()
 
+  // Publish to Explore (ROUTD fork): creators/admins can submit a trip from the dashboard
+  const user = useAuthStore(st => st.user)
+  const exploreEnabled = useAddonStore(st => st.isEnabled('explore'))
+  const canPublish = exploreEnabled && (user?.role === 'admin' || user?.role === 'creator')
+  const [publishingTrip, setPublishingTrip] = React.useState<DashboardTrip | null>(null)
+
   return (
     <>
       {/* Navbar lives outside .trek-dash so it keeps the app-wide font + button
@@ -143,6 +152,7 @@ export default function DashboardPage(): React.ReactElement {
                     onCopy={() => setCopyTrip(trip)}
                     onArchive={() => trip.is_archived ? handleUnarchive(trip.id) : handleArchive(trip.id)}
                     onDelete={() => setDeleteTrip(trip)}
+                    onPublish={canPublish ? () => setPublishingTrip(trip) : undefined}
                   />
                 ))}
                 {tripFilter === 'planned' && !isLoading && (
@@ -175,6 +185,15 @@ export default function DashboardPage(): React.ReactElement {
         <Plus size={22} strokeWidth={2.4} />
         <span className="fab-label">{t('dashboard.newTrip')}</span>
       </button>
+
+      {canPublish && publishingTrip && (
+        <PublishModal
+          isOpen={!!publishingTrip}
+          onClose={() => setPublishingTrip(null)}
+          trips={[{ id: publishingTrip.id, title: publishingTrip.title }]}
+          onSubmitted={() => setPublishingTrip(null)}
+        />
+      )}
 
       {showForm && (
         <TripFormModal
@@ -396,9 +415,10 @@ function AtlasStats({ stats }: { stats: TravelStats | null }): React.ReactElemen
 }
 
 // ── Trip card ────────────────────────────────────────────────────────────────
-function TripCard({ trip, locale, onOpen, onEdit, onCopy, onArchive, onDelete }: {
+function TripCard({ trip, locale, onOpen, onEdit, onCopy, onArchive, onDelete, onPublish }: {
   trip: DashboardTrip; locale: string; onOpen: () => void
   onEdit: () => void; onCopy: () => void; onArchive: () => void; onDelete: () => void
+  onPublish?: () => void
 }): React.ReactElement {
   const { t } = useTranslation()
   const status = getTripStatus(trip)
@@ -427,6 +447,7 @@ function TripCard({ trip, locale, onOpen, onEdit, onCopy, onArchive, onDelete }:
           <button className="trip-action-btn" aria-label={t('common.edit')} onClick={(e) => stop(e, onEdit)}><Edit2 size={16} /></button>
           <button className="trip-action-btn" aria-label={t('dashboard.aria.duplicate')} onClick={(e) => stop(e, onCopy)}><Copy size={16} /></button>
           <button className="trip-action-btn" aria-label={trip.is_archived ? t('dashboard.restore') : t('dashboard.archive')} onClick={(e) => stop(e, onArchive)}><Archive size={16} /></button>
+          {onPublish && <button className="trip-action-btn" aria-label={t('dashboard.publishExplore')} onClick={(e) => stop(e, onPublish)}><Compass size={16} /></button>}
           <button className="trip-action-btn" aria-label={t('common.delete')} onClick={(e) => stop(e, onDelete)}><Trash2 size={16} /></button>
         </div>
         <div className="trip-cover-content">

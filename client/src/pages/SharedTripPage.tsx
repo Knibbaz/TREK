@@ -12,6 +12,9 @@ import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, M
 import { isDayInAccommodationRange } from '../utils/dayOrder'
 import { getTransportForDay, getMergedItems } from '../utils/dayMerge'
 import { splitReservationDateTime } from '../utils/formatters'
+import { useParams } from 'react-router-dom'
+import { useTrackVisit } from '../hooks/useTrackVisit'
+import VisitorPoll from '../components/shared/VisitorPoll'
 
 const TRANSPORT_ICONS = { flight: Plane, train: Train, bus: Bus, car: Car, cruise: Ship }
 
@@ -42,6 +45,9 @@ export default function SharedTripPage() {
   const { t, locale } = useTranslation()
   // Page = wiring container: share fetch + view state live in the hook.
   const { data, error, selectedDay, setSelectedDay, activeTab, setActiveTab, showLangPicker, setShowLangPicker } = useSharedTrip()
+  const { token } = useParams()
+  // ROUTD fork: anonymous visit tracking (referrer/UTM) for shared pages
+  useTrackVisit('shared_trip', token)
 
   if (error) return (
     <div className="bg-[#f3f4f6]" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '100vh' }}>
@@ -72,6 +78,7 @@ export default function SharedTripPage() {
 
   return (
     <div className="bg-surface-secondary" style={{ minHeight: '100vh', fontFamily: "var(--font-system)" }}>
+      <VisitorPoll pageType="shared_trip" pageRef={token} />
       {/* Header */}
       <div className="text-white" style={{ background: 'linear-gradient(135deg, #000 0%, #0f172a 50%, #1e293b 100%)', padding: '32px 20px 28px', textAlign: 'center', position: 'relative' }}>
         {/* Cover image background */}

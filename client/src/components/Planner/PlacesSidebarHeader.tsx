@@ -1,4 +1,5 @@
-import { Search, Plus, X, Upload, ChevronDown, Check, MapPin } from 'lucide-react'
+import { Search, Plus, X, Upload, ChevronDown, Check, MapPin, Download } from 'lucide-react'
+import { placesApi } from '../../api/client'
 import { getCategoryIcon } from '../shared/categoryIcons'
 import Tooltip from '../shared/Tooltip'
 import type { SidebarState } from './usePlacesSidebar'
@@ -21,7 +22,7 @@ export function PlacesDropOverlay({ t }: SidebarState) {
 
 export function PlacesHeader(S: SidebarState) {
   const {
-    canEditPlaces, onAddPlace, t, setFileImportOpen, setListImportOpen, hasMultipleListImportProviders,
+    canEditPlaces, onAddPlace, t, setFileImportOpen, setListImportOpen, hasMultipleListImportProviders, tripId,
     places, categories, categoryFilters, search, setSearch, plannedIds, hasTracks,
     filter, setFilter, onPlacesFilterChange, setSelectedIds, selectMode, setSelectMode,
     catDropOpen, setCatDropOpen, toggleCategoryFilter, setCategoryFiltersLocal, onCategoryFilterChange,
@@ -66,6 +67,23 @@ export function PlacesHeader(S: SidebarState) {
         >
           <MapPin size={11} strokeWidth={2} /> {t(hasMultipleListImportProviders ? 'places.importList' : 'places.importGoogleList')}
         </button>
+        {places.length > 0 && (
+          <Tooltip label={t('places.exportGpx') || 'Export GPX'}>
+            <button
+              onClick={() => { placesApi.exportGpx(tripId).catch(() => {}) }}
+              className="border border-dashed border-edge text-content-faint"
+              aria-label={t('places.exportGpx') || 'Export GPX'}
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                padding: '5px 10px', borderRadius: 8,
+                background: 'none', fontSize: 11, fontWeight: 500,
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              <Download size={11} strokeWidth={2} />
+            </button>
+          </Tooltip>
+        )}
       </div>
       <div className="bg-edge" style={{ height: 1, margin: '2px 0 10px' }} />
       </>}

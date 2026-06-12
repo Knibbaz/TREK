@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { Calendar, Camera, X, Clipboard, UserPlus, Bell } from 'lucide-react'
+import { Calendar, Camera, X, Clipboard, UserPlus, Bell, Sparkles } from 'lucide-react'
 import { tripsApi, authApi } from '../../api/client'
 import CustomSelect from '../shared/CustomSelect'
 import { useAuthStore } from '../../store/authStore'
@@ -52,6 +52,43 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const [selectedMembers, setSelectedMembers] = useState<number[]>([])
   const [existingMembers, setExistingMembers] = useState<{ id: number; username: string }[]>([])
   const [memberSelectValue, setMemberSelectValue] = useState('')
+
+  // Unsplash cover suggestions (ROUTD fork, new trip only)
+  const unsplashConfigured = useAuthStore(st => st.unsplashConfigured)
+  const [unsplashPhotos, setUnsplashPhotos] = useState<{ id: string; url: string; thumb: string; description: string | null; photographer: string | null; photographerUrl: string | null; link: string }[]>([])
+  const [unsplashLoading, setUnsplashLoading] = useState(false)
+  const unsplashDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  useEffect(() => {
+    if (!isOpen) { setUnsplashPhotos([]); setUnsplashLoading(false) }
+  }, [isOpen])
+
+  useEffect(() => {
+    if (isEditing || !isOpen || !unsplashConfigured) return
+    if (unsplashDebounceRef.current) clearTimeout(unsplashDebounceRef.current)
+    const q = formData.title.trim()
+    if (!q || pendingCoverFile || coverPreview) { setUnsplashPhotos([]); return }
+    setUnsplashLoading(true)
+    unsplashDebounceRef.current = setTimeout(async () => {
+      try {
+        const data = await tripsApi.searchCoverImages(q)
+        setUnsplashPhotos(data.photos || [])
+      } catch {
+        setUnsplashPhotos([])
+      } finally {
+        setUnsplashLoading(false)
+      }
+    }, 700)
+    return () => { if (unsplashDebounceRef.current) clearTimeout(unsplashDebounceRef.current) }
+  }, [formData.title, isEditing, isOpen, unsplashConfigured, pendingCoverFile, coverPreview])
+
+  const handlePickUnsplash = (photo: { id: string; url: string; photographer: string | null; photographerUrl: string | null }) => {
+    setCoverPreview(photo.url as never)
+    setPendingCoverFile({ _unsplashUrl: photo.url, _unsplashPhotographer: photo.photographer, _unsplashPhotographerUrl: photo.photographerUrl } as never)
+    setUnsplashPhotos([])
+    // Required by Unsplash API guidelines: trigger download event when a photo is used
+    tripsApi.triggerUnsplashDownload(photo.id).catch(() => {})
+  }
 
   useEffect(() => {
     if (trip) {
@@ -125,10 +162,16 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       // Upload pending cover for newly created trips
       if (pendingCoverFile && createdTrip?.id) {
         try {
-          const fd = new FormData()
-          fd.append('cover', pendingCoverFile)
-          const data = await tripsApi.uploadCover(createdTrip.id, fd)
-          onCoverUpdate?.(createdTrip.id, data.cover_image)
+          if ((pendingCoverFile as { _unsplashUrl?: string })._unsplashUrl) {
+            const url = (pendingCoverFile as { _unsplashUrl: string })._unsplashUrl
+            await tripsApi.update(createdTrip.id, { cover_image: url })
+            onCoverUpdate?.(createdTrip.id, url)
+          } else {
+            const fd = new FormData()
+            fd.append('cover', pendingCoverFile)
+            const data = await tripsApi.uploadCover(createdTrip.id, fd)
+            onCoverUpdate?.(createdTrip.id, data.cover_image)
+          }
         } catch {
           // Cover upload failed but trip was created — surface it without blocking the create
           toast.error(t('dashboard.coverUploadError'))
@@ -281,6 +324,38 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
               onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#9ca3af' }}>
               <Camera size={15} /> {uploadingCover ? t('common.uploading') : t('dashboard.addCoverImage')}
             </button>
+          )}
+          {/* Unsplash suggestions (ROUTD fork) */}
+          {!isEditing && (unsplashLoading || unsplashPhotos.length > 0) && (
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 11.5, color: '#6b7280' }}>
+                <Sparkles size={11} />
+                <span>Suggestions from Unsplash</span>
+                {unsplashLoading && (
+                  <div style={{ width: 10, height: 10, border: '1.5px solid #d1d5db', borderTopColor: '#6b7280', borderRadius: '50%', animation: 'spin 0.7s linear infinite', marginLeft: 2 }} />
+                )}
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
+                {unsplashPhotos.map(photo => (
+                  <div key={photo.id}>
+                    <button type="button" onClick={() => handlePickUnsplash(photo)}
+                      style={{ padding: 0, border: '2px solid transparent', borderRadius: 7, overflow: 'hidden', cursor: 'pointer', aspectRatio: '16/9', transition: 'border-color 0.15s', background: 'none', width: '100%', display: 'block' }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1' }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent' }}
+                    >
+                      <img src={photo.thumb} alt={photo.description || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    </button>
+                    {photo.photographer && (
+                      <p style={{ fontSize: 9.5, color: '#9ca3af', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        <a href={`${photo.photographerUrl}?utm_source=routd&utm_medium=referral`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>{photo.photographer}</a>
+                        {' / '}
+                        <a href="https://unsplash.com?utm_source=routd&utm_medium=referral" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }}>Unsplash</a>
+                      </p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>}
 
