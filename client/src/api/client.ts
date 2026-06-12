@@ -723,6 +723,25 @@ export const shareApi = {
   joinTripViaInvite: (token: string) => apiClient.post(`/invite/trip/${token}/join`).then(r => r.data),
 }
 
+export type VisitPageType = 'shared_trip' | 'journey' | 'link_in_bio'
+export type VisitSourceAnswer = 'social_media' | 'friend' | 'search_engine' | 'blog_website' | 'other'
+
+export const visitsApi = {
+  track: (data: { page_type: VisitPageType; page_ref: string; referrer?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string }) =>
+    apiClient.post('/visits', data).then(r => r.data),
+  survey: (data: { page_type: VisitPageType; page_ref: string; answer: VisitSourceAnswer }) =>
+    apiClient.post('/visits/survey', data).then(r => r.data),
+  getInsights: (days?: number) =>
+    apiClient.get('/visits/insights', { params: { days } }).then(r => r.data as {
+      days: number
+      totals: Array<{ page_type: string; visits: number; unique_visitors: number }>
+      referrers: Array<{ host: string; count: number }>
+      utmSources: Array<{ utm_source: string; count: number }>
+      surveyAnswers: Array<{ source_answer: string; count: number }>
+      recent: Array<{ page_type: string; page_ref: string; referrer_host: string | null; utm_source: string | null; utm_medium: string | null; utm_campaign: string | null; source_answer: string | null; visited_at: string }>
+    }),
+}
+
 export const notificationsApi = {
   getPreferences: () => apiClient.get('/notifications/preferences').then(r => r.data),
   updatePreferences: (prefs: Record<string, Record<string, boolean>>) => apiClient.put('/notifications/preferences', prefs).then(r => r.data),

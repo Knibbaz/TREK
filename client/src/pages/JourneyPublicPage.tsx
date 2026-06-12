@@ -17,6 +17,8 @@ import PhotoLightbox from '../components/Journey/PhotoLightbox'
 import MobileMapTimeline from '../components/Journey/MobileMapTimeline'
 import MobileEntryView from '../components/Journey/MobileEntryView'
 import { useIsMobile } from '../hooks/useIsMobile'
+import { useTrackVisit } from '../hooks/useTrackVisit'
+import VisitorPoll from '../components/shared/VisitorPoll'
 import { formatLocationName } from '../utils/formatters'
 import { DAY_COLORS } from '../components/Journey/dayColors'
 
@@ -98,6 +100,7 @@ function groupByDate(entries: PublicEntry[]): Map<string, PublicEntry[]> {
 
 export default function JourneyPublicPage() {
   const { token } = useParams()
+  useTrackVisit('journey', token)
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const branding = useBranding()
@@ -451,6 +454,7 @@ export default function JourneyPublicPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+      <VisitorPoll pageType="journey" pageRef={token} />
       {/* Hero */}
       <div className="relative text-center text-white" style={{ background: 'linear-gradient(135deg, #000 0%, #0f172a 50%, #1e293b 100%)', padding: '32px 20px 28px', overflow: 'hidden' }}>
         {journey.cover_image && (

@@ -3294,6 +3294,28 @@ function runMigrations(db: Database.Database): void {
       try { db.exec('ALTER TABLE trips ADD COLUMN cloned_from_trip_id INTEGER REFERENCES trips(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
       console.log('[migrations] Added cloned_from_trip_id to trips');
     },
+    // Migration 182: Visitor insights — referrer/UTM tracking + source poll on public pages
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS visitor_insights (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          page_type     TEXT NOT NULL,
+          page_ref      TEXT NOT NULL,
+          session_id    TEXT NOT NULL,
+          referrer      TEXT,
+          referrer_host TEXT,
+          utm_source    TEXT,
+          utm_medium    TEXT,
+          utm_campaign  TEXT,
+          source_answer TEXT,
+          visited_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(page_type, page_ref, session_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_visitor_insights_type ON visitor_insights(page_type, visited_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_visitor_insights_visited ON visitor_insights(visited_at DESC);
+      `);
+      console.log('[migrations] Created visitor_insights table');
+    },
   ];
 
   if (currentVersion < migrations.length) {

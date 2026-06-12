@@ -52,6 +52,7 @@ import memoriesRoutes from './routes/memories/unified';
 import photoRoutes from './routes/photos';
 import notificationRoutes from './routes/notifications';
 import shareRoutes from './routes/share';
+import visitorInsightsRoutes from './routes/visitorInsights';
 import journeyRoutes from './routes/journey';
 import journeyPublicRoutes from './routes/journeyPublic';
 import publicConfigRoutes from './routes/publicConfig';
@@ -293,6 +294,7 @@ export function createApp(): express.Application {
   app.use('/api', assignmentsRoutes);
   app.use('/api/tags', tagsRoutes);
   app.use('/api/categories', categoriesRoutes);
+  app.use('/api/visits', visitorInsightsRoutes);
   app.use('/api/admin', adminRoutes);
 
   // Addons list endpoint

@@ -15,6 +15,8 @@ import { Clock, MapPin, FileText, Train, Plane, Bus, Car, Ship, Ticket, Hotel, M
 import { calculateRoute, calculateSegments } from '../components/Map/RouteCalculator'
 import { useAuthStore } from '../store/authStore'
 import { isDayInAccommodationRange } from '../utils/dayOrder'
+import { useTrackVisit } from '../hooks/useTrackVisit'
+import VisitorPoll from '../components/shared/VisitorPoll'
 
 const TRANSPORT_TYPES = new Set(['flight', 'train', 'bus', 'car', 'cruise'])
 const TRANSPORT_ICONS = { flight: Plane, train: Train, bus: Bus, car: Car, cruise: Ship }
@@ -181,6 +183,8 @@ export default function SharedTripPage() {
   const [routeSegments, setRouteSegments] = useState<any[]>([])
   const [showRouteLabels, setShowRouteLabels] = useState(false)
   const [projectMeta, setProjectMeta] = useState<any>(null)
+
+  useTrackVisit('shared_trip', token)
 
   useEffect(() => {
     if (!token) return
@@ -358,6 +362,7 @@ export default function SharedTripPage() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg-secondary, #f3f4f6)', fontFamily: "-apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif" }}>
+      <VisitorPoll pageType="shared_trip" pageRef={token} />
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg, #000 0%, #0f172a 50%, #1e293b 100%)', color: 'white', padding: '32px 20px 28px', textAlign: 'center', position: 'relative' }}>
         {/* Cover image background */}

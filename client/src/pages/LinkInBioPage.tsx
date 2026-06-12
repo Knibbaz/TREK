@@ -3,6 +3,8 @@ import { useParams } from 'react-router-dom';
 import { creatorHubApi } from '../api/client';
 import { LibBlock, LibConfig } from '../types';
 import '../components/Explore/creator-hub/lib-themes.css';
+import { useTrackVisit } from '../hooks/useTrackVisit';
+import VisitorPoll from '../components/shared/VisitorPoll';
 
 export function LinkInBioPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -10,6 +12,8 @@ export function LinkInBioPage() {
   const [blocks, setBlocks] = useState<LibBlock[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useTrackVisit('link_in_bio', slug);
 
   useEffect(() => {
     const loadData = async () => {
@@ -79,6 +83,7 @@ export function LinkInBioPage() {
         ...bgStyle,
       }}
     >
+      <VisitorPoll pageType="link_in_bio" pageRef={slug} />
       <div className="lib-container">
         {/* Header */}
         <div className="lib-header">

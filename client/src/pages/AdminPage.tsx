@@ -23,7 +23,8 @@ import PermissionsPanel from '../components/Admin/PermissionsPanel'
 import GdprAdminPanel from '../components/Admin/GdprAdminPanel'
 import { CreatorApplicationQueue } from '../components/Admin/CreatorApplicationQueue'
 import BrandingPanel from '../components/Admin/BrandingPanel'
-import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown, Palette } from 'lucide-react'
+import VisitorInsightsPanel from '../components/Admin/VisitorInsightsPanel'
+import { Users, Map, Briefcase, Shield, Trash2, Edit2, FileText, Eye, EyeOff, Save, CheckCircle, XCircle, Loader2, UserPlus, ArrowUpCircle, ExternalLink, Download, Sun, Link2, Copy, Plus, RefreshCw, AlertTriangle, SlidersHorizontal, UserCog, Puzzle, Settings as SettingsIcon, Bell, Database, ScrollText, KeyRound, GitBranch, Bug, Compass, Clock, CreditCard, ChevronDown, Palette, BarChart3 } from 'lucide-react'
 import CustomSelect from '../components/shared/CustomSelect'
 import PageSidebar, { type PageSidebarTab } from '../components/Layout/PageSidebar'
 
@@ -226,6 +227,7 @@ export default function AdminPage(): React.ReactElement {
     { id: 'addons', label: t('admin.tabs.addons'), icon: Puzzle },
     { id: 'groups', label: t('admin.tabs.groups') || 'Groups', icon: Users },
     { id: 'branding', label: t('admin.tabs.branding') || 'Branding', icon: Palette },
+    { id: 'insights', label: t('admin.tabs.insights') || 'Visitor Insights', icon: BarChart3 },
     { id: 'settings', label: t('admin.tabs.settings'), icon: SettingsIcon },
     { id: 'notifications', label: t('admin.tabs.notifications'), icon: Bell },
     { id: 'backup', label: t('admin.tabs.backup'), icon: Database },
@@ -2468,6 +2470,8 @@ export default function AdminPage(): React.ReactElement {
           })()}
 
           {activeTab === 'branding' && <BrandingPanel />}
+
+          {activeTab === 'insights' && <VisitorInsightsPanel />}
 
           {activeTab === 'backup' && <BackupPanel />}
 
