@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': 'تمت المشاركة عبر',
   'shared.confirmed': 'مؤكد',
   'shared.pending': 'قيد الانتظار',
+  'shared.tabMap': 'خريطة',
 };
 export default shared;

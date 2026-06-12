@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react'
-import { User, Save, Lock, KeyRound, AlertTriangle, Shield, Camera, Trash2, Copy, Download, Printer } from 'lucide-react'
+import { User, Save, Lock, KeyRound, AlertTriangle, Shield, Camera, Trash2, Copy, Download, Printer, Upload, FileDown, AlertCircle } from 'lucide-react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useTranslation } from '../../i18n'
+import { useTranslation, getLocaleForLanguage } from '../../i18n'
 import { useAuthStore } from '../../store/authStore'
 import { useToast } from '../shared/Toast'
-import { authApi, adminApi } from '../../api/client'
+import { authApi, adminApi, userExportApi, gdprApi } from '../../api/client'
+import { useSettingsStore } from '../../store/settingsStore'
+import { getAllCountries } from '../../i18n/countryNames'
 import { getApiErrorMessage } from '../../types'
 import type { UserWithOidc } from '../../types'
 import Section from './Section'
@@ -14,23 +16,53 @@ const MFA_BACKUP_SESSION_KEY = 'trek_mfa_backup_codes_pending'
 
 export default function AccountTab(): React.ReactElement {
   const { user, updateProfile, uploadAvatar, deleteAvatar, logout, loadUser, demoMode, appRequireMfa } = useAuthStore()
+  const { settings, updateSetting, loadSettings } = useSettingsStore()
   const [searchParams] = useSearchParams()
   const navigate = useNavigate()
-  const { t } = useTranslation()
+  const { t, language } = useTranslation()
   const toast = useToast()
   const avatarInputRef = React.useRef<HTMLInputElement>(null)
 
   const [saving, setSaving] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<boolean | 'blocked'>(false)
+  const [deleteLoading, setDeleteLoading] = useState(false)
 
   // Profile
   const [username, setUsername] = useState<string>(user?.username || '')
   const [email, setEmail] = useState<string>(user?.email || '')
+  const countries = getAllCountries(getLocaleForLanguage(language))
 
   useEffect(() => {
     setUsername(user?.username || '')
     setEmail(user?.email || '')
   }, [user])
+
+  useEffect(() => {
+    loadSettings()
+  }, [loadSettings])
+
+  // Load export preview + existing export status on mount
+  useEffect(() => {
+    userExportApi.preview()
+      .then(data => {
+        setExportStats({ trips: data.trips || 0, places: data.places || 0, files_mb: data.files_mb || 0 })
+      })
+      .catch(() => {
+        setExportStats({ trips: 0, places: 0, files_mb: 0 })
+      })
+    userExportApi.status()
+      .then(data => {
+        if (data.status === 'ready' && data.canDownload && data.token) {
+          setExportStatus('ready')
+          setExportToken(data.token)
+          setExportExpiresAt(data.expiresAt)
+          setExportDownloadsLeft(data.downloads_left)
+        } else if (data.status === 'processing') {
+          setExportStatus('processing')
+        }
+      })
+      .catch(() => {})
+  }, [])
 
   // Password
   const [currentPassword, setCurrentPassword] = useState('')
@@ -53,6 +85,21 @@ export default function AccountTab(): React.ReactElement {
   const [mfaLoading, setMfaLoading] = useState(false)
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null)
 
+  // Export
+  const [exportStats, setExportStats] = useState<{ trips: number; places: number; files_mb: number } | null>(null)
+  const [exportLoading, setExportLoading] = useState(false)
+  const [exportStatus, setExportStatus] = useState<string | null>(null) // 'processing' | 'ready'
+  const [exportToken, setExportToken] = useState<string | null>(null)
+  const [exportExpiresAt, setExportExpiresAt] = useState<string | null>(null)
+  const [exportDownloadsLeft, setExportDownloadsLeft] = useState<number | null>(null)
+  const exportStatusPollRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  // Import
+  const [importFile, setImportFile] = useState<File | null>(null)
+  const [importLoading, setImportLoading] = useState(false)
+  const [importResult, setImportResult] = useState<{ imported: number; skipped: number; errors: string[] } | null>(null)
+  const importInputRef = React.useRef<HTMLInputElement>(null)
+
   const mfaRequiredByPolicy =
     !demoMode &&
     !user?.mfa_enabled &&
@@ -73,6 +120,29 @@ export default function AccountTab(): React.ReactElement {
       sessionStorage.removeItem(MFA_BACKUP_SESSION_KEY)
     }
   }, [user?.mfa_enabled, backupCodes])
+
+  // Poll export status while processing
+  useEffect(() => {
+    if (exportStatus !== 'processing') {
+      if (exportStatusPollRef.current) clearInterval(exportStatusPollRef.current)
+      return
+    }
+    exportStatusPollRef.current = setInterval(() => {
+      userExportApi.status()
+        .then(data => {
+          setExportStatus(data.status)
+          if (data.status === 'ready') {
+            setExportToken(data.token)
+            setExportExpiresAt(data.expires_at)
+            setExportDownloadsLeft(data.downloads_left)
+          }
+        })
+        .catch(() => {})
+    }, 3000)
+    return () => {
+      if (exportStatusPollRef.current) clearInterval(exportStatusPollRef.current)
+    }
+  }, [exportStatus])
 
   const dismissBackupCodes = () => {
     sessionStorage.removeItem(MFA_BACKUP_SESSION_KEY)
@@ -104,9 +174,9 @@ export default function AccountTab(): React.ReactElement {
 
   const printBackupCodes = () => {
     if (!backupCodesText) return
-    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>TREK MFA Backup Codes</title>
+    const html = `<!doctype html><html><head><meta charset="utf-8"/><title>ROUTD MFA Backup Codes</title>
       <style>body{font-family:Arial,sans-serif;padding:32px}h1{font-size:20px}pre{font-size:16px;line-height:1.6}</style>
-      </head><body><h1>TREK MFA Backup Codes</h1><p>${new Date().toLocaleString()}</p><pre>${backupCodesText}</pre></body></html>`
+      </head><body><h1>ROUTD MFA Backup Codes</h1><p>${new Date().toLocaleString()}</p><pre>${backupCodesText}</pre></body></html>`
     const w = window.open('', '_blank', 'width=900,height=700')
     if (!w) return
     w.document.open()
@@ -149,6 +219,41 @@ export default function AccountTab(): React.ReactElement {
     }
   }
 
+  const startExport = async () => {
+    setExportLoading(true)
+    try {
+      const data = await userExportApi.start()
+      setExportStatus(data.status)
+      if (data.status === 'ready') {
+        setExportToken(data.token)
+        setExportExpiresAt(data.expires_at)
+        setExportDownloadsLeft(data.downloads_left)
+      }
+      toast.success(t('backup.v2.export.success'))
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('common.error')))
+    } finally {
+      setExportLoading(false)
+    }
+  }
+
+  const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setImportFile(file)
+    setImportLoading(true)
+    try {
+      const result = await userExportApi.import(file)
+      setImportResult({ imported: result.imported, skipped: result.skipped, errors: result.errors || [] })
+      toast.success(t('backup.v2.import.success'))
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('common.error')))
+    } finally {
+      setImportLoading(false)
+      if (importInputRef.current) importInputRef.current.value = ''
+    }
+  }
+
   return (
     <>
       <Section title={t('settings.account')} icon={User}>
@@ -169,6 +274,23 @@ export default function AccountTab(): React.ReactElement {
             onChange={e => setEmail(e.target.value)}
             className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
           />
+        </div>
+
+        {/* Home Country */}
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1.5">{t('account.homeCountry')}</label>
+          <select
+            value={settings.home_country || ''}
+            onChange={e => updateSetting('home_country', e.target.value)}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-slate-400 focus:border-transparent"
+            style={{ background: 'var(--bg-input)', color: 'var(--text-primary)' }}
+          >
+            <option value="">{t('dateAvail.selectCountry') || 'Select country'}</option>
+            {countries.map(c => (
+              <option key={c.countryCode} value={c.countryCode}>{c.name}</option>
+            ))}
+          </select>
+          <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('account.homeCountryHelp')}</p>
         </div>
 
         {/* Change Password */}
@@ -468,6 +590,21 @@ export default function AccountTab(): React.ReactElement {
           </div>
         </div>
 
+        {user?.pending_deletion ? (
+          <div className="p-3 rounded-lg border" style={{ background: '#fef2f2', borderColor: '#fecaca', marginTop: 16, marginBottom: 12 }}>
+            <div className="flex items-start gap-2">
+              <AlertTriangle size={16} style={{ color: '#ef4444', marginTop: 1, flexShrink: 0 }} />
+              <div>
+                <p className="text-sm font-medium m-0 mb-1" style={{ color: '#ef4444' }}>
+                  {t('gdpr.account.pendingBanner') || 'Account scheduled for deletion'}
+                </p>
+                <p className="text-xs m-0" style={{ color: '#dc2626' }}>
+                  {user.deletion_requested_at ? new Date(new Date(user.deletion_requested_at).getTime() + 14 * 24 * 60 * 60 * 1000).toLocaleString(language) : '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        ) : null}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 12 }}>
           <button
             onClick={saveProfile}
@@ -478,26 +615,51 @@ export default function AccountTab(): React.ReactElement {
             <span className="hidden sm:inline">{t('settings.saveProfile')}</span>
             <span className="sm:hidden">{t('common.save')}</span>
           </button>
-          <button
-            onClick={async () => {
-              if (user?.role === 'admin') {
+          {user?.pending_deletion ? (
+            <button
+              onClick={async () => {
+                setDeleteLoading(true)
                 try {
-                  await adminApi.stats()
-                  const adminUsers = (await adminApi.users()).users.filter((u: { role: string }) => u.role === 'admin')
-                  if (adminUsers.length <= 1) {
-                    setShowDeleteConfirm('blocked')
-                    return
-                  }
-                } catch {}
-              }
-              setShowDeleteConfirm(true)
-            }}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-red-500 hover:bg-red-50 border border-[#fecaca]"
-          >
-            <Trash2 size={14} />
-            <span className="hidden sm:inline">{t('settings.deleteAccount')}</span>
-            <span className="sm:hidden">{t('common.delete')}</span>
-          </button>
+                  await gdprApi.cancelDeletion()
+                  toast.success(t('gdpr.account.cancelSuccess') || 'Deletion cancelled')
+                  await loadUser({ silent: true })
+                } catch (err: unknown) {
+                  toast.error(getApiErrorMessage(err, t('common.error')))
+                } finally {
+                  setDeleteLoading(false)
+                }
+              }}
+              disabled={deleteLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{ border: '1px solid #fecaca', background: '#fef2f2', color: '#ef4444' }}
+            >
+              {deleteLoading ? <div className="w-4 h-4 border-2 border-red-300 border-t-red-600 rounded-full animate-spin" /> : <AlertTriangle size={14} />}
+              <span className="hidden sm:inline">{t('gdpr.account.cancelDeletion') || 'Cancel deletion'}</span>
+              <span className="sm:hidden">{t('common.cancel')}</span>
+            </button>
+          ) : (
+            <button
+              onClick={async () => {
+                if (user?.role === 'admin') {
+                  try {
+                    await adminApi.stats()
+                    const adminUsers = (await adminApi.users()).users.filter((u: { role: string }) => u.role === 'admin')
+                    if (adminUsers.length <= 1) {
+                      setShowDeleteConfirm('blocked')
+                      return
+                    }
+                  } catch {}
+                }
+                setShowDeleteConfirm(true)
+              }}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors text-red-500 hover:bg-red-50"
+              style={{ border: '1px solid #fecaca' }}
+            >
+              <Trash2 size={14} />
+              <span className="hidden sm:inline">{t('settings.deleteAccount')}</span>
+              <span className="sm:hidden">{t('common.delete')}</span>
+            </button>
+          )}
         </div>
       </Section>
 
@@ -554,8 +716,11 @@ export default function AccountTab(): React.ReactElement {
               </div>
               <h3 className="text-content" style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{t('settings.deleteAccountTitle')}</h3>
             </div>
-            <p className="text-content-muted" style={{ fontSize: 13, lineHeight: 1.6, margin: '0 0 20px' }}>
-              {t('settings.deleteAccountWarning')}
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 12px' }}>
+              {t('gdpr.account.gracePeriod') || 'Your account will be deleted in 14 days. You can cancel the deletion at any time during this period.'}
+            </p>
+            <p style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.6, margin: '0 0 20px' }}>
+              {t('gdpr.account.downloadFirst') || 'Consider downloading your data first before requesting deletion.'}
             </p>
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
               <button
@@ -570,28 +735,149 @@ export default function AccountTab(): React.ReactElement {
               </button>
               <button
                 onClick={async () => {
+                  setDeleteLoading(true)
                   try {
-                    await authApi.deleteOwnAccount()
-                    logout()
-                    navigate('/login', { state: { noRedirect: true } })
+                    await gdprApi.requestDeletion()
+                    toast.success(t('gdpr.account.requestSuccess') || 'Deletion requested. You have 14 days to cancel.')
+                    await loadUser({ silent: true })
+                    setShowDeleteConfirm(false)
                   } catch (err: unknown) {
                     toast.error(getApiErrorMessage(err, t('common.error')))
-                    setShowDeleteConfirm(false)
+                  } finally {
+                    setDeleteLoading(false)
                   }
                 }}
-                className="bg-[#ef4444] text-white"
+                disabled={deleteLoading}
                 style={{
                   padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                  border: 'none',
-                  cursor: 'pointer', fontFamily: 'inherit',
+                  border: 'none', background: '#ef4444', color: 'white',
+                  cursor: deleteLoading ? 'not-allowed' : 'pointer', fontFamily: 'inherit',
+                  opacity: deleteLoading ? 0.6 : 1,
                 }}
               >
-                {t('settings.deleteAccountConfirm')}
+                {deleteLoading ? 'Processing...' : t('settings.deleteAccountConfirm')}
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Data Export Section */}
+      <Section title={t('backup.v2.export.title')} icon={FileDown}>
+        <p className="text-sm m-0" style={{ color: 'var(--text-muted)', marginBottom: 12 }}>
+          {t('backup.v2.export.preview')}
+        </p>
+        {exportStats && (
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+              <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>Trips</p>
+              <p className="text-lg font-semibold m-0" style={{ color: 'var(--text-primary)' }}>{exportStats.trips}</p>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+              <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>Places</p>
+              <p className="text-lg font-semibold m-0" style={{ color: 'var(--text-primary)' }}>{exportStats.places}</p>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+              <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>Files</p>
+              <p className="text-lg font-semibold m-0" style={{ color: 'var(--text-primary)' }}>{exportStats.files_mb} MB</p>
+            </div>
+          </div>
+        )}
+        {!exportStatus && (
+          <button
+            onClick={startExport}
+            disabled={exportLoading}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors mb-3"
+            style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+          >
+            {exportLoading ? <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" /> : <Download size={14} />}
+            {t('backup.v2.export.start')}
+          </button>
+        )}
+        {exportStatus === 'processing' && (
+          <div className="p-3 rounded-lg mb-3" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+            <p className="text-sm m-0 flex items-center gap-2" style={{ color: 'var(--text-primary)' }}>
+              <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" />
+              {t('backup.v2.export.downloading')}
+            </p>
+          </div>
+        )}
+        {exportStatus === 'ready' && exportToken && (
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+              <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>{t('backup.v2.export.expiresAt')}</p>
+              <p className="text-sm font-medium m-0" style={{ color: 'var(--text-primary)' }}>
+                {exportExpiresAt ? new Date(exportExpiresAt).toLocaleString(language) : '—'}
+              </p>
+            </div>
+            <div className="p-3 rounded-lg" style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)' }}>
+              <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>{t('backup.v2.export.downloadsLeft')}</p>
+              <p className="text-sm font-medium m-0" style={{ color: 'var(--text-primary)' }}>{exportDownloadsLeft}</p>
+            </div>
+            <a
+              href={userExportApi.downloadUrl(exportToken)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'var(--bg-primary)', color: 'white', textDecoration: 'none' }}
+            >
+              <Download size={14} />
+              {t('backup.v2.export.ready')}
+            </a>
+          </div>
+        )}
+      </Section>
+
+      {/* Data Import Section */}
+      <Section title={t('backup.v2.import.title')} icon={Upload}>
+        <div className="space-y-3">
+          <div className="p-3 rounded-lg border flex gap-3" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}>
+            <AlertCircle size={16} style={{ color: '#f59e0b', flexShrink: 0, marginTop: 2 }} />
+            <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>
+              {t('backup.v2.import.warning')}
+            </p>
+          </div>
+          <div>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept=".routd"
+              onChange={handleImportFile}
+              disabled={importLoading}
+              style={{ display: 'none' }}
+            />
+            <button
+              onClick={() => importInputRef.current?.click()}
+              disabled={importLoading}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+              style={{ background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+            >
+              {importLoading ? <div className="w-4 h-4 border-2 border-slate-300 border-t-slate-700 rounded-full animate-spin" /> : <Upload size={14} />}
+              {t('backup.v2.import.start')}
+            </button>
+          </div>
+          {importResult && (
+            <div className="p-3 rounded-lg border" style={{ background: 'var(--bg-secondary)', borderColor: 'var(--border-primary)' }}>
+              <p className="text-sm font-medium m-0 mb-2" style={{ color: 'var(--text-primary)' }}>
+                {t('backup.v2.import.success')}
+              </p>
+              <div className="space-y-1">
+                <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>Imported: {importResult.imported}</p>
+                <p className="text-xs m-0" style={{ color: 'var(--text-muted)' }}>Skipped: {importResult.skipped}</p>
+                {importResult.errors.length > 0 && (
+                  <div className="mt-2">
+                    <p className="text-xs m-0 font-medium" style={{ color: '#ef4444' }}>Errors:</p>
+                    <ul className="text-xs m-0 mt-1 pl-4" style={{ color: '#ef4444' }}>
+                      {importResult.errors.slice(0, 3).map((err, i) => <li key={i}>{err}</li>)}
+                      {importResult.errors.length > 3 && <li>...and {importResult.errors.length - 3} more</li>}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </Section>
     </>
   )
 }

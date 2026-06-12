@@ -1,10 +1,24 @@
 import { useEffect, useState } from 'react'
-import { Briefcase, Pencil } from 'lucide-react'
+import { Briefcase, Pencil, TrendingUp } from 'lucide-react'
 import { useVacayStore } from '../../store/vacayStore'
 import { useAuthStore } from '../../store/authStore'
 import { useTranslation } from '../../i18n'
 import type { VacayStat, TranslationFn } from '../../types'
 
+
+function fmtHours(h: number): string {
+  const rounded = Math.round(h * 10) / 10
+  return `${rounded}u`
+}
+
+function fmtDays(d: number, stdHours: number): string {
+  // Show as integer if it's a round number, otherwise show one decimal
+  if (Number.isInteger(d)) return String(d)
+  // Check if it's a common fraction like 0.5
+  const rounded = Math.round(d * 10) / 10
+  const hours = Math.round(d * stdHours * 10) / 10
+  return `${rounded}`
+}
 
 export default function VacayStats() {
   const { t } = useTranslation()
@@ -54,10 +68,15 @@ interface StatCardProps {
 
 function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardProps) {
   const [editing, setEditing] = useState(false)
-  // Holds the entitlement-day value while editing: a number on load, a string
-  // once the user types into the number input.
-  const [localDays, setLocalDays] = useState<number | string>(s.vacation_days)
+  const [localDays, setLocalDays] = useState(s.vacation_days)
+  const [hoveredStat, setHoveredStat] = useState<'used' | 'remaining' | 'header' | 'comp' | null>(null)
+  const stdHours = s.standard_hours_per_day ?? 8
   const pct = s.total_available > 0 ? Math.min(100, (s.used / s.total_available) * 100) : 0
+  const hasPartial = !Number.isInteger(s.used) || s.comp_hours > 0
+
+  // Vacation-only values (excluding TvT used)
+  const vacationUsedDays = (s.vacation_used_hours ?? 0) / stdHours
+  const vacationOnlyRemaining = s.total_available - vacationUsedDays
 
   // Sync local state when stats reload from server
   useEffect(() => {
@@ -80,7 +99,14 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
           {s.person_name}
           {isMe && <span className="text-content-faint"> ({t('vacay.you')})</span>}
         </span>
-        <span className="text-[10px] tabular-nums text-content-faint">{s.used}/{s.total_available}</span>
+        <span
+          className="text-[10px] tabular-nums"
+          style={{ color: 'var(--text-faint)' }}
+          onMouseEnter={() => setHoveredStat('header')}
+          onMouseLeave={() => setHoveredStat(null)}
+        >
+          {hoveredStat === 'header' && hasPartial ? `${fmtDays(vacationUsedDays, stdHours)}/${fmtDays(s.total_available, stdHours)}` : (hasPartial ? fmtDays(s.used, stdHours) : s.used) + '/' + (hasPartial ? fmtDays(s.total_available, stdHours) : s.total_available)}
+        </span>
       </div>
       <div className="h-1.5 rounded-full overflow-hidden bg-surface-secondary">
         <div
@@ -112,25 +138,68 @@ function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardP
               style={{ height: 18, lineHeight: '18px' }}
             />
           ) : (
-            <div className="text-sm font-bold text-content" style={{ height: 18, lineHeight: '18px' }}>{s.vacation_days}</div>
+            <div className="text-sm font-bold" title={`${s.vacation_days * stdHours}u`} style={{ color: 'var(--text-primary)', height: 18, lineHeight: '18px' }}>{s.vacation_days}</div>
           )}
         </div>
         {/* Used */}
-        <div className="rounded-md px-2 py-2 bg-surface-secondary">
-          <div className="text-[10px] mb-1 text-content-faint" style={{ height: 14, lineHeight: '14px' }}>{t('vacay.used')}</div>
-          <div className="text-sm font-bold text-content" style={{ height: 18, lineHeight: '18px' }}>{s.used}</div>
+        <div
+          className="rounded-md px-2 py-2"
+          style={{ background: 'var(--bg-secondary)' }}
+          onMouseEnter={() => setHoveredStat('used')}
+          onMouseLeave={() => setHoveredStat(null)}
+        >
+          <div className="text-[10px] mb-1" style={{ color: 'var(--text-faint)', height: 14, lineHeight: '14px' }}>{t('vacay.used')}</div>
+          <div className="text-sm font-bold" style={{ color: 'var(--text-primary)', height: 18, lineHeight: '18px' }}>
+            {hasPartial && hoveredStat === 'used' ? fmtDays(vacationUsedDays, stdHours) : (hasPartial ? fmtDays(s.used, stdHours) : s.used)}
+          </div>
         </div>
         {/* Remaining */}
-        <div className="rounded-md px-2 py-2 bg-surface-secondary">
-          <div className="text-[10px] mb-1 text-content-faint" style={{ height: 14, lineHeight: '14px' }}>{t('vacay.remaining')}</div>
+        <div
+          className="rounded-md px-2 py-2"
+          style={{ background: 'var(--bg-secondary)' }}
+          onMouseEnter={() => setHoveredStat('remaining')}
+          onMouseLeave={() => setHoveredStat(null)}
+        >
+          <div className="text-[10px] mb-1" style={{ color: 'var(--text-faint)', height: 14, lineHeight: '14px' }}>{t('vacay.remaining')}</div>
           <div className="text-sm font-bold" style={{ color: s.remaining < 0 ? '#ef4444' : s.remaining <= 3 ? '#f59e0b' : '#22c55e', height: 18, lineHeight: '18px' }}>
-            {s.remaining}
+            {hoveredStat === 'remaining' && hasPartial ? (
+              fmtDays(vacationOnlyRemaining, stdHours)
+            ) : (hasPartial ? fmtDays(s.remaining, stdHours) : s.remaining)}
           </div>
         </div>
       </div>
+
+      {/* Carry-over badge */}
       {s.carried_over > 0 && (
-        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[rgba(245,158,11,0.08)] border border-[rgba(245,158,11,0.15)]">
-          <span className="text-[10px] text-[#d97706]">+{s.carried_over} {t('vacay.carriedOver', { year: selectedYear - 1 })}</span>
+        <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.15)' }}>
+          <span className="text-[10px]" style={{ color: '#d97706' }}>+{s.carried_over_hours > 0 && !Number.isInteger(s.carried_over_hours / stdHours) ? fmtHours(s.carried_over_hours) : s.carried_over} {t('vacay.carriedOver', { year: selectedYear - 1 })}</span>
+        </div>
+      )}
+
+      {/* Comp-time section: earned and breakdown of used TvT vs vacation */}
+      {s.comp_hours > 0 && (
+        <div className="space-y-1">
+          <div
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-md"
+            style={{ background: 'rgba(34,197,94,0.06)', border: '1px solid rgba(34,197,94,0.15)' }}
+          >
+            <TrendingUp size={10} style={{ color: '#22c55e', flexShrink: 0 }} />
+            <span className="text-[10px] font-medium flex-1" style={{ color: '#16a34a' }}>
+              {`${t('vacay.compTime')}: +${fmtHours(s.comp_hours)}`}
+            </span>
+            {(s.tvt_used_hours ?? 0) > 0 && (
+              <span className="text-[10px]" style={{ color: '#d97706' }}>
+                {fmtHours(s.tvt_used_hours)} {t('vacay.tvtUsed')}
+              </span>
+            )}
+          </div>
+          {(s.tvt_used_hours ?? 0) > 0 && (s.vacation_used_hours ?? 0) > 0 && (
+            <div className="flex items-center gap-1.5 px-2 py-1 rounded-md" style={{ background: 'rgba(245,158,11,0.06)', border: '1px solid rgba(245,158,11,0.15)' }}>
+              <span className="text-[10px]" style={{ color: 'var(--text-faint)' }}>
+                {t('vacay.vacationUsed')}: {fmtHours(s.vacation_used_hours)} · {t('vacay.tvtUsedLabel')}: {fmtHours(s.tvt_used_hours)}
+              </span>
+            </div>
+          )}
         </div>
       )}
     </div>

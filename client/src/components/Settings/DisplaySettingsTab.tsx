@@ -1,11 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { Palette, Sun, Moon, Monitor, ChevronDown, Check } from 'lucide-react'
+import { Palette, Sun, Moon, Monitor, ChevronDown, Check, Footprints, Car, Plane } from 'lucide-react'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
 import CustomSelect from '../shared/CustomSelect'
-import { CURRENCIES, SYMBOLS } from '../Budget/BudgetPanel.constants'
 import Section from './Section'
+
+const CURRENCIES = [
+  'EUR', 'USD', 'GBP', 'JPY', 'CHF', 'CZK', 'PLN', 'SEK', 'NOK', 'DKK',
+  'TRY', 'THB', 'AUD', 'CAD', 'NZD', 'BRL', 'MXN', 'INR', 'IDR', 'MYR',
+  'PHP', 'SGD', 'KRW', 'CNY', 'HKD', 'TWD', 'ZAR', 'AED', 'SAR', 'ILS',
+  'EGP', 'MAD', 'HUF', 'RON', 'BGN', 'HRK', 'ISK', 'RUB', 'UAH', 'BDT',
+  'LKR', 'VND', 'CLP', 'COP', 'PEN', 'ARS',
+]
 
 export default function DisplaySettingsTab(): React.ReactElement {
   const { settings, updateSetting } = useSettingsStore()
@@ -231,6 +238,103 @@ export default function DisplaySettingsTab(): React.ReactElement {
         </div>
       </div>
 
+      {/* Default Currency */}
+      <div>
+        <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>{t('settings.defaultCurrency')}</label>
+        <CustomSelect
+          value={settings.default_currency || 'EUR'}
+          onChange={async (val) => {
+            try { await updateSetting('default_currency', val) }
+            catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+          }}
+          options={CURRENCIES.map(c => ({ value: c, label: c }))}
+          size="sm"
+          style={{ maxWidth: 160 }}
+        />
+        <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('settings.defaultCurrencyHint')}</p>
+      </div>
+
+      {/* Route Thresholds */}
+      {(
+        <div className="rounded-xl border overflow-hidden" style={{ borderColor: 'var(--border-primary)' }}>
+          {/* Walking threshold */}
+          <div className="p-4 border-b" style={{ borderColor: 'var(--border-primary)' }}>
+            <div className="flex items-center gap-2 mb-1">
+              <Footprints size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {t('settings.routeWalkingThreshold') || 'Wandelen tot'}
+              </label>
+            </div>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-faint)', paddingLeft: 22 }}>
+              {t('settings.routeWalkingThresholdHint') || 'Routes tot deze afstand tonen wandeltijd; daarboven auto.'}
+            </p>
+            <div className="flex gap-2 flex-wrap" style={{ paddingLeft: 22 }}>
+              {[1000, 5000, 15000, 30000, 100000].map(val => {
+                const current = settings.route_walking_threshold ?? 30000
+                return (
+                  <button
+                    key={val}
+                    onClick={async () => {
+                      try { await updateSetting('route_walking_threshold', val) }
+                      catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                      border: current === val ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
+                      background: current === val ? 'var(--bg-hover)' : 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {val / 1000} km
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Driving threshold */}
+          <div className="p-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Car size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+              <label className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>
+                {t('settings.routeDrivingThreshold') || 'Auto tot'}
+              </label>
+            </div>
+            <p className="text-xs mb-3" style={{ color: 'var(--text-faint)', paddingLeft: 22 }}>
+              {t('settings.routeDrivingThresholdHint') || 'Routes tot deze afstand tonen rijtijd; daarboven vlucht.'}
+            </p>
+            <div className="flex gap-2 flex-wrap" style={{ paddingLeft: 22 }}>
+              {[50000, 100000, 250000, 500000, 1000000, 2000000].map(val => {
+                const current = settings.route_driving_threshold ?? 500000
+                return (
+                  <button
+                    key={val}
+                    onClick={async () => {
+                      try { await updateSetting('route_driving_threshold', val) }
+                      catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+                    }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                      border: current === val ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
+                      background: current === val ? 'var(--bg-hover)' : 'var(--bg-card)',
+                      color: 'var(--text-primary)',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    {val >= 1000000 ? `${val / 1000000}k` : `${val / 1000}`} km
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Booking route labels */}
       <div>
         <label className="block text-sm font-medium mb-2 text-content-secondary">{t('settings.bookingLabels')}</label>
@@ -323,35 +427,42 @@ export default function DisplaySettingsTab(): React.ReactElement {
         </div>
       </div>
 
-      {/* Optimize route from accommodation */}
+      {/* Share vacay info in groups */}
       <div>
-        <label className="block text-sm font-medium mb-2 text-content-secondary">{t('settings.optimizeFromAccommodation')}</label>
+        <label className="block text-sm font-medium mb-1" style={{ color: 'var(--text-secondary)' }}>
+          {t('settings.shareVacayInGroups') || 'Deel verlof & reizen in groepen'}
+        </label>
+        <p className="text-xs mb-2" style={{ color: 'var(--text-faint)' }}>
+          {t('settings.shareVacayInGroupsHint') || 'Je verlof en geplande reizen tellen mee als blokkering in beschikbaarheidsvoorstellen. Per groep aanpasbaar.'}
+        </p>
         <div className="flex gap-3">
           {[
-            { value: true, label: t('settings.on') || 'On' },
-            { value: false, label: t('settings.off') || 'Off' },
-          ].map(opt => (
-            <button
-              key={String(opt.value)}
-              onClick={async () => {
-                try { await updateSetting('optimize_from_accommodation', opt.value) }
-                catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
-              }}
-              style={{
-                display: 'flex', alignItems: 'center', gap: 8,
-                padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
-                fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
-                border: (settings.optimize_from_accommodation !== false) === opt.value ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
-                background: (settings.optimize_from_accommodation !== false) === opt.value ? 'var(--bg-hover)' : 'var(--bg-card)',
-                color: 'var(--text-primary)',
-                transition: 'all 0.15s',
-              }}
-            >
-              {opt.label}
-            </button>
-          ))}
+            { value: true, label: t('settings.on') || 'Aan' },
+            { value: false, label: t('settings.off') || 'Uit' },
+          ].map(opt => {
+            const current = settings.share_vacay_in_groups !== false
+            return (
+              <button
+                key={String(opt.value)}
+                onClick={async () => {
+                  try { await updateSetting('share_vacay_in_groups', opt.value) }
+                  catch (e: unknown) { toast.error(e instanceof Error ? e.message : t('common.error')) }
+                }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 8,
+                  padding: '10px 20px', borderRadius: 10, cursor: 'pointer',
+                  fontFamily: 'inherit', fontSize: 14, fontWeight: 500,
+                  border: current === opt.value ? '2px solid var(--text-primary)' : '2px solid var(--border-primary)',
+                  background: current === opt.value ? 'var(--bg-hover)' : 'var(--bg-card)',
+                  color: 'var(--text-primary)',
+                  transition: 'all 0.15s',
+                }}
+              >
+                {opt.label}
+              </button>
+            )
+          })}
         </div>
-        <p className="text-xs mt-1 text-content-faint">{t('settings.optimizeFromAccommodationHint')}</p>
       </div>
     </Section>
   )

@@ -63,9 +63,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOver': 'Urlaubsmitnahme',
   'vacay.carryOverHint': 'Resturlaub automatisch ins Folgejahr übertragen',
   'vacay.sharing': 'Teilen',
-  'vacay.sharingHint': 'Teile deinen Urlaubsplan mit anderen TREK-Benutzern',
+  'vacay.sharingHint': 'Teile deinen Urlaubsplan mit anderen ROUTD-Benutzern',
   'vacay.owner': 'Besitzer',
-  'vacay.shareEmailPlaceholder': 'E-Mail des TREK-Benutzers',
+  'vacay.shareEmailPlaceholder': 'E-Mail des ROUTD-Benutzers',
   'vacay.shareSuccess': 'Plan erfolgreich geteilt',
   'vacay.shareError': 'Plan konnte nicht geteilt werden',
   'vacay.dissolve': 'Fusion auflösen',
@@ -79,7 +79,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Farbe ändern',
   'vacay.inviteUser': 'Benutzer einladen',
   'vacay.inviteHint':
-    'Lade einen anderen TREK-Benutzer ein, um einen gemeinsamen Urlaubskalender zu teilen.',
+    'Lade einen anderen ROUTD-Benutzer ein, um einen gemeinsamen Urlaubskalender zu teilen.',
   'vacay.selectUser': 'Benutzer wählen',
   'vacay.sendInvite': 'Einladung senden',
   'vacay.inviteSent': 'Einladung gesendet',
@@ -101,5 +101,14 @@ const vacay: TranslationStrings = {
     'Einstellungen wie Feiertage und Betriebsferien werden geteilt.',
   'vacay.fuseInfo5':
     'Die Fusion kann jederzeit von beiden Seiten aufgelöst werden. Einträge bleiben erhalten.',
+  'vacay.hours': 'Stunden',
+  'vacay.modeComp': 'Zeitausgleich',
+  'vacay.compTime': 'Zeitausgleich',
+  'vacay.hoursPerDay': 'Stunden pro Arbeitstag',
+  'vacay.hoursPerDayHint': 'Definiert, wie viele Stunden einem vollen Urlaubstag entsprechen',
+  'vacay.stdDay': 'Ganzer Tag',
+  'vacay.rightClickHint': 'Rechtsklick für Stunden',
+  'vacay.save': 'Speichern',
+  'vacay.cancel': 'Abbrechen',
 };
 export default vacay;

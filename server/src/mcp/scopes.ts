@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// OAuth 2.1 scope definitions for TREK MCP
+// OAuth 2.1 scope definitions for ROUTD MCP
 // ---------------------------------------------------------------------------
 
 export const SCOPES = {

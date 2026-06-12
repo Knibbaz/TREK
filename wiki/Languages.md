@@ -1,6 +1,6 @@
 # Languages
 
-TREK ships with translations for 15 languages. You can change your language at any time without logging out.
+ROUTD ships with translations for 15 languages. You can change your language at any time without logging out.
 
 ## Supported languages
 
@@ -28,7 +28,7 @@ Arabic (`ar`) uses a right-to-left layout. All other languages use left-to-right
 
 ## How language is detected
 
-TREK resolves the display language in this order:
+ROUTD resolves the display language in this order:
 
 1. **User preference** — the language saved to your account (set in Settings → Display).
 2. **Browser language** — `navigator.languages` (and `navigator.language`) reported by your browser.

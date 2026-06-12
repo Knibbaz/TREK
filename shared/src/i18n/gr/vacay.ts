@@ -66,9 +66,9 @@ const vacay: TranslationStrings = {
     'Αυτόματη μεταφορά των υπολοίπων ημερών διακοπών στο επόμενο έτος',
   'vacay.sharing': 'Κοινή Χρήση',
   'vacay.sharingHint':
-    'Μοιραστείτε το πλάνο διακοπών σας με άλλους χρήστες TREK',
+    'Μοιραστείτε το πλάνο διακοπών σας με άλλους χρήστες ROUTD',
   'vacay.owner': 'Κάτοχος',
-  'vacay.shareEmailPlaceholder': 'Email χρήστη TREK',
+  'vacay.shareEmailPlaceholder': 'Email χρήστη ROUTD',
   'vacay.shareSuccess': 'Το πλάνο μοιράστηκε επιτυχώς',
   'vacay.shareError': 'Δεν ήταν δυνατή η κοινοποίηση του πλάνου',
   'vacay.dissolve': 'Διάλυση Συγχώνευσης',
@@ -82,7 +82,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Αλλαγή χρώματος',
   'vacay.inviteUser': 'Πρόσκληση Χρήστη',
   'vacay.inviteHint':
-    'Προσκαλέστε έναν άλλο χρήστη TREK για να μοιραστείτε ένα κοινό ημερολόγιο διακοπών.',
+    'Προσκαλέστε έναν άλλο χρήστη ROUTD για να μοιραστείτε ένα κοινό ημερολόγιο διακοπών.',
   'vacay.selectUser': 'Επιλογή χρήστη',
   'vacay.sendInvite': 'Αποστολή Πρόσκλησης',
   'vacay.inviteSent': 'Η πρόσκληση στάλθηκε',

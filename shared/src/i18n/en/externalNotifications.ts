@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const en: NotificationLocale = {
   email: {
-    footer: 'You received this because you have notifications enabled in TREK.',
+    footer: 'You received this because you have notifications enabled in ROUTD.',
     manage: 'Manage preferences in Settings',
     madeWith: 'Made with',
-    openTrek: 'Open TREK',
+    openTrek: 'Open ROUTD',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const en: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Vacay Fusion Invite',
-      body: `${p.actor} invited you to fuse vacation plans. Open TREK to accept or decline.`,
+      body: `${p.actor} invited you to fuse vacation plans. Open ROUTD to accept or decline.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} photos shared`,
@@ -41,18 +41,23 @@ const en: NotificationLocale = {
       body: `${p.actor} assigned you to the "${p.category}" packing category in "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'New TREK version available',
-      body: `TREK ${p.version} is now available. Visit the admin panel to update.`,
+      title: 'New ROUTD version available',
+      body: `ROUTD ${p.version} is now available. Visit the admin panel to update.`,
     }),
     synology_session_cleared: () => ({
       title: 'Synology session cleared',
       body: 'Your Synology account or URL changed. You have been logged out of Synology Photos.',
     }),
+    date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
+    date_proposal_confirmed: p => ({ title: 'Dates confirmed: ' + p.proposal, body: `The dates for "${p.proposal}" have been confirmed: ${p.confirmed_start} to ${p.confirmed_end}.` }),
+    date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal + '', body: 'The availability poll "' + p.proposal + '" in group "' + p.group + '" closes on ' + p.deadline + '. Please fill in your availability before then.' }),
+    date_proposal_ping: p => ({ title: 'Reminder: fill in your availability', body: `${p.actor} asks you to fill in your availability for "${p.proposal}" in group "${p.group}". Currently ${p.filled} members have responded.` }),
+    date_proposal_threshold_reached: p => ({ title: `Availability threshold reached: ${p.proposal}`, body: `${p.respondents} of ${p.members} members have filled in their availability for "${p.proposal}" in group "${p.group}".` }),
   },
   passwordReset: {
     subject: 'Reset your password',
     greeting: 'Hi',
-    body: 'We received a request to reset the password for your TREK account. Click the button below to set a new password.',
+    body: 'We received a request to reset the password for your ROUTD account. Click the button below to set a new password.',
     ctaIntro: 'Reset password',
     expiry: 'This link expires in 60 minutes.',
     ignore:

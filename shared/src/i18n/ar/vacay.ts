@@ -60,9 +60,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     'ترحيل أيام الإجازة المتبقية تلقائيًا إلى السنة التالية',
   'vacay.sharing': 'المشاركة',
-  'vacay.sharingHint': 'شارك خطة إجازاتك مع مستخدمي TREK الآخرين',
+  'vacay.sharingHint': 'شارك خطة إجازاتك مع مستخدمي ROUTD الآخرين',
   'vacay.owner': 'المالك',
-  'vacay.shareEmailPlaceholder': 'البريد الإلكتروني لمستخدم TREK',
+  'vacay.shareEmailPlaceholder': 'البريد الإلكتروني لمستخدم ROUTD',
   'vacay.shareSuccess': 'تمت مشاركة الخطة بنجاح',
   'vacay.shareError': 'تعذرت مشاركة الخطة',
   'vacay.dissolve': 'فك الدمج',
@@ -74,7 +74,7 @@ const vacay: TranslationStrings = {
   'vacay.noData': 'لا توجد بيانات',
   'vacay.changeColor': 'تغيير اللون',
   'vacay.inviteUser': 'دعوة مستخدم',
-  'vacay.inviteHint': 'ادعُ مستخدم TREK آخرًا لمشاركة تقويم إجازة مشترك.',
+  'vacay.inviteHint': 'ادعُ مستخدم ROUTD آخرًا لمشاركة تقويم إجازة مشترك.',
   'vacay.selectUser': 'اختر مستخدمًا',
   'vacay.sendInvite': 'إرسال الدعوة',
   'vacay.inviteSent': 'تم إرسال الدعوة',
@@ -92,5 +92,14 @@ const vacay: TranslationStrings = {
   'vacay.fuseInfo4': 'تتم مشاركة الإعدادات مثل العطل الرسمية وعطل الشركة.',
   'vacay.fuseInfo5':
     'يمكن فك الدمج في أي وقت من قبل أي طرف. ستبقى إدخالاتك محفوظة.',
+  'vacay.hours': 'ساعات',
+  'vacay.modeComp': 'وقت تعويضي',
+  'vacay.compTime': 'وقت تعويضي',
+  'vacay.hoursPerDay': 'ساعات العمل في اليوم',
+  'vacay.hoursPerDayHint': 'يحدد عدد الساعات التي تعادل يوم إجازة كاملاً',
+  'vacay.stdDay': 'يوم كامل',
+  'vacay.rightClickHint': 'انقر بالزر الأيمن للساعات',
+  'vacay.save': 'حفظ',
+  'vacay.cancel': 'إلغاء',
 };
 export default vacay;

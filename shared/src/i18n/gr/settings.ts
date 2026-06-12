@@ -216,9 +216,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Προτείνετε ένα νέο χαρακτηριστικό',
   'settings.about.wikiHint': 'Τεκμηρίωση & οδηγοί',
   'settings.about.supporters.badge': 'Μηνιαίοι Υποστηρικτές',
-  'settings.about.supporters.title': 'Συνταξιδιώτες για το TREK',
+  'settings.about.supporters.title': 'Συνταξιδιώτες για το ROUTD',
   'settings.about.supporters.subtitle':
-    'Καθώς εσείς σχεδιάζετε την επόμενή σας διαδρομή, αυτοί οι άνθρωποι βοηθούν να σχεδιαστεί το μέλλον του TREK. Η μηνιαία τους συνεισφορά πηγαίνει απευθείας στην ανάπτυξη και σε πραγματικές ώρες εργασίας — ώστε το TREK να παραμένει Open Source.',
+    'Καθώς εσείς σχεδιάζετε την επόμενή σας διαδρομή, αυτοί οι άνθρωποι βοηθούν να σχεδιαστεί το μέλλον του ROUTD. Η μηνιαία τους συνεισφορά πηγαίνει απευθείας στην ανάπτυξη και σε πραγματικές ώρες εργασίας — ώστε το ROUTD να παραμένει Open Source.',
   'settings.about.supporters.since': 'υποστηρικτής από {date}',
   'settings.about.supporters.tierEmpty': 'Γίνετε ο πρώτος',
   'settings.about.supporter.tier.noReturnTicket': 'Χωρίς Εισιτήριο Επιστροφής',
@@ -228,7 +228,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Οικονομικός Ταξιδιώτης',
   'settings.about.supporter.tier.hostelBunkmate': 'Συγκάτοικος Hostel',
   'settings.about.description':
-    'Το TREK είναι ένας self-hosted ταξιδιωτικός σχεδιαστής που σας βοηθά να οργανώσετε τα ταξίδια σας από την πρώτη ιδέα μέχρι την τελευταία ανάμνηση. Σχεδιασμός ημερών, προϋπολογισμός, λίστες πακεταρίσματος, φωτογραφίες και πολλά άλλα — όλα σε ένα μέρος, στον δικό σας server.',
+    'Το ROUTD είναι ένας self-hosted ταξιδιωτικός σχεδιαστής που σας βοηθά να οργανώσετε τα ταξίδια σας από την πρώτη ιδέα μέχρι την τελευταία ανάμνηση. Σχεδιασμός ημερών, προϋπολογισμός, λίστες πακεταρίσματος, φωτογραφίες και πολλά άλλα — όλα σε ένα μέρος, στον δικό σας server.',
   'settings.about.madeWith': 'Φτιαγμένο με',
   'settings.about.madeBy':
     'από τον Maurice και μια αναπτυσσόμενη κοινότητα open-source.',

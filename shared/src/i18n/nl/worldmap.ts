@@ -1,0 +1,33 @@
+import type { TranslationStrings } from '../types';
+
+const worldmap: TranslationStrings = {
+  'worldmap.title': 'Wereldkaart',
+  'worldmap.subtitle': 'Gezamenlijke kaart — iedereen voegt plekken toe per land',
+  'worldmap.selectCountry': 'Klik op een land om vermeldingen te bekijken en toe te voegen',
+  'worldmap.entriesFor': 'Vermeldingen voor',
+  'worldmap.noEntries': 'Nog geen vermeldingen voor dit land. Voeg als eerste iets toe!',
+  'worldmap.addEntry': 'Toevoegen',
+  'worldmap.addTitle': 'Toevoegen aan',
+  'worldmap.name': 'Naam',
+  'worldmap.namePlaceholder': 'Bijv. Rijksmuseum',
+  'worldmap.description': 'Beschrijving (optioneel)',
+  'worldmap.descriptionPlaceholder': 'Tips, notities, waarom het de moeite waard is...',
+  'worldmap.category': 'Categorie',
+  'worldmap.cat.place': 'Plek',
+  'worldmap.cat.food': 'Eten & drinken',
+  'worldmap.cat.tip': 'Reistip',
+  'worldmap.cat.accommodation': 'Accommodatie',
+  'worldmap.cat.activity': 'Activiteit',
+  'worldmap.cat.other': 'Overig',
+  'worldmap.cancel': 'Annuleren',
+  'worldmap.save': 'Opslaan',
+  'worldmap.saving': 'Opslaan...',
+  'worldmap.addedBy': 'Toegevoegd door',
+  'worldmap.deleteConfirm': 'Vermelding verwijderen?',
+  'worldmap.addSuccess': 'Vermelding toegevoegd!',
+  'worldmap.addError': 'Toevoegen mislukt',
+  'worldmap.deleteSuccess': 'Vermelding verwijderd',
+  'worldmap.deleteError': 'Verwijderen mislukt',
+  'worldmap.entries': 'vermeldingen',
+};
+export default worldmap;

@@ -1,12 +1,12 @@
 import type { TranslationStrings } from '../types';
 
 const system_notice: TranslationStrings = {
-  'system_notice.welcome_v1.title': 'Bienvenue sur TREK',
+  'system_notice.welcome_v1.title': 'Bienvenue sur ROUTD',
   'system_notice.welcome_v1.body':
     'Votre planificateur de voyage tout-en-un. Créez des itinéraires, partagez vos voyages et restez organisé — en ligne ou hors ligne.',
   'system_notice.welcome_v1.cta_label': 'Planifier un voyage',
   'system_notice.welcome_v1.hero_alt':
-    "Destination de voyage pittoresque avec l'interface TREK",
+    "Destination de voyage pittoresque avec l'interface ROUTD",
   'system_notice.welcome_v1.highlight_plan': 'Itinéraires jour par jour',
   'system_notice.welcome_v1.highlight_share': 'Collaborez avec vos partenaires',
   'system_notice.welcome_v1.highlight_offline':
@@ -20,7 +20,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.position': 'Avis {current} sur {total}',
   'system_notice.v3_photos.title': 'Les photos ont bougé dans 3.0',
   'system_notice.v3_photos.body':
-    "**Photos** dans le planificateur ont été supprimées. Tes photos sont en sécurité — TREK n'a jamais modifié ta bibliothèque Immich ou Synology.\n\nLes photos vivent désormais dans l'addon **Journey**. Journey est optionnel — s'il n'est pas encore disponible, demande à ton admin de l'activer dans Admin → Modules.",
+    "**Photos** dans le planificateur ont été supprimées. Tes photos sont en sécurité — ROUTD n'a jamais modifié ta bibliothèque Immich ou Synology.\n\nLes photos vivent désormais dans l'addon **Journey**. Journey est optionnel — s'il n'est pas encore disponible, demande à ton admin de l'activer dans Admin → Modules.",
   'system_notice.v3_journey.title': 'Découvrez Journey — journal de voyage',
   'system_notice.v3_journey.body':
     'Documente tes voyages sous forme de récits enrichis avec chronologies, galeries photos et cartes interactives.',
@@ -54,7 +54,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3_mcp.highlight_tools': 'Outils et prompts étendus',
   'system_notice.v3_thankyou.title': 'Un mot personnel de ma part',
   'system_notice.v3_thankyou.body':
-    "Avant de continuer — je veux prendre un instant.\n\nTREK a commencé comme un projet perso que j'ai construit pour mes propres voyages. Je n'aurais jamais imaginé qu'il grandirait au point que 4 000 d'entre vous lui fassent confiance pour planifier vos aventures. Chaque étoile, chaque issue, chaque demande de fonctionnalité — je les lis toutes, et ce sont elles qui me font tenir pendant les nuits blanches entre un travail à temps plein et l'université.\n\nJe veux que vous sachiez : TREK sera toujours open source, toujours auto-hébergé, toujours à vous. Pas de tracking, pas d'abonnements, pas de conditions cachées. Juste un outil construit par quelqu'un qui aime voyager autant que vous.\n\nUn merci tout particulier à [jubnl](https://github.com/jubnl) — tu es devenu un collaborateur incroyable. Une grande partie de ce qui rend la 3.0 géniale porte ton empreinte. Merci d'avoir cru en ce projet quand il était encore brut.\n\nEt à chacun d'entre vous qui a signalé un bug, traduit une chaîne, partagé TREK avec un ami ou simplement l'a utilisé pour planifier un voyage — **merci**. Vous êtes la raison pour laquelle tout ceci existe.\n\nÀ de nombreuses autres aventures ensemble.\n\n— Maurice\n\n---\n\n[Rejoins la communauté sur Discord](https://discord.gg/7Q6M6jDwzf)\n\nSi TREK rend tes voyages meilleurs, un [petit café](https://ko-fi.com/mauriceboe) aide toujours à garder les lumières allumées.",
+    "Avant de continuer — je veux prendre un instant.\n\nROUTD a commencé comme un projet perso que j'ai construit pour mes propres voyages. Je n'aurais jamais imaginé qu'il grandirait au point que 4 000 d'entre vous lui fassent confiance pour planifier vos aventures. Chaque étoile, chaque issue, chaque demande de fonctionnalité — je les lis toutes, et ce sont elles qui me font tenir pendant les nuits blanches entre un travail à temps plein et l'université.\n\nJe veux que vous sachiez : ROUTD sera toujours open source, toujours auto-hébergé, toujours à vous. Pas de tracking, pas d'abonnements, pas de conditions cachées. Juste un outil construit par quelqu'un qui aime voyager autant que vous.\n\nUn merci tout particulier à [jubnl](https://github.com/jubnl) — tu es devenu un collaborateur incroyable. Une grande partie de ce qui rend la 3.0 géniale porte ton empreinte. Merci d'avoir cru en ce projet quand il était encore brut.\n\nEt à chacun d'entre vous qui a signalé un bug, traduit une chaîne, partagé ROUTD avec un ami ou simplement l'a utilisé pour planifier un voyage — **merci**. Vous êtes la raison pour laquelle tout ceci existe.\n\nÀ de nombreuses autres aventures ensemble.\n\n— Maurice\n\n---\n\n[Rejoins la communauté sur Discord](https://discord.gg/7Q6M6jDwzf)\n\nSi ROUTD rend tes voyages meilleurs, un [petit café](https://ko-fi.com/mauriceboe) aide toujours à garder les lumières allumées.",
   'system_notice.v3014_whitespace_collision.title':
     'Action requise : conflit de compte utilisateur',
   'system_notice.v3014_whitespace_collision.body':

@@ -31,7 +31,12 @@ export type NotificationEventKey =
   | 'collab_message'
   | 'packing_tagged'
   | 'version_available'
-  | 'synology_session_cleared';
+  | 'synology_session_cleared'
+  | 'date_proposal_created'
+  | 'date_proposal_confirmed'
+  | 'date_proposal_deadline'
+  | 'date_proposal_ping'
+  | 'date_proposal_threshold_reached';
 
 export interface NotificationLocale {
   email: EmailStrings;

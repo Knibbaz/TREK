@@ -78,11 +78,11 @@ const oauth: TranslationStrings = {
   'oauth.authorize.errorTitle': 'Authorization Error', // en-fallback
   'oauth.authorize.loginTitle': 'Sign in to continue', // en-fallback
   'oauth.authorize.loginDescription':
-    '{client} wants access to your TREK account. Please sign in first.', // en-fallback
-  'oauth.authorize.loginButton': 'Sign in to TREK', // en-fallback
+    '{client} wants access to your ROUTD account. Please sign in first.', // en-fallback
+  'oauth.authorize.loginButton': 'Sign in to ROUTD', // en-fallback
   'oauth.authorize.requestLabel': 'Authorization Request', // en-fallback
   'oauth.authorize.requestDescription':
-    'This application is requesting access to your TREK account.', // en-fallback
+    'This application is requesting access to your ROUTD account.', // en-fallback
   'oauth.authorize.trustNote':
     'Only grant access to applications you trust. Your data stays on your server.', // en-fallback
   'oauth.authorize.selectScope': 'Select at least one scope', // en-fallback

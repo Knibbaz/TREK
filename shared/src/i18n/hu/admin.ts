@@ -177,7 +177,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': 'Bővítmények',
   'admin.addons.title': 'Bővítmények',
   'admin.addons.subtitle':
-    'Funkciók engedélyezése vagy letiltása a TREK testreszabásához.',
+    'Funkciók engedélyezése vagy letiltása a ROUTD testreszabásához.',
   'admin.addons.catalog.packing.name': 'Listák',
   'admin.addons.catalog.packing.description':
     'Csomagolási listák és teendők az utazásaidhoz',
@@ -219,7 +219,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Időjárás adatok',
   'admin.weather.badge': '2026. március 24. óta',
   'admin.weather.description':
-    'A TREK az Open-Meteo-t használja időjárás-adatforrásként. Az Open-Meteo egy ingyenes, nyílt forráskódú időjárás-szolgáltatás — nincs szükség API kulcsra.',
+    'A ROUTD az Open-Meteo-t használja időjárás-adatforrásként. Az Open-Meteo egy ingyenes, nyílt forráskódú időjárás-szolgáltatás — nincs szükség API kulcsra.',
   'admin.weather.forecast': '16 napos előrejelzés',
   'admin.weather.forecastDesc': 'Korábban 5 nap volt (OpenWeatherMap)',
   'admin.weather.climate': 'Történelmi klímaadatok',
@@ -283,15 +283,15 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Betöltés...',
   'admin.github.error': 'Nem sikerült betölteni a kiadásokat',
   'admin.github.by': 'készítette',
-  'admin.github.support': 'Segít fenntartani a TREK fejlesztését',
+  'admin.github.support': 'Segít fenntartani a ROUTD fejlesztését',
   'admin.update.available': 'Frissítés elérhető',
   'admin.update.text':
-    'A TREK {version} elérhető. Jelenleg a {current} verziót használod.',
+    'A ROUTD {version} elérhető. Jelenleg a {current} verziót használod.',
   'admin.update.button': 'Megtekintés a GitHubon',
   'admin.update.install': 'Frissítés telepítése',
   'admin.update.confirmTitle': 'Frissítés telepítése?',
   'admin.update.confirmText':
-    'A TREK frissítésre kerül {current} verzióról {version} verzióra. A szerver ezután automatikusan újraindul.',
+    'A ROUTD frissítésre kerül {current} verzióról {version} verzióra. A szerver ezután automatikusan újraindul.',
   'admin.update.dataInfo':
     'Minden adat (utazások, felhasználók, API kulcsok, feltöltések, Vacay, Atlas, költségvetések) megmarad.',
   'admin.update.warning':
@@ -305,7 +305,7 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Biztonsági mentéshez',
   'admin.update.howTo': 'Frissítési útmutató',
   'admin.update.dockerText':
-    'A TREK példányod Dockerben fut. A {version} verzióra frissítéshez futtasd a következő parancsokat a szervereden:',
+    'A ROUTD példányod Dockerben fut. A {version} verzióra frissítéshez futtasd a következő parancsokat a szervereden:',
   'admin.update.reloadHint':
     'Kérjük, töltsd újra az oldalt néhány másodperc múlva.',
   'admin.tabs.permissions': 'Jogosultságok',
@@ -391,5 +391,21 @@ const admin: TranslationStrings = {
   'admin.defaultSettings.mapboxStylePlaceholder': 'Válassz stílust…',
   'admin.defaultSettings.mapbox3d': '3D épületek & domborzat',
   'admin.defaultSettings.mapboxQuality': 'Kiváló minőségű mód',
+  'admin.payouts.title': 'Creator payouts',
+  'admin.payouts.selectCreator': 'Select creator',
+  'admin.payouts.amountPlaceholder': 'Amount (€)',
+  'admin.payouts.descriptionPlaceholder': 'Description (optional)',
+  'admin.payouts.register': 'Register',
+  'admin.payouts.creators': 'Creators',
+  'admin.payouts.noCreators': 'No creators found',
+  'admin.payouts.sales': 'Sales',
+  'admin.payouts.earned': 'Earned',
+  'admin.payouts.paid': 'Paid out',
+  'admin.payouts.balance': 'Balance',
+  'admin.payouts.history': 'Payout history',
+  'admin.payouts.noPayouts': 'No payouts registered yet',
+  'admin.payouts.loadError': 'Failed to load payouts',
+  'admin.payouts.saved': 'Payout registered',
+  'admin.payouts.saveError': 'Failed to register payout',
 };
 export default admin;

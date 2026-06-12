@@ -1,6 +1,6 @@
 # Environment Variables
 
-Complete reference for all environment variables TREK reads.
+Complete reference for all environment variables ROUTD reads.
 
 ## How to Set Variables
 
@@ -29,9 +29,9 @@ Complete reference for all environment variables TREK reads.
 
 ### `HOST` — Source and Proxmox installs only
 
-By default TREK binds to all network interfaces (`0.0.0.0`), which is the correct behaviour inside a container because Docker handles port exposure at the host level. Setting `HOST` overrides the bind address at the Node.js level.
+By default ROUTD binds to all network interfaces (`0.0.0.0`), which is the correct behaviour inside a container because Docker handles port exposure at the host level. Setting `HOST` overrides the bind address at the Node.js level.
 
-**When to use it:** only when running TREK directly on a host (git sources or the [Proxmox community script](Install-Proxmox)) and you need to restrict which interface the server listens on — for example, to expose TREK only on a LAN interface while keeping it off the public-facing one.
+**When to use it:** only when running ROUTD directly on a host (git sources or the [Proxmox community script](Install-Proxmox)) and you need to restrict which interface the server listens on — for example, to expose ROUTD only on a LAN interface while keeping it off the public-facing one.
 
 **Never set `HOST` in Docker, Docker Compose, Helm, or Unraid deployments.** Use Docker's `-p <host-ip>:<host-port>:<container-port>` syntax or your orchestrator's port binding instead.
 
@@ -107,7 +107,7 @@ SMTP settings can be configured via the Admin panel or overridden with environme
 | `SMTP_PORT` | SMTP server port. Port `465` enables implicit TLS (`secure: true`); all other ports use STARTTLS or plain. | — |
 | `SMTP_USER` | SMTP authentication username | — |
 | `SMTP_PASS` | SMTP authentication password | — |
-| `SMTP_FROM` | Sender address for outbound emails (e.g. `TREK <noreply@example.com>`) | — |
+| `SMTP_FROM` | Sender address for outbound emails (e.g. `ROUTD <noreply@example.com>`) | — |
 | `SMTP_SKIP_TLS_VERIFY` | Set `true` to disable TLS certificate validation. Useful for self-signed certs on internal SMTP relays — not recommended in production. | `false` |
 
 `SMTP_HOST`, `SMTP_PORT`, and `SMTP_FROM` are all required for email delivery to work. `SMTP_USER` and `SMTP_PASS` are optional (for unauthenticated relays).
@@ -142,9 +142,9 @@ For setup instructions, see [MCP-Overview](MCP-Overview).
 
 | Variable | Description | Default |
 |---|---|---|
-| `KITINERARY_EXTRACTOR_PATH` | Full path to the `kitinerary-extractor` binary. When unset, TREK searches `/usr/lib/*/libexec/kf6/kitinerary-extractor` and then `PATH`. Set this if you install the binary to a non-standard location. | auto-detected |
+| `KITINERARY_EXTRACTOR_PATH` | Full path to the `kitinerary-extractor` binary. When unset, ROUTD searches `/usr/lib/*/libexec/kf6/kitinerary-extractor` and then `PATH`. Set this if you install the binary to a non-standard location. | auto-detected |
 
-The official TREK Docker image bundles the binary automatically: on amd64 it downloads the static release from `https://cdn.kde.org/ci-builds/pim/kitinerary/`; on arm64 it installs `libkitinerary-bin` via apt (Debian trixie). When running TREK from source, install `libkitinerary-bin` (Debian trixie / Ubuntu 25.04+) or download the static binary directly and place it anywhere on `PATH`. The `GET /api/health/features` endpoint returns `{ "bookingImport": true }` when the binary is found, and the Import button in the Reservations panel is hidden when it is not.
+The official ROUTD Docker image bundles the binary automatically: on amd64 it downloads the static release from `https://cdn.kde.org/ci-builds/pim/kitinerary/`; on arm64 it installs `libkitinerary-bin` via apt (Debian trixie). When running ROUTD from source, install `libkitinerary-bin` (Debian trixie / Ubuntu 25.04+) or download the static binary directly and place it anywhere on `PATH`. The `GET /api/health/features` endpoint returns `{ "bookingImport": true }` when the binary is found, and the Import button in the Reservations panel is hidden when it is not.
 
 ---
 

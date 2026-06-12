@@ -50,5 +50,13 @@ const common: TranslationStrings = {
   'common.justNow': 'zojuist',
   'common.hoursAgo': '{count}u geleden',
   'common.daysAgo': '{count}d geleden',
+  'common.transfer': 'Overdragen',
+  'common.refresh': 'Ververs',
+  'common.noData': 'Geen gegevens',
+  'common.settings': 'Instellingen',
+  'common.next': 'Volgende',
+  'common.submit': 'Indienen',
+  'common.submitting': 'Bezig...',
+  'common.notNow': 'Niet nu',
 };
 export default common;

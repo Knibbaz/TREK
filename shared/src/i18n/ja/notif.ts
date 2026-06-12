@@ -25,7 +25,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.text':
     '{actor}が「{trip}」の{category}をあなたに割り当てました',
   'notif.version_available.title': '新しいバージョンがあります',
-  'notif.version_available.text': 'TREK {version}が利用可能です',
+  'notif.version_available.text': 'ROUTD {version}が利用可能です',
   'notif.action.view_trip': '旅行を見る',
   'notif.action.view_collab': 'メッセージを見る',
   'notif.action.view_packing': '持ち物を見る',

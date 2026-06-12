@@ -178,7 +178,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': 'Дополнения',
   'admin.addons.title': 'Дополнения',
   'admin.addons.subtitle':
-    'Включайте или отключайте функции для настройки TREK под себя.',
+    'Включайте или отключайте функции для настройки ROUTD под себя.',
   'admin.addons.catalog.memories.name': 'Фото (Immich)',
   'admin.addons.catalog.memories.description':
     'Делитесь фотографиями из поездок через Immich',
@@ -222,7 +222,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Данные о погоде',
   'admin.weather.badge': 'С 24 марта 2026',
   'admin.weather.description':
-    'TREK использует Open-Meteo как источник данных о погоде. Open-Meteo — бесплатный сервис с открытым кодом, API-ключ не требуется.',
+    'ROUTD использует Open-Meteo как источник данных о погоде. Open-Meteo — бесплатный сервис с открытым кодом, API-ключ не требуется.',
   'admin.weather.forecast': 'Прогноз на 16 дней',
   'admin.weather.forecastDesc': 'Ранее 5 дней (OpenWeatherMap)',
   'admin.weather.climate': 'Исторические климатические данные',
@@ -282,17 +282,17 @@ const admin: TranslationStrings = {
   'admin.github.hideDetails': 'Скрыть подробности',
   'admin.github.loadMore': 'Загрузить ещё',
   'admin.github.loading': 'Загрузка...',
-  'admin.github.support': 'Помогает продолжать разработку TREK',
+  'admin.github.support': 'Помогает продолжать разработку ROUTD',
   'admin.github.error': 'Не удалось загрузить релизы',
   'admin.github.by': 'от',
   'admin.update.available': 'Доступно обновление',
   'admin.update.text':
-    'Доступна версия TREK {version}. У вас установлена {current}.',
+    'Доступна версия ROUTD {version}. У вас установлена {current}.',
   'admin.update.button': 'Посмотреть на GitHub',
   'admin.update.install': 'Установить обновление',
   'admin.update.confirmTitle': 'Установить обновление?',
   'admin.update.confirmText':
-    'TREK будет обновлён с {current} до {version}. Сервер перезапустится автоматически.',
+    'ROUTD будет обновлён с {current} до {version}. Сервер перезапустится автоматически.',
   'admin.update.dataInfo':
     'Все ваши данные (поездки, пользователи, API-ключи, загрузки, Vacay, Atlas, бюджеты) будут сохранены.',
   'admin.update.warning':
@@ -306,7 +306,7 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Перейти к резервным копиям',
   'admin.update.howTo': 'Как обновить',
   'admin.update.dockerText':
-    'Ваш экземпляр TREK работает в Docker. Для обновления до {version} выполните следующие команды на сервере:',
+    'Ваш экземпляр ROUTD работает в Docker. Для обновления до {version} выполните следующие команды на сервере:',
   'admin.update.reloadHint': 'Перезагрузите страницу через несколько секунд.',
   'admin.tabs.permissions': 'Разрешения',
   'admin.notifications.emailPanel.title': 'Email (SMTP)',
@@ -395,5 +395,21 @@ const admin: TranslationStrings = {
   'admin.defaultSettings.mapboxStylePlaceholder': 'Выберите стиль…',
   'admin.defaultSettings.mapbox3d': '3D-здания и рельеф',
   'admin.defaultSettings.mapboxQuality': 'Режим высокого качества',
+  'admin.payouts.title': 'Creator payouts',
+  'admin.payouts.selectCreator': 'Select creator',
+  'admin.payouts.amountPlaceholder': 'Amount (€)',
+  'admin.payouts.descriptionPlaceholder': 'Description (optional)',
+  'admin.payouts.register': 'Register',
+  'admin.payouts.creators': 'Creators',
+  'admin.payouts.noCreators': 'No creators found',
+  'admin.payouts.sales': 'Sales',
+  'admin.payouts.earned': 'Earned',
+  'admin.payouts.paid': 'Paid out',
+  'admin.payouts.balance': 'Balance',
+  'admin.payouts.history': 'Payout history',
+  'admin.payouts.noPayouts': 'No payouts registered yet',
+  'admin.payouts.loadError': 'Failed to load payouts',
+  'admin.payouts.saved': 'Payout registered',
+  'admin.payouts.saveError': 'Failed to register payout',
 };
 export default admin;

@@ -17,7 +17,7 @@ const notifications: TranslationStrings = {
   'notifications.synologySessionCleared.text':
     'تغير خادمك أو حسابك — انتقل إلى الإعدادات لاختبار اتصالك مرة أخرى.',
   'notifications.versionAvailable.title': 'تحديث متاح',
-  'notifications.versionAvailable.text': 'TREK {version} متاح الآن.',
+  'notifications.versionAvailable.text': 'ROUTD {version} متاح الآن.',
   'notifications.versionAvailable.button': 'عرض التفاصيل',
   'notifications.test.title': 'إشعار تجريبي من {actor}',
   'notifications.test.text': 'هذا إشعار تجريبي بسيط.',

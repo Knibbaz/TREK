@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': 'dagen voor vertrek',
   'trips.reminderDisabledHint':
     'Reisherinneringen zijn uitgeschakeld. Schakel ze in via Admin > Instellingen > Meldingen.',
+  'trips.shrinkWarning': 'De trip verkorten verwijdert permanent {days} dag(en). Plaatsen blijven zichtbaar in het planpanel.',
+  'trips.shrinkConfirm': 'Ik begrijp het — de inhoud van verwijderde dagen wordt permanent verwijderd',
 };
 export default trips;

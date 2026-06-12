@@ -53,6 +53,7 @@ const ADMIN_SETTINGS_KEYS = [
   'notify_trip_reminder',
   'password_login', 'password_registration', 'oidc_login', 'oidc_registration',
   'passkey_login', 'webauthn_rp_id', 'webauthn_origins',
+  'booking_affiliate_id',
 ];
 
 const avatarDir = path.join(__dirname, '../../uploads/avatars');
@@ -299,6 +300,7 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
   const placesAutocompleteEnabled = placesAutocompleteSetting !== 'false';
   const placesDetailsSetting = (db.prepare("SELECT value FROM app_settings WHERE key = 'places_details_enabled'").get() as { value: string } | undefined)?.value;
   const placesDetailsEnabled = placesDetailsSetting !== 'false';
+  const unsplashConfigured = !!(db.prepare("SELECT value FROM app_settings WHERE key = 'unsplash_api_key'").get() as { value: string } | undefined)?.value;
   const setupComplete = userCount > 0 && !(db.prepare("SELECT id FROM users WHERE role = 'admin' AND must_change_password = 1 LIMIT 1").get());
 
   return {
@@ -337,8 +339,25 @@ export function getAppConfig(authenticatedUser: { id: number } | null) {
     places_photos_enabled: placesPhotosEnabled,
     places_autocomplete_enabled: placesAutocompleteEnabled,
     places_details_enabled: placesDetailsEnabled,
+    unsplash_configured: unsplashConfigured,
     permissions: authenticatedUser ? getAllPermissions() : undefined,
     dev_mode: process.env.NODE_ENV === 'development',
+    branding: {
+      name: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_name'").get() as { value: string } | undefined)?.value || 'ROUTD',
+      logo_light: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_logo_light'").get() as { value: string } | undefined)?.value || '',
+      logo_dark: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_logo_dark'").get() as { value: string } | undefined)?.value || '',
+      icon_light: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_icon_light'").get() as { value: string } | undefined)?.value || '',
+      icon_dark: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_icon_dark'").get() as { value: string } | undefined)?.value || '',
+      accent: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_accent'").get() as { value: string } | undefined)?.value || '#111827',
+      accent_text: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_accent_text'").get() as { value: string } | undefined)?.value || '#ffffff',
+      bg_primary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_bg_primary'").get() as { value: string } | undefined)?.value || '',
+      bg_secondary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_bg_secondary'").get() as { value: string } | undefined)?.value || '',
+      text_primary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_text_primary'").get() as { value: string } | undefined)?.value || '',
+      text_secondary: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_text_secondary'").get() as { value: string } | undefined)?.value || '',
+      text_muted: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_text_muted'").get() as { value: string } | undefined)?.value || '',
+      nav_bg: (db.prepare("SELECT value FROM app_settings WHERE key = 'brand_nav_bg'").get() as { value: string } | undefined)?.value || '',
+      disable_dark_mode: (db.prepare("SELECT value FROM app_settings WHERE key = 'disable_dark_mode'").get() as { value: string } | undefined)?.value === 'true',
+    },
   };
 }
 
@@ -994,7 +1013,7 @@ export function setupMfa(userId: number, userEmail: string): { error?: string; s
   try {
     secret = authenticator.generateSecret();
     mfaSetupPending.set(userId, { secret, exp: Date.now() + MFA_SETUP_TTL_MS });
-    otpauth_url = authenticator.keyuri(userEmail, 'TREK', secret);
+    otpauth_url = authenticator.keyuri(userEmail, 'ROUTD', secret);
   } catch (err) {
     console.error('[MFA] Setup error:', err);
     return { error: 'MFA setup failed', status: 500 };

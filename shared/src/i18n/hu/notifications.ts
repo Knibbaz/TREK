@@ -31,7 +31,7 @@ const notifications: TranslationStrings = {
   'notifications.test.tripTitle': '{actor} üzenetet küldött az utazásodba',
   'notifications.test.tripText': 'Teszt értesítés a(z) "{trip}" utazáshoz.',
   'notifications.versionAvailable.title': 'Elérhető frissítés',
-  'notifications.versionAvailable.text': 'A TREK {version} már elérhető.',
+  'notifications.versionAvailable.text': 'A ROUTD {version} már elérhető.',
   'notifications.versionAvailable.button': 'Részletek megtekintése',
 };
 export default notifications;

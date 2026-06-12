@@ -30,7 +30,7 @@ const login: TranslationStrings = {
   'login.signIn': 'Entrar',
   'login.createAdmin': 'Crear cuenta de administrador',
   'login.createAdminHint':
-    'Configura la primera cuenta administradora de TREK.',
+    'Configura la primera cuenta administradora de ROUTD.',
   'login.setNewPassword': 'Establecer nueva contraseña',
   'login.setNewPasswordHint': 'Debe cambiar su contraseña antes de continuar.',
   'login.createAccount': 'Crear cuenta',

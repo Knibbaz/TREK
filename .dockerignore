@@ -35,3 +35,5 @@ server/reset-admin.js
 wiki/
 scripts/
 charts/
+data/
+uploads/

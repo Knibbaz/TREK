@@ -3,10 +3,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 const fr: NotificationLocale = {
   email: {
     footer:
-      'Vous recevez cet e-mail car les notifications sont activées dans TREK.',
+      'Vous recevez cet e-mail car les notifications sont activées dans ROUTD.',
     manage: 'Gérer les préférences',
     madeWith: 'Made with',
-    openTrek: 'Ouvrir TREK',
+    openTrek: 'Ouvrir ROUTD',
   },
   events: {
     trip_invite: (p) => ({
@@ -27,7 +27,7 @@ const fr: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Invitation Vacay Fusion',
-      body: `${p.actor} vous invite à fusionner les plans de vacances. Ouvrez TREK pour accepter ou refuser.`,
+      body: `${p.actor} vous invite à fusionner les plans de vacances. Ouvrez ROUTD pour accepter ou refuser.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} photos partagées`,
@@ -42,18 +42,23 @@ const fr: NotificationLocale = {
       body: `${p.actor} vous a assigné à la catégorie "${p.category}" dans "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Nouvelle version TREK disponible',
-      body: `TREK ${p.version} est maintenant disponible. Rendez-vous dans le panneau d'administration pour mettre à jour.`,
+      title: 'Nouvelle version ROUTD disponible',
+      body: `ROUTD ${p.version} est maintenant disponible. Rendez-vous dans le panneau d'administration pour mettre à jour.`,
     }),
     synology_session_cleared: () => ({
       title: 'Session Synology effacée',
       body: 'Votre compte ou URL Synology a changé. Vous avez été déconnecté de Synology Photos.',
     }),
+    date_proposal_created: p => ({ title: 'Sondage de disponibilité : ' + p.proposal, body: `${p.actor} a créé un sondage de disponibilité "${p.proposal}" dans le groupe "${p.group}". Veuillez indiquer vos disponibilités.` }),
+    date_proposal_confirmed: p => ({ title: 'Dates confirmées : ' + p.proposal, body: `Les dates pour "${p.proposal}" ont été confirmées : ${p.confirmed_start} au ${p.confirmed_end}.` }),
+    date_proposal_deadline: p => ({ title: 'Sondage de disponibilite : ' + p.proposal, body: 'Le sondage "' + p.proposal + '" dans le groupe "' + p.group + '" se termine le ' + p.deadline + '. Veuillez indiquer vos disponibilites.' }),
+    date_proposal_ping: p => ({ title: 'Rappel : indiquez votre disponibilité', body: `${p.actor} vous demande d'indiquer votre disponibilité pour "${p.proposal}" dans le groupe "${p.group}". Actuellement, ${p.filled} membres ont répondu.` }),
+    date_proposal_threshold_reached: p => ({ title: `Seuil atteint : ${p.proposal}`, body: `${p.respondents} sur ${p.members} membres ont indiqué leur disponibilité pour "${p.proposal}" dans le groupe "${p.group}".` }),
   },
   passwordReset: {
     subject: 'Réinitialisez votre mot de passe',
     greeting: 'Bonjour',
-    body: 'Nous avons reçu une demande de réinitialisation du mot de passe de votre compte TREK. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe.',
+    body: 'Nous avons reçu une demande de réinitialisation du mot de passe de votre compte ROUTD. Cliquez sur le bouton ci-dessous pour définir un nouveau mot de passe.',
     ctaIntro: 'Réinitialiser le mot de passe',
     expiry: 'Ce lien expire dans 60 minutes.',
     ignore:

@@ -205,9 +205,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': '새로운 기능을 제안하세요',
   'settings.about.wikiHint': '문서 및 가이드',
   'settings.about.supporters.badge': '월간 후원자',
-  'settings.about.supporters.title': 'TREK의 여행 동반자',
+  'settings.about.supporters.title': 'ROUTD의 여행 동반자',
   'settings.about.supporters.subtitle':
-    '다음 여정을 계획하는 동안, 이분들이 TREK의 미래를 함께 만들어가고 있습니다. 월간 후원금은 개발과 실제 작업 시간에 직접 사용되어 TREK이 오픈 소스로 유지될 수 있게 합니다.',
+    '다음 여정을 계획하는 동안, 이분들이 ROUTD의 미래를 함께 만들어가고 있습니다. 월간 후원금은 개발과 실제 작업 시간에 직접 사용되어 ROUTD이 오픈 소스로 유지될 수 있게 합니다.',
   'settings.about.supporters.since': '{date}부터 후원자',
   'settings.about.supporters.tierEmpty': '첫 번째 후원자가 되어보세요',
   'settings.about.supporter.tier.noReturnTicket': '편도 티켓',
@@ -217,7 +217,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': '알뜰 여행자',
   'settings.about.supporter.tier.hostelBunkmate': '호스텔 룸메이트',
   'settings.about.description':
-    'TREK은 첫 아이디어부터 마지막 추억까지 여행을 체계적으로 관리하는 자체 호스팅 여행 플래너입니다. 일별 계획, 예산, 짐 목록, 사진 등 모든 것이 하나의 서버에 담겨 있습니다.',
+    'ROUTD은 첫 아이디어부터 마지막 추억까지 여행을 체계적으로 관리하는 자체 호스팅 여행 플래너입니다. 일별 계획, 예산, 짐 목록, 사진 등 모든 것이 하나의 서버에 담겨 있습니다.',
   'settings.about.madeWith': '으로 만들어졌습니다',
   'settings.about.madeBy': 'Maurice와 성장하는 오픈 소스 커뮤니티가 함께',
   'settings.username': '사용자 이름',

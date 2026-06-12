@@ -63,9 +63,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     'Automatically carry remaining vacation days into the next year',
   'vacay.sharing': 'Sharing',
-  'vacay.sharingHint': 'Share your vacation plan with other TREK users',
+  'vacay.sharingHint': 'Share your vacation plan with other ROUTD users',
   'vacay.owner': 'Owner',
-  'vacay.shareEmailPlaceholder': 'Email of TREK user',
+  'vacay.shareEmailPlaceholder': 'Email of ROUTD user',
   'vacay.shareSuccess': 'Plan shared successfully',
   'vacay.shareError': 'Could not share plan',
   'vacay.dissolve': 'Dissolve Fusion',
@@ -78,7 +78,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Change color',
   'vacay.inviteUser': 'Invite User',
   'vacay.inviteHint':
-    'Invite another TREK user to share a combined vacation calendar.',
+    'Invite another ROUTD user to share a combined vacation calendar.',
   'vacay.selectUser': 'Select user',
   'vacay.sendInvite': 'Send Invite',
   'vacay.inviteSent': 'Invite sent',
@@ -99,5 +99,18 @@ const vacay: TranslationStrings = {
     'Settings like public holidays and company holidays are shared.',
   'vacay.fuseInfo5':
     'The fusion can be dissolved at any time by either party. Your entries will be preserved.',
+  'vacay.hours': 'hours',
+  'vacay.modeComp': 'Earn TvT',
+  'vacay.compTime': 'Comp Time',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
+  'vacay.hoursPerDay': 'Hours per work day',
+  'vacay.hoursPerDayHint': 'Defines how many hours equal one full vacation day',
+  'vacay.stdDay': 'Full day',
+  'vacay.rightClickHint': 'Right-click for hours',
+  'vacay.save': 'Save',
+  'vacay.cancel': 'Cancel',
 };
 export default vacay;

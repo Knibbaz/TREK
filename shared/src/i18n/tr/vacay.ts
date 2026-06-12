@@ -64,9 +64,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     'Kalan tatil günlerini otomatik olarak bir sonraki yıla taşıyın',
   'vacay.sharing': 'Paylaşma',
-  'vacay.sharingHint': 'Tatil planınızı diğer TREK kullanıcılarıyla paylaşın',
+  'vacay.sharingHint': 'Tatil planınızı diğer ROUTD kullanıcılarıyla paylaşın',
   'vacay.owner': 'Mal sahibi',
-  'vacay.shareEmailPlaceholder': 'TREK kullanıcısının e-postası',
+  'vacay.shareEmailPlaceholder': 'ROUTD kullanıcısının e-postası',
   'vacay.shareSuccess': 'Plan başarıyla paylaşıldı',
   'vacay.shareError': 'Plan paylaşılamadı',
   'vacay.dissolve': 'Füzyonu Çözün',
@@ -79,7 +79,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Rengi değiştir',
   'vacay.inviteUser': 'Kullanıcıyı Davet Et',
   'vacay.inviteHint':
-    'Başka bir TREK kullanıcısını birleşik bir tatil takvimini paylaşmaya davet edin.',
+    'Başka bir ROUTD kullanıcısını birleşik bir tatil takvimini paylaşmaya davet edin.',
   'vacay.selectUser': 'Kullanıcı seç',
   'vacay.sendInvite': 'Davet Gönder',
   'vacay.inviteSent': 'Davet gönderildi',

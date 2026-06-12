@@ -12,10 +12,12 @@ const photosDir = path.join(uploadsDir, 'photos');
 const filesDir = path.join(uploadsDir, 'files');
 const coversDir = path.join(uploadsDir, 'covers');
 const avatarsDir = path.join(uploadsDir, 'avatars');
+const brandingDir = path.join(uploadsDir, 'branding');
+const groupCoversDir = path.join(uploadsDir, 'group-covers');
 const backupsDir = path.join(__dirname, '../data/backups');
 const tmpDir = path.join(__dirname, '../data/tmp');
 
-[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, backupsDir, tmpDir].forEach(dir => {
+[uploadsDir, photosDir, filesDir, coversDir, avatarsDir, brandingDir, groupCoversDir, backupsDir, tmpDir].forEach(dir => {
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 });
 
@@ -35,7 +37,7 @@ const onListen = () => {
   const resolvedAppUrl = getMcpSafeUrl();
   const banner = [
     '──────────────────────────────────────',
-    '  TREK API started',
+    '  ROUTD API started',
     `  Version         ${APP_VERSION}`,
     ...(HOST ? [`  Host:           ${HOST}`] : []),
     `  Container Port: ${PORT}`,
@@ -44,7 +46,7 @@ const onListen = () => {
     `  Timezone:       ${tz}`,
     `  Origins:        ${origins}`,
     `  Log level:      ${LOG_LVL}`,
-    `  Log file:       /app/data/logs/trek.log`,
+    `  Log file:       /app/data/logs/roam.log`,
     `  PID:            ${process.pid}`,
     `  User:           uid=${process.getuid?.()} gid=${process.getgid?.()}`,
     '──────────────────────────────────────',
@@ -79,6 +81,9 @@ const onListen = () => {
   scheduler.startDemoReset();
   scheduler.startIdempotencyCleanup();
   scheduler.startTrekPhotoCacheCleanup();
+  scheduler.startScheduledBackups();
+  scheduler.startDateProposalReminders();
+  scheduler.startGdprCleanup();
   const { startTokenCleanup } = require('./services/ephemeralTokens');
   startTokenCleanup();
   import('./websocket').then(({ setupWebSocket }) => {

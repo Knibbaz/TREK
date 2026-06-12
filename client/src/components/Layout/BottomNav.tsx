@@ -1,14 +1,19 @@
 import { useNavigate, useLocation, useMatch } from 'react-router-dom'
 import { useAddonStore } from '../../store/addonStore'
+import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useTranslation } from '../../i18n'
-import { LayoutGrid, CalendarDays, Globe, Compass, Plus } from 'lucide-react'
+import { LayoutGrid, CalendarDays, Globe, Globe2, Compass, Plus, Users, Sparkles, CreditCard } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
-const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey: string }> = {
+const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey?: string; label?: string; to?: string; creatorOnly?: boolean }> = {
   vacay:   { icon: CalendarDays, labelKey: 'admin.addons.catalog.vacay.name' },
   atlas:   { icon: Globe,        labelKey: 'admin.addons.catalog.atlas.name' },
   journey: { icon: Compass,      labelKey: 'admin.addons.catalog.journey.name' },
+  groups:  { icon: Users,        label: 'Groups', to: '/groups' },
+  worldmap: { icon: Globe2,      label: 'World Map', to: '/worldmap' },
+  creator_hub: { icon: Sparkles, label: 'Creator Hub', to: '/creator-hub', creatorOnly: true },
+  explore_payments: { icon: CreditCard, label: 'Payments & Payouts', to: '/explore', creatorOnly: true },
 }
 
 interface NavItem { to: string; label: string; icon: LucideIcon }
@@ -46,6 +51,8 @@ export default function BottomNav() {
   const navigate = useNavigate()
   const darkMode = useSettingsStore(s => s.settings.dark_mode)
   const dark = darkMode === true || darkMode === 'dark' || (darkMode === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const user = useAuthStore(s => s.user)
+  const isCreator = user?.role === 'creator' || user?.role === 'admin'
   const addons = useAddonStore(s => s.addons)
   const globalAddons = addons.filter(a => a.type === 'global' && a.enabled)
   const location = useLocation()
@@ -55,7 +62,9 @@ export default function BottomNav() {
     { to: '/dashboard', label: t('nav.myTrips'), icon: LayoutGrid },
     ...globalAddons.flatMap(addon => {
       const nav = ADDON_NAV[addon.id]
-      return nav ? [{ to: `/${addon.id}`, label: t(nav.labelKey), icon: nav.icon }] : []
+      if (!nav) return []
+      if (nav.creatorOnly && !isCreator) return []
+      return [{ to: nav.to ?? `/${addon.id}`, label: nav.labelKey ? t(nav.labelKey) : nav.label!, icon: nav.icon }]
     }),
   ]
   // Split the items so the raised "+" sits dead centre.

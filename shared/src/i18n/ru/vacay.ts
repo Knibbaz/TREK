@@ -61,9 +61,9 @@ const vacay: TranslationStrings = {
     'Автоматически переносить оставшиеся дни отпуска на следующий год',
   'vacay.sharing': 'Общий доступ',
   'vacay.sharingHint':
-    'Поделитесь планом отпуска с другими пользователями TREK',
+    'Поделитесь планом отпуска с другими пользователями ROUTD',
   'vacay.owner': 'Владелец',
-  'vacay.shareEmailPlaceholder': 'Эл. почта пользователя TREK',
+  'vacay.shareEmailPlaceholder': 'Эл. почта пользователя ROUTD',
   'vacay.shareSuccess': 'План успешно предоставлен',
   'vacay.shareError': 'Не удалось поделиться планом',
   'vacay.dissolve': 'Разделить объединение',
@@ -77,7 +77,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Изменить цвет',
   'vacay.inviteUser': 'Пригласить пользователя',
   'vacay.inviteHint':
-    'Пригласите другого пользователя TREK для совместного календаря отпусков.',
+    'Пригласите другого пользователя ROUTD для совместного календаря отпусков.',
   'vacay.selectUser': 'Выберите пользователя',
   'vacay.sendInvite': 'Отправить приглашение',
   'vacay.inviteSent': 'Приглашение отправлено',
@@ -103,5 +103,14 @@ const vacay: TranslationStrings = {
   'vacay.calendarColor': 'Цвет',
   'vacay.calendarLabel': 'Название',
   'vacay.noCalendars': 'Нет календарей',
+  'vacay.hours': 'часов',
+  'vacay.modeComp': 'Отгул',
+  'vacay.compTime': 'Отгул',
+  'vacay.hoursPerDay': 'Часов в рабочем дне',
+  'vacay.hoursPerDayHint': 'Определяет, сколько часов соответствует одному полному дню отпуска',
+  'vacay.stdDay': 'Полный день',
+  'vacay.rightClickHint': 'Правый клик для часов',
+  'vacay.save': 'Сохранить',
+  'vacay.cancel': 'Отмена',
 };
 export default vacay;

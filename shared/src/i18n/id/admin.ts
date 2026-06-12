@@ -224,7 +224,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': 'Addon',
   'admin.addons.title': 'Addon',
   'admin.addons.subtitle':
-    'Aktifkan atau nonaktifkan fitur untuk menyesuaikan pengalaman TREK kamu.',
+    'Aktifkan atau nonaktifkan fitur untuk menyesuaikan pengalaman ROUTD kamu.',
   'admin.addons.catalog.packing.name': 'Daftar',
   'admin.addons.catalog.packing.description':
     'Daftar packing dan tugas to-do untuk perjalananmu',
@@ -268,7 +268,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Data Cuaca',
   'admin.weather.badge': 'Sejak 24 Maret 2026',
   'admin.weather.description':
-    'TREK menggunakan Open-Meteo sebagai sumber data cuaca. Open-Meteo adalah layanan cuaca gratis dan open-source — tidak perlu kunci API.',
+    'ROUTD menggunakan Open-Meteo sebagai sumber data cuaca. Open-Meteo adalah layanan cuaca gratis dan open-source — tidak perlu kunci API.',
   'admin.weather.forecast': 'Prakiraan 16 hari',
   'admin.weather.forecastDesc': 'Sebelumnya 5 hari (OpenWeatherMap)',
   'admin.weather.climate': 'Data iklim historis',
@@ -330,14 +330,14 @@ const admin: TranslationStrings = {
   'admin.github.loading': 'Memuat...',
   'admin.github.error': 'Gagal memuat rilis',
   'admin.github.by': 'oleh',
-  'admin.github.support': 'Bantu saya terus mengembangkan TREK',
+  'admin.github.support': 'Bantu saya terus mengembangkan ROUTD',
   'admin.update.available': 'Pembaruan tersedia',
-  'admin.update.text': 'TREK {version} tersedia. Kamu menggunakan {current}.',
+  'admin.update.text': 'ROUTD {version} tersedia. Kamu menggunakan {current}.',
   'admin.update.button': 'Lihat di GitHub',
   'admin.update.install': 'Pasang Pembaruan',
   'admin.update.confirmTitle': 'Pasang Pembaruan?',
   'admin.update.confirmText':
-    'TREK akan diperbarui dari {current} ke {version}. Server akan restart otomatis setelahnya.',
+    'ROUTD akan diperbarui dari {current} ke {version}. Server akan restart otomatis setelahnya.',
   'admin.update.dataInfo':
     'Semua datamu (perjalanan, pengguna, kunci API, unggahan, Vacay, Atlas, anggaran) akan dipertahankan.',
   'admin.update.warning':
@@ -351,7 +351,7 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Pergi ke Backup',
   'admin.update.howTo': 'Cara Memperbarui',
   'admin.update.dockerText':
-    'Instans TREK kamu berjalan di Docker. Untuk memperbarui ke {version}, jalankan perintah berikut di servermu:',
+    'Instans ROUTD kamu berjalan di Docker. Untuk memperbarui ke {version}, jalankan perintah berikut di servermu:',
   'admin.update.reloadHint': 'Muat ulang halaman dalam beberapa detik.',
   'admin.tabs.permissions': 'Izin',
   'admin.addons.catalog.journey.name': 'Journey',
@@ -386,5 +386,21 @@ const admin: TranslationStrings = {
   'admin.defaultSettings.mapboxStylePlaceholder': 'Pilih gaya…',
   'admin.defaultSettings.mapbox3d': 'Bangunan & medan 3D',
   'admin.defaultSettings.mapboxQuality': 'Mode kualitas tinggi',
+  'admin.payouts.title': 'Creator payouts',
+  'admin.payouts.selectCreator': 'Select creator',
+  'admin.payouts.amountPlaceholder': 'Amount (€)',
+  'admin.payouts.descriptionPlaceholder': 'Description (optional)',
+  'admin.payouts.register': 'Register',
+  'admin.payouts.creators': 'Creators',
+  'admin.payouts.noCreators': 'No creators found',
+  'admin.payouts.sales': 'Sales',
+  'admin.payouts.earned': 'Earned',
+  'admin.payouts.paid': 'Paid out',
+  'admin.payouts.balance': 'Balance',
+  'admin.payouts.history': 'Payout history',
+  'admin.payouts.noPayouts': 'No payouts registered yet',
+  'admin.payouts.loadError': 'Failed to load payouts',
+  'admin.payouts.saved': 'Payout registered',
+  'admin.payouts.saveError': 'Failed to register payout',
 };
 export default admin;

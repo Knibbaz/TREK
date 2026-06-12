@@ -60,9 +60,9 @@ const vacay: TranslationStrings = {
     'Trasladar automáticamente los días restantes al año siguiente',
   'vacay.sharing': 'Compartir',
   'vacay.sharingHint':
-    'Comparte tu calendario de vacaciones con otros usuarios de TREK',
+    'Comparte tu calendario de vacaciones con otros usuarios de ROUTD',
   'vacay.owner': 'Propietario',
-  'vacay.shareEmailPlaceholder': 'Correo electrónico del usuario de TREK',
+  'vacay.shareEmailPlaceholder': 'Correo electrónico del usuario de ROUTD',
   'vacay.shareSuccess': 'Plan compartido correctamente',
   'vacay.shareError': 'No se pudo compartir el plan',
   'vacay.dissolve': 'Deshacer fusión',
@@ -76,7 +76,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Cambiar color',
   'vacay.inviteUser': 'Invitar usuario',
   'vacay.inviteHint':
-    'Invita a otro usuario de TREK a compartir un calendario combinado de vacaciones.',
+    'Invita a otro usuario de ROUTD a compartir un calendario combinado de vacaciones.',
   'vacay.selectUser': 'Seleccionar usuario',
   'vacay.sendInvite': 'Enviar invitación',
   'vacay.inviteSent': 'Invitación enviada',
@@ -102,5 +102,14 @@ const vacay: TranslationStrings = {
   'vacay.calendarColor': 'Color del calendario',
   'vacay.calendarLabel': 'Etiqueta',
   'vacay.noCalendars': 'Sin calendarios',
+  'vacay.hours': 'horas',
+  'vacay.modeComp': 'Comp. tiempo',
+  'vacay.compTime': 'Comp. tiempo',
+  'vacay.hoursPerDay': 'Horas por día laboral',
+  'vacay.hoursPerDayHint': 'Define cuántas horas equivalen a un día de vacaciones completo',
+  'vacay.stdDay': 'Día completo',
+  'vacay.rightClickHint': 'Clic derecho para horas',
+  'vacay.save': 'Guardar',
+  'vacay.cancel': 'Cancelar',
 };
 export default vacay;

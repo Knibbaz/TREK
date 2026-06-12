@@ -52,7 +52,7 @@ If the token is invalid, expired, or exhausted, an error is shown.
 
 ## First user
 
-On a fresh TREK instance with no existing accounts, the registration form opens immediately. The first account created is automatically assigned the **admin** role.
+On a fresh ROUTD instance with no existing accounts, the registration form opens immediately. The first account created is automatically assigned the **admin** role.
 
 ## Rate limiting
 

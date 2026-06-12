@@ -2460,6 +2460,1179 @@ function runMigrations(db: Database.Database): void {
         if (after && after.region_code === row.region_code) del.run(row.id);
       }
     },
+    // ── ROUTD fork migrations (ported from local dev branch) ──
+    // Migration 124: Vacay hours + comp-time support
+    () => {
+      // Rebuild vacay_entries to add hours/type columns and update UNIQUE constraint
+      db.exec(`
+        CREATE TABLE vacay_entries_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          plan_id INTEGER NOT NULL REFERENCES vacay_plans(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          hours REAL DEFAULT NULL,
+          type TEXT NOT NULL DEFAULT 'vacation',
+          note TEXT DEFAULT '',
+          UNIQUE(user_id, plan_id, date, type)
+        );
+        INSERT INTO vacay_entries_new (id, plan_id, user_id, date, note, type)
+          SELECT id, plan_id, user_id, date, note, 'vacation' FROM vacay_entries;
+        DROP TABLE vacay_entries;
+        ALTER TABLE vacay_entries_new RENAME TO vacay_entries;
+      `);
+      // Add standard_hours_per_day to vacay_plans
+      try { db.exec("ALTER TABLE vacay_plans ADD COLUMN standard_hours_per_day REAL DEFAULT 8"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // Add carried_over_hours to vacay_user_years
+      try { db.exec("ALTER TABLE vacay_user_years ADD COLUMN carried_over_hours REAL DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // Backfill carried_over_hours from carried_over (integer days) * 8 hours/day
+      db.exec("UPDATE vacay_user_years SET carried_over_hours = carried_over * 8");
+    },
+    // Migration 125: Explore versioning + user trip tracking + multilingual descriptions
+    () => {
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN version INTEGER NOT NULL DEFAULT 1"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN descriptions TEXT NOT NULL DEFAULT '{}'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN last_published_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_user_trips (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          snapshot_version INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, source_trip_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_user_trips_source ON explore_user_trips(source_trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_user_trips_user ON explore_user_trips(user_id);
+      `);
+    },
+    // Migration 126: Community places — source tracking on places + community flag on explore_published
+    () => {
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN community_enabled INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE places ADD COLUMN source TEXT DEFAULT 'admin'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE places ADD COLUMN contributed_by INTEGER REFERENCES users(id) ON DELETE SET NULL DEFAULT NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration 127: Import source tracking for places (GPX, Google Maps lists, KML)
+    () => {
+      try { db.exec("ALTER TABLE places ADD COLUMN import_source TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration 128: Migrate default category icons from emoji to lucide icon names
+    () => {
+      const iconMap: Record<string, string> = {
+        '🏨': 'BedDouble',
+        '🍽️': 'UtensilsCrossed',
+        '🏛️': 'Landmark',
+        '🛍️': 'ShoppingBag',
+        '🚌': 'Bus',
+        '🎯': 'Activity',
+        '☕': 'Coffee',
+        '🏖️': 'Waves',
+        '🌿': 'TreePine',
+        '📍': 'MapPin',
+      };
+      const update = db.prepare('UPDATE categories SET icon = ? WHERE icon = ? AND user_id IS NULL');
+      for (const [emoji, lucide] of Object.entries(iconMap)) {
+        update.run(lucide, emoji);
+      }
+    },
+    // Migration 129: Add price_type column to places
+    () => {
+      try { db.exec("ALTER TABLE places ADD COLUMN price_type TEXT DEFAULT 'total'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration: Groups addon tables
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS groups (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          description TEXT,
+          cover_image TEXT,
+          created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+
+        CREATE TABLE IF NOT EXISTS group_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'admin', 'member')),
+          invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, user_id)
+        );
+
+        CREATE TABLE IF NOT EXISTS group_trips (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          added_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, trip_id)
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+        CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+        CREATE INDEX IF NOT EXISTS idx_group_trips_group ON group_trips(group_id);
+        CREATE INDEX IF NOT EXISTS idx_group_trips_trip ON group_trips(trip_id);
+      `);
+    },
+    // Migration: Register Groups addon
+    () => {
+      try {
+        db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .run('groups', 'Groups', 'Organize trips into shared groups', 'global', 'Users', 1, 11);
+      } catch (err: any) {
+        console.warn('[migrations] Non-fatal migration step failed:', err);
+      }
+    },
+    // Migration: Group invite tokens
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_invite_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member')),
+          max_uses INTEGER NOT NULL DEFAULT 1,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_invite_token ON group_invite_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_group_invite_group ON group_invite_tokens(group_id);
+      `);
+    },
+    // Migration: Date availability proposals for group trip planning
+    () => {
+      // Drop old date_proposals/date_availability tables if they were created
+      // with an earlier trip-based schema (trip_id instead of group_id).
+      const dpCols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const hasOldSchema = dpCols.length > 0 && !dpCols.some(c => c.name === 'group_id');
+      if (hasOldSchema) {
+        db.exec('DROP TABLE IF EXISTS date_availability; DROP TABLE IF EXISTS date_proposals;');
+      }
+
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS date_proposals (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          title TEXT NOT NULL,
+          period_start TEXT NOT NULL,
+          period_end TEXT NOT NULL,
+          created_at TEXT DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_date_proposals_group ON date_proposals(group_id);
+
+        CREATE TABLE IF NOT EXISTS date_availability (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+          UNIQUE(proposal_id, user_id, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_date_avail_proposal ON date_availability(proposal_id);
+        CREATE INDEX IF NOT EXISTS idx_date_avail_user ON date_availability(user_id);
+      `);
+    },
+    // Migration: Fix date_proposals schema if it was created with trip_id instead of group_id
+    () => {
+      const dpCols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const hasOldSchema = dpCols.length > 0 && !dpCols.some(c => c.name === 'group_id');
+      if (hasOldSchema) {
+        db.exec('DROP TABLE IF EXISTS date_availability; DROP TABLE IF EXISTS date_proposals;');
+        db.exec(`
+          CREATE TABLE date_proposals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+            created_by INTEGER NOT NULL REFERENCES users(id),
+            title TEXT NOT NULL,
+            period_start TEXT NOT NULL,
+            period_end TEXT NOT NULL,
+            created_at TEXT DEFAULT (datetime('now'))
+          );
+          CREATE INDEX idx_date_proposals_group ON date_proposals(group_id);
+
+          CREATE TABLE date_availability (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            date TEXT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+            UNIQUE(proposal_id, user_id, date)
+          );
+          CREATE INDEX idx_date_avail_proposal ON date_availability(proposal_id);
+          CREATE INDEX idx_date_avail_user ON date_availability(user_id);
+        `);
+      }
+    },
+    // Migration: User vacation days and company holidays for group date availability
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_vacation_days (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          start_date TEXT NOT NULL,
+          end_date TEXT NOT NULL,
+          label TEXT,
+          color TEXT DEFAULT '#3b82f6',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, start_date, end_date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_vacation_days_user ON user_vacation_days(user_id);
+
+        CREATE TABLE IF NOT EXISTS company_holidays (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          date TEXT NOT NULL UNIQUE,
+          name TEXT NOT NULL,
+          color TEXT DEFAULT '#ef4444',
+          created_by INTEGER REFERENCES users(id),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_company_holidays_date ON company_holidays(date);
+      `);
+    },
+    // Migration: Place votes (👍/👎 per user per place)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS place_votes (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          place_id INTEGER NOT NULL REFERENCES places(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          vote INTEGER NOT NULL CHECK(vote IN (1, -1)),
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(place_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_place_votes_place ON place_votes(place_id);
+      `);
+    },
+    // Migration: Add deadline and reminder fields to date_proposals
+    () => {
+      const cols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const names = new Set(cols.map(c => c.name));
+      if (!names.has('deadline')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN deadline TEXT");
+      }
+      if (!names.has('reminder_days')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN reminder_days INTEGER NOT NULL DEFAULT 2");
+      }
+      if (!names.has('reminder_sent')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN reminder_sent INTEGER NOT NULL DEFAULT 0");
+      }
+    },
+    // Migration: User residency and volunteering for Atlas
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS user_residency (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          country_code TEXT NOT NULL,
+          city TEXT,
+          start_date TEXT,
+          end_date TEXT,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, country_code)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_residency_user ON user_residency(user_id);
+
+        CREATE TABLE IF NOT EXISTS user_volunteering (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          country_code TEXT NOT NULL,
+          city TEXT,
+          organization TEXT,
+          start_date TEXT,
+          end_date TEXT,
+          notes TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(user_id, country_code)
+        );
+        CREATE INDEX IF NOT EXISTS idx_user_volunteering_user ON user_volunteering(user_id);
+      `);
+    },
+    // Migration: Per-day notes on date_availability
+    () => {
+      const cols = db.prepare("PRAGMA table_info('date_availability')").all() as Array<{ name: string }>;
+      const names = new Set(cols.map(c => c.name));
+      if (!names.has('note')) {
+        db.exec("ALTER TABLE date_availability ADD COLUMN note TEXT DEFAULT NULL");
+      }
+    },
+    // Migration: Confirmation fields on date_proposals + guest tables for availability
+    () => {
+      const cols = db.prepare("PRAGMA table_info('date_proposals')").all() as Array<{ name: string }>;
+      const names = new Set(cols.map(c => c.name));
+      if (!names.has('confirmed_start')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN confirmed_start TEXT DEFAULT NULL");
+      }
+      if (!names.has('confirmed_end')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN confirmed_end TEXT DEFAULT NULL");
+      }
+      if (!names.has('status')) {
+        db.exec("ALTER TABLE date_proposals ADD COLUMN status TEXT DEFAULT 'open'");
+      }
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS date_proposal_guest_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          guest_name TEXT,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          created_at TEXT DEFAULT (datetime('now')),
+          expires_at TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_guest_token ON date_proposal_guest_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_guest_token_proposal ON date_proposal_guest_tokens(proposal_id);
+
+        CREATE TABLE IF NOT EXISTS date_availability_guests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          proposal_id INTEGER NOT NULL REFERENCES date_proposals(id) ON DELETE CASCADE,
+          guest_token_id INTEGER NOT NULL REFERENCES date_proposal_guest_tokens(id) ON DELETE CASCADE,
+          date TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'yes' CHECK(status IN ('yes', 'no', 'maybe')),
+          note TEXT,
+          UNIQUE(proposal_id, guest_token_id, date)
+        );
+        CREATE INDEX IF NOT EXISTS idx_date_avail_guests_proposal ON date_availability_guests(proposal_id);
+        CREATE INDEX IF NOT EXISTS idx_date_avail_guests_token ON date_availability_guests(guest_token_id);
+      `);
+    },
+    // Migration 141: Group polls (single-choice, ranked, swipe)
+    () => db.exec(`
+      -- Group polls (only 1 open per trip)
+      CREATE TABLE IF NOT EXISTS group_polls (
+        id TEXT PRIMARY KEY,
+        trip_id TEXT NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+        created_by INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title TEXT NOT NULL,
+        description TEXT,
+        type TEXT NOT NULL DEFAULT 'single_choice',
+        anonymous INTEGER NOT NULL DEFAULT 0,
+        deadline TEXT,
+        status TEXT NOT NULL DEFAULT 'open' CHECK(status IN ('open', 'closed', 'decided')),
+        decided_option_id TEXT,
+        allow_guest_votes INTEGER NOT NULL DEFAULT 1,
+        created_at TEXT DEFAULT (datetime('now')),
+        updated_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_group_polls_trip ON group_polls(trip_id);
+      CREATE INDEX IF NOT EXISTS idx_group_polls_status ON group_polls(status);
+
+      CREATE TABLE IF NOT EXISTS group_poll_options (
+        id TEXT PRIMARY KEY,
+        poll_id TEXT NOT NULL REFERENCES group_polls(id) ON DELETE CASCADE,
+        label TEXT NOT NULL,
+        description TEXT,
+        image_url TEXT,
+        place_id INTEGER REFERENCES places(id),
+        lat REAL,
+        lng REAL,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at TEXT DEFAULT (datetime('now'))
+      );
+      CREATE INDEX IF NOT EXISTS idx_poll_options_poll ON group_poll_options(poll_id);
+
+      CREATE TABLE IF NOT EXISTS group_poll_votes (
+        id TEXT PRIMARY KEY,
+        poll_id TEXT NOT NULL REFERENCES group_polls(id) ON DELETE CASCADE,
+        option_id TEXT NOT NULL REFERENCES group_poll_options(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        guest_name TEXT,
+        guest_token TEXT,
+        rank INTEGER,
+        swipe_value TEXT,
+        created_at TEXT DEFAULT (datetime('now')),
+        UNIQUE(poll_id, option_id, user_id),
+        UNIQUE(poll_id, option_id, guest_token)
+      );
+      CREATE INDEX IF NOT EXISTS idx_poll_votes_poll ON group_poll_votes(poll_id);
+      CREATE INDEX IF NOT EXISTS idx_poll_votes_user ON group_poll_votes(user_id);
+    `),
+    // Migration 142: Creator auto-approval + explore published status + submitted_by
+    () => {
+      try { db.exec('ALTER TABLE users ADD COLUMN creator_auto_approved INTEGER DEFAULT 0'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration 143: Group poll guest tokens
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_poll_guest_tokens (
+          id TEXT PRIMARY KEY,
+          poll_id TEXT NOT NULL REFERENCES group_polls(id) ON DELETE CASCADE,
+          token TEXT UNIQUE NOT NULL,
+          guest_name TEXT,
+          expires_at TEXT NOT NULL,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_poll_guest_tokens_poll ON group_poll_guest_tokens(poll_id);
+        CREATE INDEX IF NOT EXISTS idx_poll_guest_tokens_token ON group_poll_guest_tokens(token);
+      `);
+    },
+    // Migration 144: World map entries + worldmap addon registration
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS world_map_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          country_code TEXT NOT NULL,
+          name TEXT NOT NULL,
+          description TEXT,
+          category TEXT NOT NULL DEFAULT 'place',
+          lat REAL,
+          lng REAL,
+          added_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          added_by_username TEXT,
+          created_at TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_world_map_country ON world_map_entries(country_code);
+      `);
+      try {
+        db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?)")
+          .run('worldmap', 'World Map', 'Collaborative world map — everyone adds places per country', 'global', 'Globe2', 1, 15);
+      } catch (err: any) {
+        console.warn('[migrations] Non-fatal migration step failed:', err);
+      }
+    },
+    // Migration 145: Share plan / allow_clone permissions + trip collaboration tokens
+    () => {
+      // Add share_plan permission flag to share_tokens.
+      // Existing tokens get share_plan=1 to preserve backward compatibility.
+      try { db.exec('ALTER TABLE share_tokens ADD COLUMN share_plan INTEGER DEFAULT 1'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // allow_clone: owner controls whether viewers can clone the trip. Default off.
+      try { db.exec('ALTER TABLE share_tokens ADD COLUMN allow_clone INTEGER DEFAULT 0'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      // Collaboration invite links: allow existing users to join as collaborator via link.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS trip_collab_tokens (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          role TEXT NOT NULL DEFAULT 'editor',
+          max_uses INTEGER,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          visible_to_members INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_trip_collab_token_trip ON trip_collab_tokens(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_trip_collab_token ON trip_collab_tokens(token);
+      `);
+    },
+    // Migration 146: Share description permission flag on share_tokens
+    () => {
+      // Add share_description permission flag to share_tokens.
+      // Controls whether the trip description is visible on the public share link. Default off.
+      try { db.exec('ALTER TABLE share_tokens ADD COLUMN share_description INTEGER DEFAULT 0'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration 147: Swap inverted start_day_id/end_day_id pairs in day_accommodations caused
+    // by the old Math.min/Math.max picker bug (pre-8e05ba7) which used raw IDs
+    // instead of positional order on trips with non-monotonic day ID layouts.
+    // Idempotent: the WHERE clause only matches rows that still need swapping.
+    () => {
+      const result = db.prepare(`
+        UPDATE day_accommodations
+        SET start_day_id = end_day_id, end_day_id = start_day_id
+        WHERE (SELECT day_number FROM days WHERE id = start_day_id)
+            > (SELECT day_number FROM days WHERE id = end_day_id)
+      `).run();
+      if (result.changes > 0) {
+        console.log(`[migrations] Fixed ${result.changes} inverted day_accommodation pairs`);
+      }
+    },
+    // Migration 148: Mollie Connect + explore payments + creator categories support
+    () => {
+      // Fix missing explore_published columns for databases that lag behind
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN status TEXT NOT NULL DEFAULT 'approved'"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN submitted_by INTEGER REFERENCES users(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+
+      // Payment tracking for explore purchases
+      try { db.exec('ALTER TABLE explore_user_trips ADD COLUMN payment_id INTEGER REFERENCES explore_payments(id)'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+
+      // Creator Mollie Connect accounts
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_mollie_accounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          mollie_profile_id TEXT NOT NULL,
+          access_token TEXT NOT NULL,
+          refresh_token TEXT NOT NULL,
+          token_expires_at DATETIME,
+          organization_id TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_creator_mollie_user ON creator_mollie_accounts(user_id);
+      `);
+
+      // Explore payment records
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_payments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL REFERENCES users(id),
+          source_trip_id INTEGER NOT NULL REFERENCES trips(id),
+          creator_user_id INTEGER NOT NULL REFERENCES users(id),
+          mollie_payment_id TEXT UNIQUE NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          platform_fee_cents INTEGER NOT NULL DEFAULT 0,
+          creator_payout_cents INTEGER NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'EUR',
+          status TEXT NOT NULL DEFAULT 'pending',
+          paid_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_payments_mollie ON explore_payments(mollie_payment_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_payments_creator ON explore_payments(creator_user_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_payments_user ON explore_payments(user_id);
+      `);
+    },
+    // Migration 149: Creator payouts table (platform collects, pays out later)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_payouts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          creator_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          amount_cents INTEGER NOT NULL,
+          description TEXT,
+          status TEXT NOT NULL DEFAULT 'pending',
+          paid_at DATETIME,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_creator_payouts_creator ON creator_payouts(creator_user_id);
+        CREATE INDEX IF NOT EXISTS idx_creator_payouts_status ON creator_payouts(status);
+      `);
+    },
+    // Migration 150: Per-creator platform fee percentage
+    () => {
+      try { db.exec('ALTER TABLE users ADD COLUMN creator_fee_percent INTEGER'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+    },
+    // Migration 151: Add 'viewer' role for invite links (read-only access)
+    () => {
+      // Recreate group_members to add 'viewer' role
+      const hasViewerRole = db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='group_members'").get() as { sql: string } | undefined;
+      if (hasViewerRole?.sql?.includes('viewer')) {
+        console.log('[migrations] viewer role already in group_members, skipping');
+        return;
+      }
+
+      db.exec(`
+        CREATE TABLE group_members_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('owner', 'admin', 'member', 'viewer')),
+          invited_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          added_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, user_id)
+        );
+        INSERT INTO group_members_new SELECT * FROM group_members;
+        DROP TABLE group_members;
+        ALTER TABLE group_members_new RENAME TO group_members;
+        CREATE INDEX IF NOT EXISTS idx_group_members_group ON group_members(group_id);
+        CREATE INDEX IF NOT EXISTS idx_group_members_user ON group_members(user_id);
+      `);
+
+      // Recreate group_invite_tokens to add 'viewer' role
+      db.exec(`
+        CREATE TABLE group_invite_tokens_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          token TEXT NOT NULL UNIQUE,
+          created_by INTEGER NOT NULL REFERENCES users(id),
+          role TEXT NOT NULL DEFAULT 'member' CHECK(role IN ('admin', 'member', 'viewer')),
+          max_uses INTEGER NOT NULL DEFAULT 1,
+          used_count INTEGER NOT NULL DEFAULT 0,
+          expires_at TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        INSERT INTO group_invite_tokens_new SELECT * FROM group_invite_tokens;
+        DROP TABLE group_invite_tokens;
+        ALTER TABLE group_invite_tokens_new RENAME TO group_invite_tokens;
+        CREATE INDEX IF NOT EXISTS idx_group_invite_token ON group_invite_tokens(token);
+        CREATE INDEX IF NOT EXISTS idx_group_invite_group ON group_invite_tokens(group_id);
+      `);
+      console.log('[migrations] Added viewer role to group_members and group_invite_tokens');
+    },
+    // Migration 152: Add listing metadata columns to explore_published
+    () => {
+      // Add new columns for listing customization
+      db.exec(`ALTER TABLE explore_published ADD COLUMN listing_title TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN tagline TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN tags TEXT NOT NULL DEFAULT '[]'`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN destination TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN country_code TEXT`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN difficulty TEXT NOT NULL DEFAULT 'easy'`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN best_season TEXT NOT NULL DEFAULT '[]'`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN moderation_notes TEXT`);
+      console.log('[migrations] Added listing metadata columns to explore_published');
+    },
+    // Migration 153: Add analytics columns to explore_published
+    () => {
+      db.exec(`ALTER TABLE explore_published ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN purchase_count INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN avg_rating REAL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0`);
+      db.exec(`ALTER TABLE explore_published ADD COLUMN is_featured INTEGER NOT NULL DEFAULT 0`);
+      console.log('[migrations] Added analytics columns to explore_published');
+    },
+    // Migration 154: Create explore_creators table for creator profiles
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_creators (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id INTEGER NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+          slug TEXT NOT NULL UNIQUE,
+          display_name TEXT NOT NULL,
+          bio TEXT,
+          avatar TEXT,
+          status TEXT NOT NULL DEFAULT 'pending' CHECK(status IN ('pending', 'approved', 'rejected')),
+          rejection_reason TEXT,
+          kyc_status TEXT NOT NULL DEFAULT 'not_started' CHECK(kyc_status IN ('not_started', 'pending', 'verified', 'rejected')),
+          kyc_rejection_reason TEXT,
+          payout_method TEXT CHECK(payout_method IN ('iban', 'wise', NULL)),
+          iban TEXT,
+          iban_name TEXT,
+          wise_recipient_id TEXT,
+          wise_currency TEXT DEFAULT 'EUR',
+          social_links TEXT DEFAULT '{}',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_creators_user ON explore_creators(user_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_creators_slug ON explore_creators(slug);
+        CREATE INDEX IF NOT EXISTS idx_explore_creators_status ON explore_creators(status);
+      `);
+      console.log('[migrations] Created explore_creators table');
+    },
+    // Migration 155: explore_listing_versions for version history
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS explore_listing_versions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          version INTEGER NOT NULL,
+          listing_title TEXT,
+          tagline TEXT,
+          tags TEXT DEFAULT '[]',
+          destination TEXT,
+          country_code TEXT,
+          difficulty TEXT DEFAULT 'easy',
+          best_season TEXT DEFAULT '[]',
+          price INTEGER DEFAULT 0,
+          descriptions TEXT DEFAULT '{}',
+          community_enabled INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(trip_id, version)
+        );
+        CREATE INDEX IF NOT EXISTS idx_explore_versions_trip ON explore_listing_versions(trip_id);
+        CREATE INDEX IF NOT EXISTS idx_explore_versions_version ON explore_listing_versions(version DESC);
+      `);
+      console.log('[migrations] Created explore_listing_versions table');
+    },
+    // Migration 156: Add suspension feature to explore
+    () => {
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN is_suspended INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN suspension_reason TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN suspended_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_published ADD COLUMN suspended_by INTEGER REFERENCES users(id) ON DELETE SET NULL"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_creators ADD COLUMN is_suspended INTEGER DEFAULT 0"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_creators ADD COLUMN suspension_reason TEXT"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec("ALTER TABLE explore_creators ADD COLUMN suspended_at DATETIME"); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added suspension columns to explore tables');
+    },
+    // Migration 157: explore_fork_deltas for tracking changes in forked trips
+    () => {
+      try {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS explore_fork_deltas (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            forked_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            source_version INTEGER NOT NULL,
+            forked_version INTEGER NOT NULL,
+            delta_type TEXT NOT NULL CHECK(delta_type IN ('day_added', 'day_modified', 'day_deleted', 'place_added', 'place_modified', 'place_deleted', 'metadata_changed')),
+            resource_id INTEGER,
+            resource_type TEXT,
+            changes TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(source_trip_id, forked_trip_id, source_version, forked_version, delta_type, resource_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_explore_deltas_source ON explore_fork_deltas(source_trip_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_deltas_forked ON explore_fork_deltas(forked_trip_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_deltas_versions ON explore_fork_deltas(source_version, forked_version);
+        `);
+        console.log('[migrations] Created explore_fork_deltas table');
+      } catch (err: any) {
+        if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
+          console.warn('[migrations] Warning: explore_fork_deltas creation failed:', err.message);
+        }
+      }
+    },
+    // Migration 158: explore_reviews and explore_review_helpful tables
+    () => {
+      try {
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS explore_reviews (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            source_trip_id INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            rating INTEGER NOT NULL CHECK(rating >= 1 AND rating <= 5),
+            title TEXT,
+            content TEXT NOT NULL,
+            helpful_count INTEGER DEFAULT 0,
+            unhelpful_count INTEGER DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(source_trip_id, user_id)
+          );
+          CREATE TABLE IF NOT EXISTS explore_review_helpful (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            review_id INTEGER NOT NULL REFERENCES explore_reviews(id) ON DELETE CASCADE,
+            user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            is_helpful INTEGER NOT NULL DEFAULT 1,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE(review_id, user_id)
+          );
+          CREATE INDEX IF NOT EXISTS idx_explore_reviews_trip ON explore_reviews(source_trip_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_reviews_user ON explore_reviews(user_id);
+          CREATE INDEX IF NOT EXISTS idx_explore_reviews_rating ON explore_reviews(rating DESC);
+          CREATE INDEX IF NOT EXISTS idx_explore_review_helpful_review ON explore_review_helpful(review_id);
+        `);
+        console.log('[migrations] Created explore_reviews and explore_review_helpful tables');
+      } catch (err: any) {
+        if (!err.message?.includes('already exists') && !err.message?.includes('duplicate')) {
+          console.warn('[migrations] Warning: explore_reviews creation failed:', err.message);
+        }
+      }
+    },
+    // Migration 159: Add changelog column to explore_listing_versions
+    () => {
+      try { db.exec('ALTER TABLE explore_listing_versions ADD COLUMN changelog TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name') && !err.message?.includes('no such table')) throw err; }
+      console.log('[migrations] Added changelog column to explore_listing_versions');
+    },
+    // Migration 160: Add snapshot_data to explore_published for change detection
+    () => {
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN snapshot_data TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added snapshot_data column to explore_published');
+    },
+    // Migration 161: backup_history table for granular backup tracking
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS backup_history (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          type            TEXT NOT NULL,
+          initiated_by    TEXT REFERENCES users(id),
+          scope           TEXT NOT NULL,
+          filters         TEXT,
+          status          TEXT NOT NULL DEFAULT 'pending',
+          file_path       TEXT,
+          file_size_bytes INTEGER,
+          checksum        TEXT,
+          stats           TEXT,
+          error_message   TEXT,
+          expires_at      TEXT,
+          started_at      TEXT,
+          completed_at    TEXT,
+          created_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_backup_type ON backup_history(type);
+        CREATE INDEX IF NOT EXISTS idx_backup_status ON backup_history(status);
+        CREATE INDEX IF NOT EXISTS idx_backup_user ON backup_history(initiated_by);
+        CREATE INDEX IF NOT EXISTS idx_backup_expires ON backup_history(expires_at);
+      `);
+      console.log('[migrations] Created backup_history table');
+    },
+    // Migration 162: backup_schedules table for selective scheduled backups
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS backup_schedules (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          name            TEXT NOT NULL,
+          cron_expression TEXT NOT NULL,
+          timezone        TEXT NOT NULL DEFAULT 'Europe/Amsterdam',
+          is_enabled      INTEGER NOT NULL DEFAULT 1,
+          scope           TEXT NOT NULL,
+          filters         TEXT,
+          include_uploads INTEGER NOT NULL DEFAULT 0,
+          retention_days  INTEGER NOT NULL DEFAULT 30,
+          max_backups     INTEGER NOT NULL DEFAULT 10,
+          last_run_at     TEXT,
+          last_status     TEXT,
+          next_run_at     TEXT,
+          created_by      TEXT NOT NULL REFERENCES users(id),
+          created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+          updated_at      TEXT NOT NULL DEFAULT (datetime('now'))
+        );
+      `);
+      console.log('[migrations] Created backup_schedules table');
+    },
+    // Migration 163: gdpr_export_requests table for user self-service exports
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS gdpr_export_requests (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          user_id         TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          status          TEXT NOT NULL DEFAULT 'pending',
+          file_path       TEXT,
+          file_size_bytes INTEGER,
+          download_token  TEXT UNIQUE,
+          download_count  INTEGER NOT NULL DEFAULT 0,
+          max_downloads   INTEGER NOT NULL DEFAULT 3,
+          requested_at    TEXT NOT NULL DEFAULT (datetime('now')),
+          ready_at        TEXT,
+          expires_at      TEXT,
+          downloaded_at   TEXT
+        );
+        CREATE INDEX IF NOT EXISTS idx_gdpr_user ON gdpr_export_requests(user_id);
+        CREATE INDEX IF NOT EXISTS idx_gdpr_token ON gdpr_export_requests(download_token);
+      `);
+      console.log('[migrations] Created gdpr_export_requests table');
+    },
+    // Migration 164: share_visits table for tracking shared trip visitors
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS share_visits (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          token TEXT NOT NULL REFERENCES share_tokens(token) ON DELETE CASCADE,
+          session_id TEXT NOT NULL,
+          user_agent_hash TEXT,
+          ip_address TEXT,
+          visited_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(token, session_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_share_visits_token ON share_visits(token);
+        CREATE INDEX IF NOT EXISTS idx_share_visits_visited_at ON share_visits(visited_at);
+      `);
+      console.log('[migrations] Created share_visits table');
+    },
+    // Migration 165: GDPR compliance — pending deletion with grace period
+    () => {
+      try { db.exec('ALTER TABLE users ADD COLUMN pending_deletion INTEGER NOT NULL DEFAULT 0;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      try { db.exec('ALTER TABLE users ADD COLUMN deletion_requested_at TEXT;'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added pending_deletion columns to users');
+    },
+    // Migration 166: Explore feature — continent column for globe_trotter badge
+    () => {
+      try { db.exec('ALTER TABLE explore_published ADD COLUMN continent TEXT'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added continent column to explore_published');
+    },
+    // Migration 167: Explore feature — add missing columns to explore_fork_deltas
+    () => {
+      try {
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN source_trip_id TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN forked_trip_id TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN source_version INTEGER');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN forked_version INTEGER');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN delta_type TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN resource_id TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN resource_type TEXT');
+        db.exec('ALTER TABLE explore_fork_deltas ADD COLUMN changes TEXT');
+        console.log('[migrations] Added migration-157 columns to explore_fork_deltas for backward compatibility');
+      } catch (err: any) {
+        if (!err.message?.includes('duplicate column name')) {
+          console.warn('[migrations] Non-fatal migration step failed:', err);
+        }
+      }
+    },
+    // Migration 168: Creator Hub — Link-in-Bio tables
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_lib_config (
+          creator_id      INTEGER PRIMARY KEY REFERENCES explore_creators(id) ON DELETE CASCADE,
+          slug            TEXT NOT NULL UNIQUE,
+
+          -- Theming
+          theme           TEXT NOT NULL DEFAULT 'minimal',
+          custom_css      TEXT,
+          background_type TEXT DEFAULT 'solid',
+          background_value TEXT DEFAULT '#ffffff',
+          accent_color    TEXT DEFAULT '#0066cc',
+          font_family     TEXT DEFAULT 'Inter',
+
+          -- Header
+          tagline         TEXT,
+          show_country_count INTEGER NOT NULL DEFAULT 1,
+          show_location   INTEGER NOT NULL DEFAULT 1,
+
+          -- Sections visibility
+          show_listings   INTEGER NOT NULL DEFAULT 1,
+          show_guides     INTEGER NOT NULL DEFAULT 1,
+          show_group_trips INTEGER NOT NULL DEFAULT 1,
+          show_affiliate_links INTEGER NOT NULL DEFAULT 1,
+          show_tip_jar    INTEGER NOT NULL DEFAULT 1,
+
+          -- Analytics
+          view_count      INTEGER NOT NULL DEFAULT 0,
+
+          updated_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+      `);
+      console.log('[migrations] Created creator_lib_config table');
+    },
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_lib_blocks (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          creator_id      INTEGER NOT NULL REFERENCES explore_creators(id) ON DELETE CASCADE,
+          type            TEXT NOT NULL,
+          title           TEXT,
+          url             TEXT,
+          icon            TEXT,
+          thumbnail_url   TEXT,
+          content         TEXT,
+          is_visible      INTEGER NOT NULL DEFAULT 1,
+          sort_order      INTEGER NOT NULL DEFAULT 0,
+          clicks          INTEGER NOT NULL DEFAULT 0,
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_lib_blocks_creator ON creator_lib_blocks(creator_id);
+      `);
+      console.log('[migrations] Created creator_lib_blocks table');
+    },
+    // Migration 169: Add parent_id to addons + seed Explore sub-addons
+    () => {
+      try { db.exec('ALTER TABLE addons ADD COLUMN parent_id TEXT REFERENCES addons(id) ON DELETE CASCADE'); }
+      catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+
+      db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run('explore', 'Explore', 'Discover and purchase ready-made trips', 'global', 'Compass', 0, 12, null);
+      db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run('creator_hub', 'Creator Hub', 'Link-in-bio, media kit, mini-guides', 'global', 'Sparkles', 0, 20, 'explore');
+      db.prepare("INSERT OR IGNORE INTO addons (id, name, description, type, icon, enabled, sort_order, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+        .run('explore_payments', 'Payments & Payouts', 'Trip purchases and creator payouts (requires Mollie API key)', 'global', 'CreditCard', 0, 21, 'explore');
+
+      console.log('[migrations] Added parent_id to addons, seeded Explore sub-addons');
+    },
+    // Migration 170: creator_affiliate_links + creator_affiliate_clicks
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_affiliate_links (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          creator_id      INTEGER NOT NULL REFERENCES explore_creators(id) ON DELETE CASCADE,
+          title           TEXT NOT NULL,
+          destination_url TEXT NOT NULL,
+          short_code      TEXT NOT NULL UNIQUE,
+          category        TEXT,
+          icon            TEXT,
+          description     TEXT,
+          linked_listing_id TEXT,
+          linked_guide_id TEXT,
+          click_count     INTEGER NOT NULL DEFAULT 0,
+          network         TEXT,
+          estimated_commission_rate REAL,
+          is_active       INTEGER NOT NULL DEFAULT 1,
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_affiliate_creator ON creator_affiliate_links(creator_id);
+        CREATE TABLE IF NOT EXISTS creator_affiliate_clicks (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          link_id         TEXT NOT NULL REFERENCES creator_affiliate_links(id) ON DELETE CASCADE,
+          referrer        TEXT,
+          country_code    TEXT,
+          device_type     TEXT,
+          source          TEXT,
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_clicks_link ON creator_affiliate_clicks(link_id);
+        CREATE INDEX IF NOT EXISTS idx_clicks_date ON creator_affiliate_clicks(created_at);
+      `);
+      console.log('[migrations] Created creator_affiliate_links and creator_affiliate_clicks tables');
+    },
+    // Migration 171: creator_tips
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS creator_tips (
+          id              TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(8)))),
+          creator_id      INTEGER NOT NULL REFERENCES explore_creators(id) ON DELETE CASCADE,
+          amount_cents    INTEGER NOT NULL,
+          currency        TEXT NOT NULL DEFAULT 'EUR',
+          tipper_name     TEXT,
+          tipper_message  TEXT,
+          mollie_payment_id TEXT,
+          status          TEXT NOT NULL DEFAULT 'completed',
+          created_at      DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_tips_creator ON creator_tips(creator_id);
+      `);
+      console.log('[migrations] Created creator_tips table');
+    },
+    // Migration 172: group_trip_participants
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_trip_participants (
+          id         INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id   INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          trip_id    INTEGER NOT NULL REFERENCES trips(id) ON DELETE CASCADE,
+          user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(group_id, trip_id, user_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_gtp_group_trip ON group_trip_participants(group_id, trip_id);
+      `);
+      console.log('[migrations] Created group_trip_participants table');
+    },
+    // Migration 173: share_vacay per group member
+    () => {
+      db.exec(`ALTER TABLE group_members ADD COLUMN share_vacay INTEGER DEFAULT NULL`);
+      console.log('[migrations] Added share_vacay to group_members');
+    },
+    // Migration 169: White-label branding keys
+    () => {
+      const keys = [
+        ['brand_name', 'ROUTD'],
+        ['brand_logo_light', ''],
+        ['brand_logo_dark', ''],
+        ['brand_icon_light', ''],
+        ['brand_icon_dark', ''],
+        ['brand_accent', '#111827'],
+        ['brand_accent_text', '#ffffff'],
+      ];
+      for (const [key, value] of keys) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Inserted brand_* keys into app_settings');
+    },
+    // Migration 170: Default user settings seed
+    () => {
+      const defaults: [string, string][] = [
+        ['default_user_setting_dark_mode', '"auto"'],
+        ['default_user_setting_temperature_unit', '"celsius"'],
+        ['default_user_setting_time_format', '"24h"'],
+        ['default_user_setting_route_calculation', 'true'],
+        ['default_user_setting_blur_booking_codes', 'true'],
+      ];
+      for (const [key, value] of defaults) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Seeded default_user_setting_* keys');
+    },
+    // Migration 171: Per-group welcome message columns
+    () => {
+      db.exec(`ALTER TABLE groups ADD COLUMN welcome_title TEXT`);
+      db.exec(`ALTER TABLE groups ADD COLUMN welcome_body TEXT`);
+      db.exec(`ALTER TABLE groups ADD COLUMN welcome_icon TEXT`);
+      console.log('[migrations] Added welcome_title/body/icon to groups');
+    },
+    // Migration 172: Add response_threshold to date_proposals
+    () => {
+      try { db.exec(`ALTER TABLE date_proposals ADD COLUMN response_threshold INTEGER DEFAULT NULL`); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added response_threshold to date_proposals');
+    },
+    // Migration 174: Extended branding color keys
+    () => {
+      const keys = [
+        ['brand_bg_primary', ''],
+        ['brand_bg_secondary', ''],
+        ['brand_text_primary', ''],
+        ['brand_nav_bg', ''],
+      ];
+      for (const [key, value] of keys) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Inserted extended brand_* color keys into app_settings');
+    },
+    // Migration 175: Group activity feed
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_activity (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          actor_id    INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          actor_name  TEXT,
+          event_type  TEXT NOT NULL,
+          resource_id INTEGER,
+          resource_title TEXT,
+          created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_activity_group ON group_activity(group_id, created_at DESC);
+      `);
+      console.log('[migrations] Created group_activity table');
+    },
+    // Migration 177: Additional brand text color keys + disable_dark_mode setting
+    () => {
+      const keys = [
+        ['brand_text_secondary', ''],
+        ['brand_text_muted', ''],
+        ['disable_dark_mode', ''],
+      ];
+      for (const [key, value] of keys) {
+        db.prepare("INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)").run(key, value);
+      }
+      console.log('[migrations] Inserted brand_text_secondary, brand_text_muted, disable_dark_mode into app_settings');
+    },
+    // Migration 176: Group brand_color column
+    () => {
+      try { db.exec(`ALTER TABLE groups ADD COLUMN brand_color TEXT`); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added brand_color to groups');
+    },
+    // Migration 179: Group ideas (prikbord)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_ideas (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          user_id     INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          title       TEXT NOT NULL,
+          body        TEXT,
+          created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_ideas_group ON group_ideas(group_id, created_at DESC);
+      `);
+      console.log('[migrations] Created group_ideas table');
+    },
+    // Migration 180: Group tasks (taakverdeling)
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS group_tasks (
+          id          INTEGER PRIMARY KEY AUTOINCREMENT,
+          group_id    INTEGER NOT NULL REFERENCES groups(id) ON DELETE CASCADE,
+          title       TEXT NOT NULL,
+          done        INTEGER NOT NULL DEFAULT 0,
+          assigned_to INTEGER REFERENCES users(id) ON DELETE SET NULL,
+          created_by  INTEGER NOT NULL REFERENCES users(id),
+          sort_order  INTEGER NOT NULL DEFAULT 0,
+          created_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          updated_at  DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+        );
+        CREATE INDEX IF NOT EXISTS idx_group_tasks_group ON group_tasks(group_id, sort_order);
+      `);
+      console.log('[migrations] Created group_tasks table');
+    },
+    // Migration 181: Track origin of cloned trips (share-link clones)
+    () => {
+      try { db.exec('ALTER TABLE trips ADD COLUMN cloned_from_trip_id INTEGER REFERENCES trips(id) ON DELETE SET NULL'); } catch (err: any) { if (!err.message?.includes('duplicate column name')) throw err; }
+      console.log('[migrations] Added cloned_from_trip_id to trips');
+    },
+    // Migration 182: Visitor insights — referrer/UTM tracking + source poll on public pages
+    () => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS visitor_insights (
+          id            INTEGER PRIMARY KEY AUTOINCREMENT,
+          page_type     TEXT NOT NULL,
+          page_ref      TEXT NOT NULL,
+          session_id    TEXT NOT NULL,
+          referrer      TEXT,
+          referrer_host TEXT,
+          utm_source    TEXT,
+          utm_medium    TEXT,
+          utm_campaign  TEXT,
+          source_answer TEXT,
+          visited_at    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(page_type, page_ref, session_id)
+        );
+        CREATE INDEX IF NOT EXISTS idx_visitor_insights_type ON visitor_insights(page_type, visited_at DESC);
+        CREATE INDEX IF NOT EXISTS idx_visitor_insights_visited ON visitor_insights(visited_at DESC);
+      `);
+      console.log('[migrations] Created visitor_insights table');
+    },
   ];
 
   if (currentVersion < migrations.length) {

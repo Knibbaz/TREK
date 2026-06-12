@@ -26,7 +26,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.text':
     '{actor} hozzárendelte Önt a {category} kategóriához a(z) {trip} utazásban',
   'notif.version_available.title': 'Új verzió elérhető',
-  'notif.version_available.text': 'A TREK {version} elérhető',
+  'notif.version_available.text': 'A ROUTD {version} elérhető',
   'notif.action.view_trip': 'Utazás megtekintése',
   'notif.action.view_collab': 'Üzenetek megtekintése',
   'notif.action.view_packing': 'Csomagolás megtekintése',

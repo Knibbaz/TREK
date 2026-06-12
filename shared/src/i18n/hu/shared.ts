@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': 'Megosztva:',
   'shared.confirmed': 'Megerősítve',
   'shared.pending': 'Függőben',
+  'shared.tabMap': 'Térkép',
 };
 export default shared;

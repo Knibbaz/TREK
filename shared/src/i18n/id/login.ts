@@ -27,7 +27,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Sedang masuk…',
   'login.signIn': 'Masuk',
   'login.createAdmin': 'Buat Akun Admin',
-  'login.createAdminHint': 'Siapkan akun admin pertama untuk TREK.',
+  'login.createAdminHint': 'Siapkan akun admin pertama untuk ROUTD.',
   'login.setNewPassword': 'Atur Kata Sandi Baru',
   'login.setNewPasswordHint':
     'Kamu harus mengganti kata sandi sebelum melanjutkan.',

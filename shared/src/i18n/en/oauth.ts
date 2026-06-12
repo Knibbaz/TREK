@@ -100,11 +100,11 @@ const oauth: TranslationStrings = {
   'oauth.authorize.errorTitle': 'Authorization Error',
   'oauth.authorize.loginTitle': 'Sign in to continue',
   'oauth.authorize.loginDescription':
-    '{client} wants access to your TREK account. Please sign in first.',
-  'oauth.authorize.loginButton': 'Sign in to TREK',
+    '{client} wants access to your ROUTD account. Please sign in first.',
+  'oauth.authorize.loginButton': 'Sign in to ROUTD',
   'oauth.authorize.requestLabel': 'Authorization Request',
   'oauth.authorize.requestDescription':
-    'This application is requesting access to your TREK account.',
+    'This application is requesting access to your ROUTD account.',
   'oauth.authorize.trustNote':
     'Only grant access to applications you trust. Your data stays on your server.',
   'oauth.authorize.selectScope': 'Select at least one scope',

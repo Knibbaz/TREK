@@ -3,6 +3,7 @@ import { db } from '../db/database';
 import { decrypt_api_key } from './apiKeyCrypto';
 import { logInfo, logDebug, logError } from './auditLog';
 import { checkSsrf, createPinnedDispatcher } from '../utils/ssrfGuard';
+import { PROJECT_METADATA } from '../config';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -141,8 +142,8 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
         <!-- Header -->
         <tr><td style="background: linear-gradient(135deg, #000000 0%, #1a1a2e 100%); padding: 32px 32px 28px; text-align: center;">
           <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4NCiAgPGRlZnM+DQogICAgPGxpbmVhckdyYWRpZW50IGlkPSJiZyIgeDE9IjAiIHkxPSIwIiB4Mj0iMSIgeTI9IjEiPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIwJSIgc3RvcC1jb2xvcj0iIzFlMjkzYiIvPg0KICAgICAgPHN0b3Agb2Zmc2V0PSIxMDAlIiBzdG9wLWNvbG9yPSIjMGYxNzJhIi8+DQogICAgPC9saW5lYXJHcmFkaWVudD4NCiAgICA8Y2xpcFBhdGggaWQ9Imljb24iPg0KICAgICAgPHBhdGggZD0iTSA4NTUuNjM2NzE5IDY5OS4yMDMxMjUgTCAyMjIuMjQ2MDk0IDY5OS4yMDMxMjUgQyAxOTcuNjc5Njg4IDY5OS4yMDMxMjUgMTc5LjkwNjI1IDY3NS43NSAxODYuNTM5MDYyIDY1Mi4xMDE1NjIgTCAzNjAuNDI5Njg4IDMyLjM5MDYyNSBDIDM2NC45MjE4NzUgMTYuMzg2NzE5IDM3OS41MTE3MTkgNS4zMjgxMjUgMzk2LjEzMjgxMiA1LjMyODEyNSBMIDEwMjkuNTI3MzQ0IDUuMzI4MTI1IEMgMTA1NC4wODk4NDQgNS4zMjgxMjUgMTA3MS44NjcxODggMjguNzc3MzQ0IDEwNjUuMjMwNDY5IDUyLjQyOTY4OCBMIDg5MS4zMzk4NDQgNjcyLjEzNjcxOSBDIDg4Ni44NTE1NjIgNjg4LjE0MDYyNSA4NzIuMjU3ODEyIDY5OS4yMDMxMjUgODU1LjYzNjcxOSA2OTkuMjAzMTI1IFogTSA0NDQuMjM4MjgxIDExNjYuOTgwNDY5IEwgNTMzLjc3MzQzOCA4NDcuODk4NDM4IEMgNTQwLjQxMDE1NiA4MjQuMjQ2MDk0IDUyMi42MzI4MTIgODAwLjc5Njg3NSA0OTguMDcwMzEyIDgwMC43OTY4NzUgTCAxNzIuNDcyNjU2IDgwMC43OTY4NzUgQyAxNTUuODUxNTYyIDgwMC43OTY4NzUgMTQxLjI2MTcxOSA4MTEuODU1NDY5IDEzNi43Njk1MzEgODI3Ljg1OTM3NSBMIDQ3LjIzNDM3NSAxMTQ2Ljk0MTQwNiBDIDQwLjU5NzY1NiAxMTcwLjU5Mzc1IDU4LjM3NSAxMTk0LjA0Mjk2OSA4Mi45Mzc1IDExOTQuMDQyOTY5IEwgNDA4LjUzNTE1NiAxMTk0LjA0Mjk2OSBDIDQyNS4xNTYyNSAxMTk0LjA0Mjk2OSA0MzkuNzUgMTE4Mi45ODQzNzUgNDQ0LjIzODI4MSAxMTY2Ljk4MDQ2OSBaIE0gNjA5LjAwMzkwNiA4MjcuODU5Mzc1IEwgNDM1LjExMzI4MSAxNDQ3LjU3MDMxMiBDIDQyOC40NzY1NjIgMTQ3MS4yMTg3NSA0NDYuMjUzOTA2IDE0OTQuNjcxODc1IDQ3MC44MTY0MDYgMTQ5NC42NzE4NzUgTCAxMTA0LjIxMDkzOCAxNDk0LjY3MTg3NSBDIDExMjAuODMyMDMxIDE0OTQuNjcxODc1IDExMzUuNDIxODc1IDE0ODMuNjA5Mzc1IDExMzkuOTE0MDYyIDE0NjcuNjA1NDY5IEwgMTMxMy44MDQ2ODggODQ3Ljg5ODQzOCBDIDEzMjAuNDQxNDA2IDgyNC4yNDYwOTQgMTMwMi42NjQwNjIgODAwLjc5Njg3NSAxMjc4LjEwMTU2MiA4MDAuNzk2ODc1IEwgNjQ0LjcwNzAzMSA4MDAuNzk2ODc1IEMgNjI4LjA4NTkzOCA4MDAuNzk2ODc1IDYxMy40OTIxODggODExLjg1NTQ2OSA2MDkuMDAzOTA2IDgyNy44NTkzNzUgWiBNIDEwNTYuMTA1NDY5IDMzMy4wMTk1MzEgTCA5NjYuNTcwMzEyIDY1Mi4xMDE1NjIgQyA5NTkuOTMzNTk0IDY3NS43NSA5NzcuNzEwOTM4IDY5OS4yMDMxMjUgMTAwMi4yNzM0MzggNjk5LjIwMzEyNSBMIDEzMjcuODcxMDk0IDY5OS4yMDMxMjUgQyAxMzQ0LjQ5MjE4OCA2OTkuMjAzMTI1IDEzNTkuMDg1OTM4IDY4OC4xNDA2MjUgMTM2My41NzQyMTkgNjcyLjEzNjcxOSBMIDE0NTMuMTA5Mzc1IDM1My4wNTQ2ODggQyAxNDU5Ljc0NjA5NCAzMjkuNDA2MjUgMTQ0MS45Njg3NSAzMDUuOTUzMTI1IDE0MTcuNDA2MjUgMzA1Ljk1MzEyNSBMIDEwOTEuODA4NTk0IDMwNS45NTMxMjUgQyAxMDc1LjE4NzUgMzA1Ljk1MzEyNSAxMDYwLjU5NzY1NiAzMTcuMDE1NjI1IDEwNTYuMTA1NDY5IDMzMy4wMTk1MzEgWiIvPg0KICAgIDwvY2xpcFBhdGg+DQogIDwvZGVmcz4NCiAgPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIGZpbGw9InVybCgjYmcpIi8+DQogIDxnIHRyYW5zZm9ybT0idHJhbnNsYXRlKDU2LDUxKSBzY2FsZSgwLjI2NykiPg0KICAgIDxyZWN0IHdpZHRoPSIxNTAwIiBoZWlnaHQ9IjE1MDAiIGZpbGw9IiNmZmZmZmYiIGNsaXAtcGF0aD0idXJsKCNpY29uKSIvPg0KICA8L2c+DQo8L3N2Zz4NCg==" alt="TREK" width="48" height="48" style="border-radius: 14px; margin-bottom: 14px; display: block; margin-left: auto; margin-right: auto;" />
-          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">TREK</div>
-          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Travel Resource &amp; Exploration Kit</div>
+          <div style="color: #ffffff; font-size: 24px; font-weight: 700; letter-spacing: -0.5px;">ROUTD</div>
+          <div style="color: rgba(255,255,255,0.4); font-size: 10px; font-weight: 500; letter-spacing: 2px; text-transform: uppercase; margin-top: 4px;">Your Travel Companion</div>
         </td></tr>
         <!-- Content -->
         <tr><td style="padding: 32px 32px 16px;">
@@ -152,12 +153,12 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
         </td></tr>
         <!-- CTA -->
         ${appUrl ? `<tr><td style="padding: 8px 32px 32px; text-align: center;">
-          <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openTrek}</a>
+          <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openRoam}</a>
         </td></tr>` : ''}
         <!-- Footer -->
         <tr><td style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center;">
           <p style="margin: 0 0 8px; font-size: 11px; color: #9ca3af; line-height: 1.5;">${s.footer}<br>${s.manage}</p>
-          <p style="margin: 0; font-size: 10px; color: #d1d5db;">${s.madeWith} <span style="color: #ef4444;">&hearts;</span> by Maurice &middot; <a href="https://github.com/mauriceboe/TREK" style="color: #9ca3af; text-decoration: none;">GitHub</a></p>
+          <p style="margin: 0; font-size: 10px; color: #d1d5db;">Modified by <a href="${escapeHtml(PROJECT_METADATA.modifiedBy.url)}" style="color: #9ca3af; text-decoration: none;">${escapeHtml(PROJECT_METADATA.modifiedBy.name)}</a> &middot; Original project by <a href="${escapeHtml(PROJECT_METADATA.originalBy.url)}" style="color: #9ca3af; text-decoration: none;">${escapeHtml(PROJECT_METADATA.originalBy.name)}</a></p>
         </td></tr>
       </table>
     </td></tr>
@@ -236,7 +237,7 @@ export async function sendPasswordResetEmail(
     await transporter.sendMail({
       from: smtpCfg.from,
       to,
-      subject: `TREK — ${strings.subject}`,
+      subject: `ROUTD — ${strings.subject}`,
       text: `${strings.greeting}, ${to}\n\n${strings.body}\n\n${strings.ctaIntro}: ${resetUrl}\n\n${strings.expiry}\n${strings.ignore}`,
       html: buildPasswordResetHtml(strings.subject, strings, to, resetUrl, lang),
     });
@@ -244,6 +245,82 @@ export async function sendPasswordResetEmail(
     return { delivered: 'email' };
   } catch (err) {
     logError(`Password reset email failed to=${to}: ${err instanceof Error ? err.message : err}`);
+    return { delivered: 'failed' };
+  }
+}
+
+// ── Welcome email (admin-created accounts) ────────────────────────────────
+
+interface WelcomeStrings { subject: string; greeting: string; body: string; note: string; passwordLabel: string }
+
+const WELCOME_I18N: Record<string, WelcomeStrings> = {
+  en: { subject: 'Your ROUTD account is ready', greeting: 'Hi', body: 'An administrator has created a ROUTD account for you. Use the temporary password below to log in and change it immediately.', note: 'You will be prompted to set a new password on your first login.', passwordLabel: 'Temporary password' },
+  nl: { subject: 'Je ROUTD-account is klaar', greeting: 'Hallo', body: 'Een beheerder heeft een ROUTD-account voor je aangemaakt. Gebruik het tijdelijke wachtwoord hieronder om in te loggen en verander het direct.', note: 'Je wordt gevraagd een nieuw wachtwoord in te stellen bij je eerste inlog.', passwordLabel: 'Tijdelijk wachtwoord' },
+  de: { subject: 'Dein ROUTD-Konto ist bereit', greeting: 'Hallo', body: 'Ein Administrator hat ein ROUTD-Konto für dich erstellt. Verwende das temporäre Passwort unten zum Einloggen und ändere es sofort.', note: 'Du wirst beim ersten Login aufgefordert, ein neues Passwort festzulegen.', passwordLabel: 'Temporäres Passwort' },
+  fr: { subject: 'Votre compte ROUTD est prêt', greeting: 'Bonjour', body: 'Un administrateur a créé un compte ROUTD pour vous. Utilisez le mot de passe temporaire ci-dessous pour vous connecter et changez-le immédiatement.', note: 'Vous serez invité à définir un nouveau mot de passe lors de votre première connexion.', passwordLabel: 'Mot de passe temporaire' },
+};
+
+function buildWelcomeHtml(strings: WelcomeStrings, recipient: string, tempPassword: string, lang: string): string {
+  const safeGreeting = escapeHtml(`${strings.greeting}, ${recipient}`);
+  const safeBody = escapeHtml(strings.body);
+  const safeNote = escapeHtml(strings.note);
+  const safeLabel = escapeHtml(strings.passwordLabel);
+  const safePw = escapeHtml(tempPassword);
+  const block = `
+    <p style="margin:0 0 16px 0; font-size:16px;">${safeGreeting},</p>
+    <p style="margin:0 0 20px 0; font-size:15px; line-height:1.6;">${safeBody}</p>
+    <div style="margin:20px 0; padding:16px 20px; background:#f3f4f6; border-radius:10px; border-left:4px solid #111827;">
+      <p style="margin:0 0 6px 0; font-size:12px; color:#6B7280; text-transform:uppercase; letter-spacing:0.5px;">${safeLabel}</p>
+      <p style="margin:0; font-size:18px; font-weight:700; color:#111827; font-family:monospace; letter-spacing:1px;">${safePw}</p>
+    </div>
+    <p style="margin:0; font-size:13px; color:#6B7280;">${safeNote}</p>
+  `;
+  return buildEmailHtml(strings.subject, block, lang);
+}
+
+export async function sendWelcomeEmail(
+  to: string,
+  username: string,
+  tempPassword: string,
+): Promise<{ delivered: 'email' | 'log' | 'failed' }> {
+  const lang = 'en';
+  const strings = WELCOME_I18N[lang] || WELCOME_I18N.en;
+  const smtpCfg = getSmtpConfig();
+
+  if (!smtpCfg) {
+    // eslint-disable-next-line no-console
+    console.log(
+      `\n===== WELCOME ACCOUNT CREATED =====\n` +
+      `to: ${to}\n` +
+      `username: ${username}\n` +
+      `temp password: ${tempPassword}\n` +
+      `(SMTP is not configured — deliver these credentials to the user manually.)\n` +
+      `===================================\n`,
+    );
+    logInfo(`Welcome email issued (no SMTP) for=${to}`);
+    return { delivered: 'log' };
+  }
+
+  try {
+    const skipTls = process.env.SMTP_SKIP_TLS_VERIFY === 'true' || getAppSetting('smtp_skip_tls_verify') === 'true';
+    const transporter = nodemailer.createTransport({
+      host: smtpCfg.host,
+      port: smtpCfg.port,
+      secure: smtpCfg.secure,
+      auth: smtpCfg.user ? { user: smtpCfg.user, pass: smtpCfg.pass } : undefined,
+      ...(skipTls ? { tls: { rejectUnauthorized: false } } : {}),
+    });
+    await transporter.sendMail({
+      from: smtpCfg.from,
+      to,
+      subject: `ROUTD — ${strings.subject}`,
+      text: `${strings.greeting}, ${username}\n\n${strings.body}\n\n${strings.passwordLabel}: ${tempPassword}\n\n${strings.note}`,
+      html: buildWelcomeHtml(strings, username, tempPassword, lang),
+    });
+    logInfo(`Welcome email sent to=${to}`);
+    return { delivered: 'email' };
+  } catch (err) {
+    logError(`Welcome email failed to=${to}: ${err instanceof Error ? err.message : err}`);
     return { delivered: 'failed' };
   }
 }
@@ -267,7 +344,7 @@ export async function sendEmail(to: string, subject: string, body: string, userI
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: `TREK — ${subject}`,
+      subject: `ROUTD — ${subject}`,
       text: body,
       html: buildEmailHtml(subject, body, lang, navigateTarget),
     });
@@ -291,7 +368,7 @@ export function buildWebhookBody(url: string, payload: { event: string; title: s
         description: payload.body,
         url: payload.link,
         color: 0x3b82f6,
-        footer: { text: payload.tripName ? `Trip: ${payload.tripName}` : 'TREK' },
+        footer: { text: payload.tripName ? `Trip: ${payload.tripName}` : 'ROUTD' },
         timestamp: new Date().toISOString(),
       }],
     });
@@ -299,13 +376,13 @@ export function buildWebhookBody(url: string, payload: { event: string; title: s
 
   if (isSlack) {
     const trip = payload.tripName ? `  •  _${payload.tripName}_` : '';
-    const link = payload.link ? `\n<${payload.link}|Open in TREK>` : '';
+    const link = payload.link ? `\n<${payload.link}|Open in ROUTD>` : '';
     return JSON.stringify({
       text: `*${payload.title}*\n${payload.body}${trip}${link}`,
     });
   }
 
-  return JSON.stringify({ ...payload, timestamp: new Date().toISOString(), source: 'TREK' });
+  return JSON.stringify({ ...payload, timestamp: new Date().toISOString(), source: 'ROUTD' });
 }
 
 export async function sendWebhook(url: string, payload: { event: string; title: string; body: string; tripName?: string; link?: string }): Promise<boolean> {
@@ -356,8 +433,8 @@ export async function testSmtp(to: string): Promise<{ success: boolean; error?: 
     await transporter.sendMail({
       from: config.from,
       to,
-      subject: 'TREK — Test Notification',
-      text: 'This is a test email from TREK. If you received this, your SMTP configuration is working correctly.',
+      subject: 'ROUTD — Test Notification',
+      text: 'This is a test email from ROUTD. If you received this, your SMTP configuration is working correctly.',
     });
     return { success: true };
   } catch (err) {
@@ -367,7 +444,7 @@ export async function testSmtp(to: string): Promise<{ success: boolean; error?: 
 
 export async function testWebhook(url: string): Promise<{ success: boolean; error?: string }> {
   try {
-    const sent = await sendWebhook(url, { event: 'test', title: 'Test Notification', body: 'This is a test webhook from TREK. If you received this, your webhook configuration is working correctly.' });
+    const sent = await sendWebhook(url, { event: 'test', title: 'Test Notification', body: 'This is a test webhook from ROUTD. If you received this, your webhook configuration is working correctly.' });
     return sent ? { success: true } : { success: false, error: 'Failed to send webhook' };
   } catch (err) {
     return { success: false, error: err instanceof Error ? err.message : 'Unknown error' };
@@ -392,7 +469,11 @@ const NTFY_EVENT_META: Partial<Record<NotifEventType, { priority: 1 | 2 | 3 | 4 
   collab_message:           { priority: 3, tags: ['speech_balloon'] },
   packing_tagged:           { priority: 3, tags: ['luggage'] },
   version_available:        { priority: 4, tags: ['package'] },
-  synology_session_cleared: { priority: 3, tags: ['warning'] },
+  synology_session_cleared:   { priority: 3, tags: ['warning'] },
+  date_proposal_created:      { priority: 3, tags: ['calendar'] },
+  date_proposal_deadline:     { priority: 4, tags: ['calendar', 'alarm_clock'] },
+  date_proposal_ping:         { priority: 3, tags: ['bell'] },
+  explore_update:             { priority: 3, tags: [] },
 };
 const NTFY_DEFAULT_META = { priority: 3 as const, tags: [] as string[] };
 
@@ -497,7 +578,7 @@ export async function testNtfy(cfg: { topic: string; server?: string | null; tok
     const sent = await sendNtfy(url, cfg.token ?? null, {
       event: 'test',
       title: 'Test Notification',
-      body: 'This is a test notification from TREK. If you received this, your ntfy configuration is working correctly.',
+      body: 'This is a test notification from ROUTD. If you received this, your ntfy configuration is working correctly.',
     });
     return sent ? { success: true } : { success: false, error: 'Failed to send ntfy notification' };
   } catch (err) {

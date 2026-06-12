@@ -13,14 +13,14 @@
 
 ## 1. Fork & Clone the Repository
 
-Go to the [TREK repository](https://github.com/mauriceboe/TREK) and click **Fork** to create your own copy.
+Go to the [ROUTD repository](https://github.com/mauriceboe/ROUTD) and click **Fork** to create your own copy.
 
 Then clone your fork locally:
 
 ```bash
 # Clone your fork, checking out the dev branch
-git clone -b dev git@github.com:your-username/TREK.git
-cd TREK
+git clone -b dev git@github.com:your-username/ROUTD.git
+cd ROUTD
 ```
 
 ---
@@ -30,15 +30,15 @@ cd TREK
 Add the original repository as `upstream` so you can pull in future updates:
 
 ```bash
-git remote add upstream git@github.com:mauriceboe/TREK.git
+git remote add upstream git@github.com:mauriceboe/ROUTD.git
 ```
 
 You should now have two remotes:
 
 | Remote     | URL                                          | Purpose                        |
 |------------|----------------------------------------------|--------------------------------|
-| `origin`   | `git@github.com:your-username/TREK.git`      | Your fork — push changes here  |
-| `upstream` | `git@github.com:mauriceboe/TREK.git`         | Main repo — pull updates from here |
+| `origin`   | `git@github.com:your-username/ROUTD.git`      | Your fork — push changes here  |
+| `upstream` | `git@github.com:mauriceboe/ROUTD.git`         | Main repo — pull updates from here |
 
 ---
 
@@ -168,7 +168,7 @@ git push origin fix/my-changes:dev
 git push origin dev
 ```
 
-Then open a Pull Request from your fork to `mauriceboe/TREK` targeting the `dev` branch. If your PR only modifies files under `wiki/`, it is exempt from branch enforcement and may target any branch.
+Then open a Pull Request from your fork to `mauriceboe/ROUTD` targeting the `dev` branch. If your PR only modifies files under `wiki/`, it is exempt from branch enforcement and may target any branch.
 
 ---
 

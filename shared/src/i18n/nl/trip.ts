@@ -28,5 +28,6 @@ const trip: TranslationStrings = {
     'Weet je zeker dat je deze plaats wilt verwijderen?',
   'trip.confirm.deletePlaces': '{count} plaatsen verwijderen?',
   'trip.toast.placesDeleted': '{count} plaatsen verwijderd',
+  'trip.toast.loadError': 'Reis laden mislukt',
 };
 export default trip;

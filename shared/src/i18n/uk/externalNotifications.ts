@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const uk: NotificationLocale = {
   email: {
-    footer: 'Ви отримали це, оскільки увімкнули сповіщення в TREK.',
+    footer: 'Ви отримали це, оскільки увімкнули сповіщення в ROUTD.',
     manage: 'Керувати налаштуваннями у Налаштуваннях',
     madeWith: 'Made with',
-    openTrek: 'Відкрити TREK',
+    openTrek: 'Відкрити ROUTD',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const uk: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Запрошення Vacay Fusion',
-      body: `${p.actor} запрошує вас об'єднати плани відпустки. Відкрийте TREK, щоб прийняти або відхилити.`,
+      body: `${p.actor} запрошує вас об'єднати плани відпустки. Відкрийте ROUTD, щоб прийняти або відхилити.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} фото поділились`,
@@ -41,18 +41,23 @@ const uk: NotificationLocale = {
       body: `${p.actor} призначив вас до категорії "${p.category}" у "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Доступна нова версія TREK',
-      body: `TREK ${p.version} тепер доступний. Перейдіть до панелі адміністратора для оновлення.`,
+      title: 'Доступна нова версія ROUTD',
+      body: `ROUTD ${p.version} тепер доступний. Перейдіть до панелі адміністратора для оновлення.`,
     }),
     synology_session_cleared: () => ({
       title: 'Сеанс Synology скинуто',
       body: 'Ваш обліковий запис або URL Synology змінився. Ви вийшли з Synology Photos.',
     }),
+    date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
+    date_proposal_confirmed: p => ({ title: 'Dates confirmed: ' + p.proposal, body: `The dates for "${p.proposal}" have been confirmed: ${p.confirmed_start} to ${p.confirmed_end}.` }),
+    date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal + '', body: 'The availability poll "' + p.proposal + '" in group "' + p.group + '" closes on ' + p.deadline + '. Please fill in your availability before then.' }),
+    date_proposal_ping: p => ({ title: 'Reminder: fill in your availability', body: `${p.actor} asks you to fill in your availability for "${p.proposal}" in group "${p.group}". Currently ${p.filled} members have responded.` }),
+    date_proposal_threshold_reached: p => ({ title: `Availability threshold reached: ${p.proposal}`, body: `${p.respondents} of ${p.members} members have filled in their availability for "${p.proposal}" in group "${p.group}".` }),
   },
   passwordReset: {
     subject: 'Скидання пароля',
     greeting: 'Привіт',
-    body: 'Ми отримали запит на скидання пароля вашого облікового запису TREK. Натисніть кнопку нижче, щоб встановити новий пароль.',
+    body: 'Ми отримали запит на скидання пароля вашого облікового запису ROUTD. Натисніть кнопку нижче, щоб встановити новий пароль.',
     ctaIntro: 'Скинути пароль',
     expiry: 'Це посилання дійсне протягом 60 хвилин.',
     ignore:

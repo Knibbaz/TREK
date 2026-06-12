@@ -8,16 +8,39 @@ import SharedTripPage from './SharedTripPage';
 
 // Mock react-leaflet (SharedTripPage renders a map)
 vi.mock('react-leaflet', () => ({
+  __esModule: true,
   MapContainer: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="map-container">{children}</div>
   ),
   TileLayer: () => null,
   Marker: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
   Tooltip: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  Polyline: function PolylineMock() { return null },
   useMap: () => ({
     fitBounds: vi.fn(),
     getCenter: vi.fn(() => ({ lat: 0, lng: 0 })),
+    getZoom: vi.fn(() => 10),
+    on: vi.fn(),
+    off: vi.fn(),
   }),
+}));
+
+vi.mock('@react-leaflet/core', () => ({
+  __esModule: true,
+  useLeafletContext: () => ({}),
+  createElementHook: () => () => ({}),
+  createElementObject: () => ({}),
+  useEventHandlers: () => {},
+}));
+
+vi.mock('react-leaflet-cluster', () => ({
+  __esModule: true,
+  default: ({ children }: { children?: React.ReactNode }) => <div data-testid="cluster-group">{children}</div>,
+}));
+
+vi.mock('../components/Map/RouteCalculator', () => ({
+  calculateRoute: vi.fn(() => Promise.resolve({ coordinates: [] })),
+  calculateSegments: vi.fn(() => Promise.resolve([])),
 }));
 
 vi.mock('leaflet', () => {
@@ -356,8 +379,8 @@ describe('SharedTripPage', () => {
     });
   });
 
-  describe('FE-PAGE-SHARED-015: TREK branding footer is rendered', () => {
-    it('renders the Shared via TREK footer', async () => {
+  describe('FE-PAGE-SHARED-015: ROUTD branding footer is rendered', () => {
+    it('renders the Shared via ROUTD footer', async () => {
       renderSharedTrip('test-token');
 
       await waitFor(() => {

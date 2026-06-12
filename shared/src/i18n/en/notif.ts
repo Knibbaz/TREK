@@ -22,7 +22,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.title': 'Packing Assignment',
   'notif.packing_tagged.text': '{actor} assigned you to {category} in {trip}',
   'notif.version_available.title': 'New Version Available',
-  'notif.version_available.text': 'TREK {version} is now available',
+  'notif.version_available.text': 'ROUTD {version} is now available',
   'notif.action.view_trip': 'View Trip',
   'notif.action.view_collab': 'View Messages',
   'notif.action.view_packing': 'View Packing',
@@ -37,5 +37,8 @@ const notif: TranslationStrings = {
   'notif.dev.unknown_event.title': '[DEV] Unknown Event',
   'notif.dev.unknown_event.text':
     'Event type "{event}" is not registered in EVENT_NOTIFICATION_CONFIG',
+  'notif.date_proposal_threshold.title': 'Threshold reached',
+  'notif.date_proposal_threshold.text': '{respondents} of {members} members have filled in their availability for {proposal}',
+  'notif.action.view_group': 'View Group',
 };
 export default notif;

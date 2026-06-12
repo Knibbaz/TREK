@@ -65,9 +65,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     'Megmaradt szabadságnapok automatikus átvitele a következő évre',
   'vacay.sharing': 'Megosztás',
-  'vacay.sharingHint': 'Szabadságterved megosztása más TREK felhasználókkal',
+  'vacay.sharingHint': 'Szabadságterved megosztása más ROUTD felhasználókkal',
   'vacay.owner': 'Tulajdonos',
-  'vacay.shareEmailPlaceholder': 'TREK felhasználó e-mail címe',
+  'vacay.shareEmailPlaceholder': 'ROUTD felhasználó e-mail címe',
   'vacay.shareSuccess': 'Terv sikeresen megosztva',
   'vacay.shareError': 'Nem sikerült megosztani a tervet',
   'vacay.dissolve': 'Összevonás feloldása',
@@ -81,7 +81,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Szín módosítása',
   'vacay.inviteUser': 'Felhasználó meghívása',
   'vacay.inviteHint':
-    'Hívj meg egy másik TREK felhasználót közös szabadságnaptár megosztásához.',
+    'Hívj meg egy másik ROUTD felhasználót közös szabadságnaptár megosztásához.',
   'vacay.selectUser': 'Felhasználó kiválasztása',
   'vacay.sendInvite': 'Meghívó küldése',
   'vacay.inviteSent': 'Meghívó elküldve',
@@ -103,5 +103,14 @@ const vacay: TranslationStrings = {
     'A beállítások, mint ünnepnapok és céges szabadnapok, közösen érvényesek.',
   'vacay.fuseInfo5':
     'Az összevonás bármikor feloldható bármelyik fél által. A bejegyzések megmaradnak.',
+  'vacay.hours': 'óra',
+  'vacay.modeComp': 'Szabadidő',
+  'vacay.compTime': 'Szabadidő',
+  'vacay.hoursPerDay': 'Óra munkanaponta',
+  'vacay.hoursPerDayHint': 'Meghatározza, hogy hány óra egyenlő egy teljes szabadnappal',
+  'vacay.stdDay': 'Egész nap',
+  'vacay.rightClickHint': 'Jobb kattintás az órákhoz',
+  'vacay.save': 'Mentés',
+  'vacay.cancel': 'Mégse',
 };
 export default vacay;

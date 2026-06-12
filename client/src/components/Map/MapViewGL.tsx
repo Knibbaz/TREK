@@ -46,6 +46,7 @@ interface Props {
   rightWidth?: number
   hasInspector?: boolean
   hasDayDetail?: boolean
+  hasBottomBar?: boolean
   reservations?: Reservation[]
   visibleConnectionIds?: number[]
   showReservationStats?: boolean
@@ -160,6 +161,7 @@ export function MapViewGL({
   rightWidth = 0,
   hasInspector = false,
   hasDayDetail = false,
+  hasBottomBar = false,
   reservations = [],
   visibleConnectionIds = [],
   showReservationStats = false,
@@ -172,6 +174,7 @@ export function MapViewGL({
   const mapboxToken = useSettingsStore(s => s.settings.mapbox_access_token || '')
   const mapbox3d = useSettingsStore(s => s.settings.mapbox_3d_enabled !== false)
   const mapboxQuality = useSettingsStore(s => s.settings.mapbox_quality_mode === true)
+  const navZoom = useSettingsStore(s => s.settings.map_nav_zoom ?? 14)
   const showEndpointLabels = useSettingsStore(s => s.settings.map_booking_labels) !== false
   const placesPhotosEnabled = useAuthStore(s => s.placesPhotosEnabled)
   const [photoUrls, setPhotoUrls] = useState<Record<string, string>>(getAllThumbs)
@@ -559,9 +562,9 @@ export function MapViewGL({
     const isMobile = typeof window !== 'undefined' && window.innerWidth < 768
     if (isMobile) return { top: 40, right: 20, bottom: 40, left: 20 }
     const top = 60
-    const bottom = hasInspector ? 320 : hasDayDetail ? 280 : 60
+    const bottom = hasInspector ? 320 : hasDayDetail ? 280 : hasBottomBar ? 200 : 60
     return { top, right: rightWidth + 40, bottom, left: leftWidth + 40 }
-  }, [leftWidth, rightWidth, hasInspector, hasDayDetail])
+  }, [leftWidth, rightWidth, hasInspector, hasDayDetail, hasBottomBar])
 
   const prevFitKey = useRef(-1)
   useEffect(() => {
@@ -597,7 +600,7 @@ export function MapViewGL({
     try {
       map.flyTo({
         center: [target.lng, target.lat],
-        zoom: Math.max(map.getZoom(), 14),
+        zoom: navZoom,
         pitch: mapbox3d ? 45 : 0,
         duration: 400,
         // Account for the side panels and the bottom inspector / day-detail panel
@@ -606,7 +609,7 @@ export function MapViewGL({
         padding: paddingOpts,
       })
     } catch { /* noop */ }
-  }, [selectedPlaceId, mapbox3d]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedPlaceId, mapbox3d, navZoom]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // External center/zoom prop changes — jump without animation
   useEffect(() => {

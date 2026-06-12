@@ -54,11 +54,14 @@ export function getActiveNoticesFor(userId: number): SystemNoticeDTO[] {
 
   const now = new Date();
   const currentAppVersion = getCurrentAppVersion();
-  const ctx = { user: { ...user, noTrips: tripCount }, currentAppVersion, now };
+  const ctx = { user: { id: userId, ...user, noTrips: tripCount }, currentAppVersion, now };
 
   return SYSTEM_NOTICES
     .filter(n => {
-      if (dismissedIds.has(n.id)) return false;
+      // Notices with justJoinedGroup condition handle re-show logic themselves
+      // (they compare joined_at against dismissed_at), so skip the dismissal shortcut.
+      const bypassDismissCheck = n.conditions.some(c => c.kind === 'justJoinedGroup');
+      if (!bypassDismissCheck && dismissedIds.has(n.id)) return false;
       if (!isNoticeVersionActive(n, currentAppVersion)) return false;
       return evaluate(n, ctx);
     })
@@ -69,7 +72,36 @@ export function getActiveNoticesFor(userId: number): SystemNoticeDTO[] {
       if (sw !== 0) return sw;
       return new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime();
     })
-    .map(({ conditions: _c, publishedAt: _p, minVersion: _mn, maxVersion: _mx, priority: _pr, ...dto }) => dto);
+    .map(({ conditions: _c, publishedAt: _p, minVersion: _mn, maxVersion: _mx, priority: _pr, ...dto }) => {
+      if (dto.id === 'group-welcome-v1') {
+        // Check if the most recently joined group has a custom welcome message
+        const perGroup = db.prepare(`
+          SELECT g.welcome_title, g.welcome_body, g.welcome_icon
+          FROM group_members gm
+          JOIN groups g ON g.id = gm.group_id
+          WHERE gm.user_id = ?
+          ORDER BY gm.added_at DESC LIMIT 1
+        `).get(userId) as { welcome_title: string | null; welcome_body: string | null; welcome_icon: string | null } | undefined;
+
+        if (perGroup?.welcome_title || perGroup?.welcome_body) {
+          if (perGroup.welcome_title) dto = { ...dto, titleKey: perGroup.welcome_title };
+          if (perGroup.welcome_body)  dto = { ...dto, bodyKey:  perGroup.welcome_body  };
+          if (perGroup.welcome_icon)  dto = { ...dto, icon:     perGroup.welcome_icon  };
+        } else {
+          // Fall back to global welcome notice setting
+          const row = db.prepare("SELECT value FROM app_settings WHERE key = 'group_welcome_notice'").get() as { value: string } | undefined;
+          if (row?.value) {
+            try {
+              const stored = JSON.parse(row.value) as { title?: string; body?: string; icon?: string };
+              if (stored.title) dto = { ...dto, titleKey: stored.title };
+              if (stored.body)  dto = { ...dto, bodyKey:  stored.body  };
+              if (stored.icon)  dto = { ...dto, icon:     stored.icon  };
+            } catch { /* keep registry defaults */ }
+          }
+        }
+      }
+      return dto;
+    });
 }
 
 export function dismissNotice(userId: number, noticeId: string): boolean {

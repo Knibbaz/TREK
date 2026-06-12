@@ -1,5 +1,5 @@
 name: Bug Report
-description: Create a report to help us improve TREK
+description: Create a report to help us improve ROUTD
 title: "[BUG] "
 labels: []
 body:
@@ -10,7 +10,7 @@ body:
       options:
         - label: I have searched [existing issues](https://github.com/mauriceboe/TREK/issues) and this bug has not been reported yet
           required: true
-        - label: I am running the latest available version of TREK
+        - label: I am running the latest available version of ROUTD
           required: true
         - label: I have read the [Troubleshooting guide](https://github.com/mauriceboe/TREK/wiki/Troubleshooting) and my issue is not covered there
           required: true
@@ -18,7 +18,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: TREK version
+      label: ROUTD version
       description: Found in the Settings → About, or in the Docker image tag
       placeholder: "e.g. 2.8.0"
     validations:
@@ -77,7 +77,7 @@ body:
   - type: dropdown
     id: user_os
     attributes:
-      label: Accessing TREK from
+      label: Accessing ROUTD from
       options:
         - Desktop browser
         - Mobile browser

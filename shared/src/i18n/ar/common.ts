@@ -50,5 +50,6 @@ const common: TranslationStrings = {
   'common.justNow': 'just now', // en-fallback
   'common.hoursAgo': '{count}h ago', // en-fallback
   'common.daysAgo': '{count}d ago', // en-fallback
+  'common.notNow': 'ليس الآن',
 };
 export default common;

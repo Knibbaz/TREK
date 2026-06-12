@@ -67,7 +67,7 @@ export function registerReservationTools(server: McpServer, userId: number, scop
 
       const metadata = price != null ? { price: String(price) } : undefined;
 
-      const { reservation, accommodationCreated } = createReservation(tripId, {
+      const { reservation, accommodationCreated } = await createReservation(tripId, {
         title, type, reservation_time, location, confirmation_number,
         notes, day_id, place_id, assignment_id,
         create_accommodation: createAccommodation,
@@ -147,10 +147,13 @@ export function registerReservationTools(server: McpServer, userId: number, scop
       if (isDemoUser(userId)) return demoDenied();
       if (!canAccessTrip(tripId, userId)) return noAccess();
       if (!hasTripPermission('reservation_edit', tripId, userId)) return permissionDenied();
-      const { deleted, accommodationDeleted } = deleteReservation(reservationId, tripId);
+      const { deleted, accommodationDeleted, deletedBudgetItemIds } = deleteReservation(reservationId, tripId);
       if (!deleted) return { content: [{ type: 'text' as const, text: 'Reservation not found.' }], isError: true };
       if (accommodationDeleted) {
         safeBroadcast(tripId, 'accommodation:deleted', { accommodationId: deleted.accommodation_id });
+      }
+      for (const itemId of deletedBudgetItemIds) {
+        safeBroadcast(tripId, 'budget:deleted', { itemId });
       }
       safeBroadcast(tripId, 'reservation:deleted', { reservationId });
       return ok({ success: true });

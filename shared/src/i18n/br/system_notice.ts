@@ -1,12 +1,12 @@
 import type { TranslationStrings } from '../types';
 
 const system_notice: TranslationStrings = {
-  'system_notice.welcome_v1.title': 'Bem-vindo ao TREK',
+  'system_notice.welcome_v1.title': 'Bem-vindo ao ROUTD',
   'system_notice.welcome_v1.body':
     'Seu planejador de viagens tudo-em-um. Crie roteiros, compartilhe viagens com amigos e fique organizado — online ou offline.',
   'system_notice.welcome_v1.cta_label': 'Planejar uma viagem',
   'system_notice.welcome_v1.hero_alt':
-    'Destino de viagem pitoresco com a interface do TREK',
+    'Destino de viagem pitoresco com a interface do ROUTD',
   'system_notice.welcome_v1.highlight_plan':
     'Roteiros dia a dia para qualquer viagem',
   'system_notice.welcome_v1.highlight_share':
@@ -21,7 +21,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.position': 'Aviso {current} de {total}',
   'system_notice.v3_photos.title': 'Fotos foram movidas na versão 3.0',
   'system_notice.v3_photos.body':
-    '**Fotos** no Planejador de Viagens foram removidas. Suas fotos estão seguras — o TREK nunca modificou sua biblioteca Immich ou Synology.\n\nAs fotos agora vivem no addon **Journey**. Journey é opcional — se ainda não estiver disponível, peça ao seu admin para ativá-lo em Admin → Addons.',
+    '**Fotos** no Planejador de Viagens foram removidas. Suas fotos estão seguras — o ROUTD nunca modificou sua biblioteca Immich ou Synology.\n\nAs fotos agora vivem no addon **Journey**. Journey é opcional — se ainda não estiver disponível, peça ao seu admin para ativá-lo em Admin → Addons.',
   'system_notice.v3_journey.title': 'Conheça o Journey — diário de viagem',
   'system_notice.v3_journey.body':
     'Documente suas viagens como histórias ricas com cronologias, galerias de fotos e mapas interativos.',
@@ -55,7 +55,7 @@ const system_notice: TranslationStrings = {
     'Conjunto de ferramentas e prompts expandido',
   'system_notice.v3_thankyou.title': 'Uma nota pessoal minha',
   'system_notice.v3_thankyou.body':
-    'Antes de seguir em frente — quero fazer uma pausa.\n\nO TREK começou como um projeto paralelo que criei para minhas próprias viagens. Nunca imaginei que cresceria a ponto de 4.000 de vocês confiarem nele para planejar suas aventuras. Cada estrela, cada issue, cada pedido de recurso — eu leio todos, e eles me mantêm firme nas noites longas entre um trabalho em tempo integral e a universidade.\n\nQuero que saibam: o TREK sempre será open source, sempre self-hosted, sempre de vocês. Sem rastreamento, sem assinaturas, sem pegadinhas. Apenas uma ferramenta feita por alguém que ama viajar tanto quanto vocês.\n\nAgradecimento especial ao [jubnl](https://github.com/jubnl) — você se tornou um colaborador incrível. Muito do que torna a versão 3.0 especial tem a sua marca. Obrigado por acreditar neste projeto quando ele ainda era bem cru.\n\nE a cada um de vocês que reportou um bug, traduziu uma string, compartilhou o TREK com um amigo ou simplesmente o usou para planejar uma viagem — **obrigado**. Vocês são a razão de tudo isso existir.\n\nQue venham muitas mais aventuras juntos.\n\n— Maurice\n\n---\n\n[Junte-se à comunidade no Discord](https://discord.gg/7Q6M6jDwzf)\n\nSe o TREK torna suas viagens melhores, um [cafezinho](https://ko-fi.com/mauriceboe) sempre mantém as luzes acesas.',
+    'Antes de seguir em frente — quero fazer uma pausa.\n\nO ROUTD começou como um projeto paralelo que criei para minhas próprias viagens. Nunca imaginei que cresceria a ponto de 4.000 de vocês confiarem nele para planejar suas aventuras. Cada estrela, cada issue, cada pedido de recurso — eu leio todos, e eles me mantêm firme nas noites longas entre um trabalho em tempo integral e a universidade.\n\nQuero que saibam: o ROUTD sempre será open source, sempre self-hosted, sempre de vocês. Sem rastreamento, sem assinaturas, sem pegadinhas. Apenas uma ferramenta feita por alguém que ama viajar tanto quanto vocês.\n\nAgradecimento especial ao [jubnl](https://github.com/jubnl) — você se tornou um colaborador incrível. Muito do que torna a versão 3.0 especial tem a sua marca. Obrigado por acreditar neste projeto quando ele ainda era bem cru.\n\nE a cada um de vocês que reportou um bug, traduziu uma string, compartilhou o ROUTD com um amigo ou simplesmente o usou para planejar uma viagem — **obrigado**. Vocês são a razão de tudo isso existir.\n\nQue venham muitas mais aventuras juntos.\n\n— Maurice\n\n---\n\n[Junte-se à comunidade no Discord](https://discord.gg/7Q6M6jDwzf)\n\nSe o ROUTD torna suas viagens melhores, um [cafezinho](https://ko-fi.com/mauriceboe) sempre mantém as luzes acesas.',
   'system_notice.v3014_whitespace_collision.title':
     'Ação necessária: conflito de conta de usuário',
   'system_notice.v3014_whitespace_collision.body':

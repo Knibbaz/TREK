@@ -4,7 +4,7 @@ import { getAction } from './inAppNotificationActions';
 import { isEnabledForEvent, type NotifEventType } from './notificationPreferencesService';
 
 type NotificationType = 'simple' | 'boolean' | 'navigate';
-type NotificationScope = 'trip' | 'user' | 'admin';
+type NotificationScope = 'trip' | 'user' | 'admin' | 'group';
 type NotificationResponse = 'positive' | 'negative';
 
 interface BaseNotificationInput {
@@ -78,6 +78,9 @@ export function resolveRecipients(scope: NotificationScope, target: number, excl
   } else if (scope === 'admin') {
     const admins = db.prepare('SELECT id FROM users WHERE role = ?').all('admin') as { id: number }[];
     userIds = admins.map(a => a.id);
+  } else if (scope === 'group') {
+    const members = db.prepare('SELECT user_id FROM group_members WHERE group_id = ?').all(target) as { user_id: number }[];
+    userIds = members.map(m => m.user_id);
   }
 
   // Only exclude sender for group scopes (trip/admin) — for user scope, the target is explicit

@@ -50,5 +50,6 @@ const common: TranslationStrings = {
   'common.justNow': 'právě teď',
   'common.hoursAgo': 'před {count} h',
   'common.daysAgo': 'před {count} d',
+  'common.notNow': 'Teď ne',
 };
 export default common;

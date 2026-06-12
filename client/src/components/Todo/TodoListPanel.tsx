@@ -11,7 +11,7 @@ import { CustomDatePicker } from '../shared/CustomDateTimePicker'
 import { formatDate as fmtDate } from '../../utils/formatters'
 import {
   CheckSquare, Square, Plus, ChevronRight, Flag,
-  X, Check, Calendar, User, FolderPlus, AlertCircle, ListChecks, Inbox, CheckCheck, Trash2,
+  X, Check, Calendar, User, FolderPlus, AlertCircle, ListChecks, Inbox, CheckCheck, Trash2, Download,
 } from 'lucide-react'
 import type { TodoItem } from '../../types'
 
@@ -30,6 +30,23 @@ export default function TodoListPanel({ tripId, items, addItemSignal = 0 }: { tr
     totalCount, doneCount, overdueCount, myCount,
     addCategory, catCount,
   } = useTodoList(tripId, items, addItemSignal)
+  const toast = useToast()
+
+  const handleExport = () => {
+    const csv = items.map(item => {
+      const memberName = members.find(m => m.id === item.assigned_user_id)?.username || ''
+      const parts = [item.category || '', item.name, item.priority || '', item.due_date || '', memberName, item.checked ? 'done' : 'open']
+      return parts.join(',')
+    }).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `todo-list-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+    toast.success(t('todo.exportSuccess'))
+  }
 
   // Sidebar filter item
   const SidebarItem = ({ id, icon: Icon, label, count, color }: { id: string; icon: any; label: string; count: number; color?: string }) => (
@@ -164,13 +181,25 @@ export default function TodoListPanel({ tripId, items, addItemSignal = 0 }: { tr
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         {/* Header */}
         <div style={{ padding: '16px 20px 12px', borderBottom: '1px solid var(--border-faint)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
-              {filterTitle}
-            </h2>
-            <span style={{ fontSize: 13, color: 'var(--text-faint)', background: 'var(--bg-hover)', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
-              {filtered.length}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: 'var(--text-primary)', letterSpacing: '-0.02em' }}>
+                {filterTitle}
+              </h2>
+              <span style={{ fontSize: 13, color: 'var(--text-faint)', background: 'var(--bg-hover)', borderRadius: 6, padding: '2px 8px', fontWeight: 600 }}>
+                {filtered.length}
+              </span>
+            </div>
+            {items.length > 0 && (
+              <button onClick={handleExport} style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 99,
+                border: '1px solid var(--border-primary)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+                fontFamily: 'inherit', background: 'var(--bg-card)', color: 'var(--text-muted)',
+              }}>
+                <Download size={13} />
+                {t('todo.export') || 'Export CSV'}
+              </button>
+            )}
           </div>
         </div>
 

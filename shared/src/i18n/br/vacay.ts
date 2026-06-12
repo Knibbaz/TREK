@@ -66,9 +66,9 @@ const vacay: TranslationStrings = {
     'Levar automaticamente os dias de férias restantes para o ano seguinte',
   'vacay.sharing': 'Compartilhamento',
   'vacay.sharingHint':
-    'Compartilhe seu plano de férias com outros usuários do TREK',
+    'Compartilhe seu plano de férias com outros usuários do ROUTD',
   'vacay.owner': 'Proprietário',
-  'vacay.shareEmailPlaceholder': 'E-mail do usuário TREK',
+  'vacay.shareEmailPlaceholder': 'E-mail do usuário ROUTD',
   'vacay.shareSuccess': 'Plano compartilhado com sucesso',
   'vacay.shareError': 'Não foi possível compartilhar o plano',
   'vacay.dissolve': 'Encerrar fusão',
@@ -82,7 +82,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Alterar cor',
   'vacay.inviteUser': 'Convidar usuário',
   'vacay.inviteHint':
-    'Convide outro usuário TREK para compartilhar um calendário de férias combinado.',
+    'Convide outro usuário ROUTD para compartilhar um calendário de férias combinado.',
   'vacay.selectUser': 'Selecionar usuário',
   'vacay.sendInvite': 'Enviar convite',
   'vacay.inviteSent': 'Convite enviado',
@@ -104,5 +104,14 @@ const vacay: TranslationStrings = {
     'Configurações como feriados nacionais e da empresa são compartilhadas.',
   'vacay.fuseInfo5':
     'A fusão pode ser encerrada a qualquer momento por qualquer parte. Suas entradas serão preservadas.',
+  'vacay.hours': 'horas',
+  'vacay.modeComp': 'Hora extra',
+  'vacay.compTime': 'Hora extra',
+  'vacay.hoursPerDay': 'Horas por dia de trabalho',
+  'vacay.hoursPerDayHint': 'Define quantas horas equivalem a um dia de férias completo',
+  'vacay.stdDay': 'Dia completo',
+  'vacay.rightClickHint': 'Clique direito para horas',
+  'vacay.save': 'Salvar',
+  'vacay.cancel': 'Cancelar',
 };
 export default vacay;

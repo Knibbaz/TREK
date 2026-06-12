@@ -112,7 +112,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
               </div>
               <div className="text-left">
                 <h2 id={titleId} className="text-lg font-bold text-white leading-tight">{title}</h2>
-                <p className="text-xs text-white/60 font-medium">TREK 3.0</p>
+                <p className="text-xs text-white/60 font-medium">ROUTD 3.0</p>
               </div>
             </div>
           </div>
@@ -294,7 +294,7 @@ function NoticeContent({ notice, title, body, ctaLabel, titleId, bodyId, isDark,
               onClick={onDismiss}
               className="text-sm text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-colors"
             >
-              Not now
+              {t('common.notNow')}
             </button>
           )}
         </div>

@@ -223,7 +223,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': '애드온',
   'admin.addons.title': '애드온',
   'admin.addons.subtitle':
-    '기능을 활성화 또는 비활성화하여 TREK 경험을 맞춤 설정하세요.',
+    '기능을 활성화 또는 비활성화하여 ROUTD 경험을 맞춤 설정하세요.',
   'admin.addons.catalog.packing.name': '목록',
   'admin.addons.catalog.packing.description':
     '여행을 위한 짐 목록 및 할 일 작업',
@@ -263,7 +263,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': '날씨 데이터',
   'admin.weather.badge': '2026년 3월 24일부터',
   'admin.weather.description':
-    'TREK은 날씨 데이터 소스로 Open-Meteo를 사용합니다. Open-Meteo는 무료 오픈 소스 날씨 서비스로 API 키가 필요 없습니다.',
+    'ROUTD은 날씨 데이터 소스로 Open-Meteo를 사용합니다. Open-Meteo는 무료 오픈 소스 날씨 서비스로 API 키가 필요 없습니다.',
   'admin.weather.forecast': '16일 예보',
   'admin.weather.forecastDesc': '이전: 5일 (OpenWeatherMap)',
   'admin.weather.climate': '과거 기후 데이터',
@@ -323,15 +323,15 @@ const admin: TranslationStrings = {
   'admin.github.loading': '불러오는 중...',
   'admin.github.error': '릴리스 불러오기 실패',
   'admin.github.by': '작성자',
-  'admin.github.support': 'TREK 개발 지속에 도움이 됩니다',
+  'admin.github.support': 'ROUTD 개발 지속에 도움이 됩니다',
   'admin.update.available': '업데이트 사용 가능',
   'admin.update.text':
-    'TREK {version}이(가) 사용 가능합니다. 현재 {current}을(를) 실행 중입니다.',
+    'ROUTD {version}이(가) 사용 가능합니다. 현재 {current}을(를) 실행 중입니다.',
   'admin.update.button': 'GitHub에서 보기',
   'admin.update.install': '업데이트 설치',
   'admin.update.confirmTitle': '업데이트를 설치할까요?',
   'admin.update.confirmText':
-    'TREK이 {current}에서 {version}으로 업데이트됩니다. 서버가 이후 자동으로 재시작됩니다.',
+    'ROUTD이 {current}에서 {version}으로 업데이트됩니다. 서버가 이후 자동으로 재시작됩니다.',
   'admin.update.dataInfo':
     '모든 데이터 (여행, 사용자, API 키, 업로드, Vacay, Atlas, 예산)가 보존됩니다.',
   'admin.update.warning': '재시작 중에 앱이 잠시 사용할 수 없게 됩니다.',
@@ -343,7 +343,7 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': '백업으로 이동',
   'admin.update.howTo': '업데이트 방법',
   'admin.update.dockerText':
-    'TREK 인스턴스가 Docker에서 실행 중입니다. {version}으로 업데이트하려면 서버에서 다음 명령을 실행하세요:',
+    'ROUTD 인스턴스가 Docker에서 실행 중입니다. {version}으로 업데이트하려면 서버에서 다음 명령을 실행하세요:',
   'admin.update.reloadHint': '잠시 후 페이지를 새로 고침하세요.',
   'admin.tabs.permissions': '권한',
   'admin.addons.catalog.journey.name': 'Journey',

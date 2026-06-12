@@ -80,6 +80,10 @@ beforeAll(async () => {
 beforeEach(() => {
   resetTestDb(testDb);
   resetRateLimits(nestApp);
+  vi.mocked(mapsService.autocompletePlaces).mockClear();
+  vi.mocked(mapsService.searchPlaces).mockClear();
+  vi.mocked(mapsService.getPlaceDetails).mockClear();
+  vi.mocked(mapsService.reverseGeocode).mockClear();
 });
 
 afterAll(async () => {
@@ -363,6 +367,7 @@ describe('Maps autocomplete', () => {
       'test',
       'fr',
       { low: { lat: 48.5, lng: 2.0 }, high: { lat: 49.0, lng: 2.8 } },
+      undefined,
     );
   });
 
@@ -402,5 +407,22 @@ describe('Maps autocomplete', () => {
 
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/too long/i);
+  });
+});
+
+describe('Place photo bytes — public access for shared maps', () => {
+  it('MAPS-018 — GET /place-photo/:placeId/bytes works without authentication', async () => {
+    const res = await request(app).get('/api/maps/place-photo/test-place-id/bytes');
+    // 404 is expected because there is no cached photo in the test environment,
+    // but the key behaviour is that it does NOT return 401.
+    expect(res.status).not.toBe(401);
+  });
+
+  it('MAPS-019 — authenticated users still reach the bytes endpoint', async () => {
+    const { user } = createUser(testDb);
+    const res = await request(app)
+      .get('/api/maps/place-photo/test-place-id/bytes')
+      .set('Cookie', authCookie(user.id));
+    expect(res.status).not.toBe(401);
   });
 });

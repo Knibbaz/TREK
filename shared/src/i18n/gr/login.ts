@@ -30,7 +30,7 @@ const login: TranslationStrings = {
   'login.signIn': 'Σύνδεση',
   'login.createAdmin': 'Δημιουργία Λογαριασμού Διαχειριστή',
   'login.createAdminHint':
-    'Ρυθμίστε τον πρώτο λογαριασμό διαχειριστή για το TREK.',
+    'Ρυθμίστε τον πρώτο λογαριασμό διαχειριστή για το ROUTD.',
   'login.setNewPassword': 'Ορισμός Νέου Κωδικού',
   'login.setNewPasswordHint':
     'Πρέπει να αλλάξετε τον κωδικό σας πριν συνεχίσετε.',

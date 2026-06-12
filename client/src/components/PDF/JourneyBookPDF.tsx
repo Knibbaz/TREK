@@ -271,7 +271,7 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
         <div><div class="cover-stat-val">${allPhotos.length}</div><div class="cover-stat-label">Photos</div></div>
       </div>
     </div>
-    <div class="cover-footer">Made with TREK</div>
+    <div class="cover-footer">Made with ROUTD</div>
   </div>
 
   <!-- Entry Pages -->
@@ -281,7 +281,7 @@ export async function downloadJourneyBookPDF(journey: JourneyDetail) {
   <div class="closing-page">
     <div>
       <div class="closing-title">The End</div>
-      <div class="closing-sub">Made with TREK · ${new Date().getFullYear()}</div>
+      <div class="closing-sub">Made with ROUTD · ${new Date().getFullYear()}</div>
     </div>
   </div>
 

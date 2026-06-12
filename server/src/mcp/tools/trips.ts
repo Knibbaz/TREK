@@ -10,7 +10,7 @@ import {
   copyTripById, exportICS, NotFoundError, ValidationError,
 } from '../../services/tripService';
 import {
-  createOrUpdateShareLink, getShareLink, deleteShareLink,
+  createOrUpdateShareLink, getShareLinks, deleteShareLink,
 } from '../../services/shareService';
 import { isAddonEnabled, getCollabFeatures } from '../../services/adminService';
 import { ADDON_IDS } from '../../addons';
@@ -325,7 +325,7 @@ export function registerTripTools(server: McpServer, userId: number, scopes: str
       // Read parity with the REST route GET /api/trips/:tripId/share-link, which
       // only requires trip membership (share_manage gates create/delete, not read).
       if (!canAccessTrip(tripId, userId)) return noAccess();
-      const link = getShareLink(String(tripId));
+      const link = getShareLinks(String(tripId));
       return ok({ link });
     }
   );

@@ -31,7 +31,7 @@ const notifications: TranslationStrings = {
   'notifications.test.tripTitle': '{actor} написав у вашій поїздці',
   'notifications.test.tripText': 'Тестове сповіщення для поїздки "{trip}".',
   'notifications.versionAvailable.title': 'Доступне оновлення',
-  'notifications.versionAvailable.text': 'TREK {version} тепер доступний.',
+  'notifications.versionAvailable.text': 'ROUTD {version} тепер доступний.',
   'notifications.versionAvailable.button': 'Докладніше',
 };
 export default notifications;

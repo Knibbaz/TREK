@@ -2,9 +2,11 @@ import React from 'react'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../i18n'
 import { Plane, Eye, EyeOff, Mail, Lock, MapPin, Calendar, Package, User, Globe, Zap, Users, Wallet, Map, CheckSquare, BookMarked, FolderOpen, Route, Shield, KeyRound, ChevronDown, Fingerprint } from 'lucide-react'
 import { useLogin } from './login/useLogin'
+import { useBranding } from '../context/BrandingContext'
 
 export default function LoginPage(): React.ReactElement {
   const { t, language } = useTranslation()
+  const branding = useBranding()
   // Page = wiring container: the whole auth surface lives in the useLogin hook.
   const {
     navigate,
@@ -102,7 +104,7 @@ export default function LoginPage(): React.ReactElement {
           position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
         }}>
-          <img src="/logo-light.svg" alt="TREK" style={{ height: 72 }} />
+          <img src={branding.logoLight} alt={branding.name} style={{ height: 72 }} />
           <p style={{ margin: 0, fontSize: 20, color: 'rgba(255,255,255,0.6)', fontFamily: "'MuseoModerno', sans-serif", textTransform: 'lowercase', whiteSpace: 'nowrap' }}>{t('login.tagline')}</p>
         </div>
 
@@ -342,7 +344,7 @@ export default function LoginPage(): React.ReactElement {
         <div style={{ position: 'relative', zIndex: 1, maxWidth: 560, textAlign: 'center' }}>
           {/* Logo */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 48 }}>
-            <img src="/logo-light.svg" alt="TREK" style={{ height: 64 }} />
+            <img src={branding.logoLight} alt={branding.name} style={{ height: 64 }} />
           </div>
 
           <h2 style={{ margin: '0 0 12px', fontSize: 36, fontWeight: 700, color: 'white', lineHeight: 1.15, letterSpacing: '-0.02em', fontFamily: "'MuseoModerno', sans-serif", textTransform: 'lowercase' }}>
@@ -373,9 +375,6 @@ export default function LoginPage(): React.ReactElement {
             ))}
           </div>
 
-          <p style={{ marginTop: 36, fontSize: 11.5, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.03em' }}>
-            {t('login.selfHosted')}
-          </p>
         </div>
       </div>
 
@@ -387,7 +386,7 @@ export default function LoginPage(): React.ReactElement {
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 36 }}
             className="mobile-logo">
             <style>{`@media(min-width:1024px){.mobile-logo{display:none!important}}`}</style>
-            <img src="/logo-dark.svg" alt="TREK" style={{ height: 48 }} />
+            <img src={branding.logoDark} alt={branding.name} style={{ height: 48 }} />
             <p style={{ margin: 0, fontSize: 16, color: '#9ca3af', fontFamily: "'MuseoModerno', sans-serif", textTransform: 'lowercase', whiteSpace: 'nowrap' }}>{t('login.tagline')}</p>
           </div>
 

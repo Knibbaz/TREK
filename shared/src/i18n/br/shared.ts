@@ -18,5 +18,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': 'Compartilhado via',
   'shared.confirmed': 'Confirmado',
   'shared.pending': 'Pendente',
+  'shared.tabMap': 'Mapa',
 };
 export default shared;

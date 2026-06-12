@@ -274,7 +274,7 @@ function startTodoReminders(): void {
   }, { timezone: tz });
 }
 
-// Version check: daily at 9 AM — notify admins if a new TREK release is available
+// Version check: daily at 9 AM — notify admins if a new ROUTD release is available
 let versionCheckTask: ScheduledTask | null = null;
 
 function startVersionCheck(): void {
@@ -338,9 +338,236 @@ function stop(): void {
   if (currentTask) { currentTask.stop(); currentTask = null; }
   if (demoTask) { demoTask.stop(); demoTask = null; }
   if (reminderTask) { reminderTask.stop(); reminderTask = null; }
+  if (todoReminderTask) { todoReminderTask.stop(); todoReminderTask = null; }
   if (versionCheckTask) { versionCheckTask.stop(); versionCheckTask = null; }
   if (idempotencyCleanupTask) { idempotencyCleanupTask.stop(); idempotencyCleanupTask = null; }
   if (trekPhotoCacheTask) { trekPhotoCacheTask.stop(); trekPhotoCacheTask = null; }
+  if (scheduledBackupsTask) { scheduledBackupsTask.stop(); scheduledBackupsTask = null; }
+  if (gdprCleanupTask) { gdprCleanupTask.stop(); gdprCleanupTask = null; }
+  if (dateProposalReminderTask) { dateProposalReminderTask.stop(); dateProposalReminderTask = null; }
 }
 
-export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, startTrekPhotoCacheCleanup, loadSettings, saveSettings, VALID_INTERVALS };
+// Date proposal deadline reminders: daily 9 AM, send email to group members who
+// haven't filled in their availability, when the deadline is within reminder_days.
+let scheduledBackupsTask: ScheduledTask | null = null;
+
+function startScheduledBackups(): void {
+  if (scheduledBackupsTask) { scheduledBackupsTask.stop(); scheduledBackupsTask = null; }
+
+  const tz = process.env.TZ || 'UTC';
+  scheduledBackupsTask = cron.schedule('* * * * *', async () => {
+    try {
+      const { db } = require('./db/database');
+      const { runExport } = require('./services/backup-v2/exporter');
+      const { cleanupExpiredExports } = require('./routes/backup/user-export');
+
+      // Check for due schedules
+      const now = new Date().toISOString();
+      const schedules = db.prepare(`
+        SELECT id, name, scope, include_uploads, retention_days, max_backups, created_by
+        FROM backup_schedules
+        WHERE is_enabled = 1 AND (next_run_at IS NULL OR next_run_at <= ?)
+      `).all(now) as Array<{
+        id: string;
+        name: string;
+        scope: string;
+        include_uploads: number;
+        retention_days: number;
+        max_backups: number;
+        created_by: string;
+      }>;
+
+      for (const schedule of schedules) {
+        try {
+          const scopeObj = JSON.parse(schedule.scope);
+          scopeObj.uploads = schedule.include_uploads === 1;
+
+          // Run export
+          const result = await runExport({
+            id: `schedule-${schedule.id}-${Date.now()}`,
+            exportType: 'scheduled',
+            scope: scopeObj,
+            initiatedBy: schedule.created_by,
+            userRole: 'admin',
+          });
+
+          // Compute next run using naive daily offset (real impl would parse cron_expression)
+          const nextRunAt = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+          db.prepare(`
+            UPDATE backup_schedules
+            SET last_run_at = datetime('now'), last_status = 'success', next_run_at = ?
+            WHERE id = ?
+          `).run(nextRunAt, schedule.id);
+
+          logInfo(`[scheduled-backup] Ran schedule "${schedule.name}" (id=${schedule.id}), file size: ${result.fileSize}`);
+
+          // Enforce retention
+          const backupsV2Dir = path.join(dataDir, 'backups-v2');
+          if (fs.existsSync(backupsV2Dir)) {
+            const files = fs.readdirSync(backupsV2Dir).filter(f => f.startsWith('scheduled-') && f.endsWith('.trek'));
+            files.sort();
+
+            // Delete oldest if exceeding max_backups
+            while (files.length > schedule.max_backups) {
+              const toDelete = files.shift();
+              if (toDelete) {
+                const filePath = path.join(backupsV2Dir, toDelete);
+                fs.unlinkSync(filePath);
+                logInfo(`[scheduled-backup] Deleted old backup: ${toDelete}`);
+              }
+            }
+
+            // Delete if older than retention_days
+            const cutoff = Date.now() - schedule.retention_days * 24 * 60 * 60 * 1000;
+            for (const file of files) {
+              const filePath = path.join(backupsV2Dir, file);
+              const stat = fs.statSync(filePath);
+              if (stat.mtimeMs < cutoff) {
+                fs.unlinkSync(filePath);
+                logInfo(`[scheduled-backup] Deleted expired backup: ${file}`);
+              }
+            }
+          }
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          logError(`[scheduled-backup] Schedule "${schedule.name}" failed: ${msg}`);
+          db.prepare(`
+            UPDATE backup_schedules
+            SET last_run_at = datetime('now'), last_status = ?
+            WHERE id = ?
+          `).run(`failed: ${msg}`, schedule.id);
+        }
+      }
+
+      // Daily cleanup of expired user exports (run once per day at minute 0 of hour 3)
+      const hour = new Date(now).getHours();
+      const minute = new Date(now).getMinutes();
+      if (hour === 3 && minute === 0) {
+        cleanupExpiredExports();
+      }
+    } catch (err: unknown) {
+      logError(`[scheduled-backup] Task error: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+
+  logInfo('[scheduled-backup] Started (runs every minute)');
+}
+
+let gdprCleanupTask: ScheduledTask | null = null;
+
+function startGdprCleanup(): void {
+  if (gdprCleanupTask) { gdprCleanupTask.stop(); gdprCleanupTask = null; }
+
+  const tz = process.env.TZ || 'UTC';
+  gdprCleanupTask = cron.schedule('30 3 * * *', async () => {
+    try {
+      const { db } = require('./db/database');
+      const { executeGdprDeletion } = require('./services/gdprService');
+      const { logInfo, logError } = require('./services/auditLog');
+
+      // Execute GDPR deletions for accounts where grace period has expired (14+ days)
+      const now = new Date().toISOString();
+      const pendingDeletions = db.prepare(`
+        SELECT id, username, email
+        FROM users
+        WHERE pending_deletion = 1 AND deletion_requested_at <= datetime('now', '-14 days')
+      `).all() as Array<{ id: number; username: string; email: string }>;
+
+      for (const user of pendingDeletions) {
+        try {
+          executeGdprDeletion(user.id);
+          logInfo(`[GDPR] Completed deletion for user ${user.username} (id=${user.id})`);
+        } catch (err: unknown) {
+          logError(`[GDPR] Failed to delete user ${user.id}: ${err instanceof Error ? err.message : err}`);
+        }
+      }
+
+      if (pendingDeletions.length > 0) {
+        logInfo(`[GDPR] Executed ${pendingDeletions.length} account deletion(s)`);
+      }
+    } catch (err: unknown) {
+      const { logError: le } = require('./services/auditLog');
+      le(`[GDPR] Cleanup task failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+
+  logInfo('[GDPR] Cleanup task started (runs daily at 3:30 AM)');
+}
+
+let dateProposalReminderTask: ScheduledTask | null = null;
+
+function startDateProposalReminders(): void {
+  if (dateProposalReminderTask) { dateProposalReminderTask.stop(); dateProposalReminderTask = null; }
+
+  const tz = process.env.TZ || 'UTC';
+  dateProposalReminderTask = cron.schedule('0 9 * * *', async () => {
+    try {
+      const { db } = require('./db/database');
+      const { sendEmail } = require('./services/notifications');
+      const { logInfo, logError } = require('./services/auditLog');
+
+      // Find proposals that have a deadline, haven't been reminded yet,
+      // and the reminder window starts today (deadline - reminder_days <= today <= deadline).
+      const proposals = db.prepare(`
+        SELECT dp.id, dp.title, dp.group_id, dp.deadline, dp.reminder_days,
+               g.name AS group_name
+        FROM date_proposals dp
+        JOIN groups g ON g.id = dp.group_id
+        WHERE dp.deadline IS NOT NULL
+          AND dp.reminder_sent = 0
+          AND date('now') >= date(dp.deadline, '-' || dp.reminder_days || ' days')
+          AND date('now') <= dp.deadline
+      `).all() as Array<{ id: number; title: string; group_id: number; deadline: string; reminder_days: number; group_name: string }>;
+
+      for (const proposal of proposals) {
+        // Members who have not submitted any availability, OR still have at least one 'maybe'
+        const needsReminder = db.prepare(`
+          SELECT u.id, u.email, u.username,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM date_availability da
+              WHERE da.proposal_id = ? AND da.user_id = u.id
+            ) THEN 1 ELSE 0 END AS has_responded,
+            CASE WHEN EXISTS (
+              SELECT 1 FROM date_availability da
+              WHERE da.proposal_id = ? AND da.user_id = u.id AND da.status = 'maybe'
+            ) THEN 1 ELSE 0 END AS has_maybe
+          FROM group_members gm
+          JOIN users u ON u.id = gm.user_id
+          WHERE gm.group_id = ?
+            AND u.email IS NOT NULL AND u.email != ''
+            AND (
+              NOT EXISTS (
+                SELECT 1 FROM date_availability da
+                WHERE da.proposal_id = ? AND da.user_id = u.id
+              )
+              OR EXISTS (
+                SELECT 1 FROM date_availability da
+                WHERE da.proposal_id = ? AND da.user_id = u.id AND da.status = 'maybe'
+              )
+            )
+        `).all(proposal.id, proposal.id, proposal.group_id, proposal.id, proposal.id) as Array<{ id: number; email: string; username: string; has_responded: number; has_maybe: number }>;
+
+        for (const member of needsReminder) {
+          const hasMaybe = member.has_maybe === 1;
+          const subject = `Availability deadline: ${proposal.title}`;
+          const body = hasMaybe
+            ? `You still have days marked as "maybe" in the availability poll "${proposal.title}" in group "${proposal.group_name}". The deadline is ${proposal.deadline}. Please update your availability before then.`
+            : `The availability poll "${proposal.title}" in group "${proposal.group_name}" closes on ${proposal.deadline}. Please fill in your availability before then.`;
+          await sendEmail(member.email, subject, body, member.id, '/groups');
+        }
+
+        // Mark as sent regardless of how many needed a reminder
+        db.prepare('UPDATE date_proposals SET reminder_sent = 1 WHERE id = ?').run(proposal.id);
+
+        if (needsReminder.length > 0) {
+          logInfo(`Date proposal reminder sent for "${proposal.title}" (id=${proposal.id}) to ${needsReminder.length} member(s)`);
+        }
+      }
+    } catch (err: unknown) {
+      const { logError: le } = require('./services/auditLog');
+      le(`Date proposal reminder check failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }, { timezone: tz });
+}
+
+export { start, stop, startDemoReset, startTripReminders, startTodoReminders, startVersionCheck, startIdempotencyCleanup, startTrekPhotoCacheCleanup, startScheduledBackups, startDateProposalReminders, startGdprCleanup, loadSettings, saveSettings, VALID_INTERVALS };

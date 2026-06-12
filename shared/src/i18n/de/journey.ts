@@ -225,7 +225,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Geteilt über',
   'journey.public.madeWith': 'Erstellt mit',
   'journey.pdf.journeyBook': 'Reisebuch',
-  'journey.pdf.madeWith': 'Erstellt mit TREK',
+  'journey.pdf.madeWith': 'Erstellt mit ROUTD',
   'journey.pdf.day': 'Tag',
   'journey.pdf.theEnd': 'Ende',
   'journey.pdf.saveAsPdf': 'Als PDF speichern',

@@ -31,7 +31,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Bejelentkezés…',
   'login.signIn': 'Bejelentkezés',
   'login.createAdmin': 'Admin fiók létrehozása',
-  'login.createAdminHint': 'Hozd létre az első admin fiókot a TREK-hez.',
+  'login.createAdminHint': 'Hozd létre az első admin fiókot a ROUTD-hez.',
   'login.setNewPassword': 'Új jelszó beállítása',
   'login.setNewPasswordHint':
     'A folytatás előtt meg kell változtatnia a jelszavát.',

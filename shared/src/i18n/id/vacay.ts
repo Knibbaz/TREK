@@ -64,9 +64,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     'Otomatis pindahkan sisa hari cuti ke tahun berikutnya',
   'vacay.sharing': 'Berbagi',
-  'vacay.sharingHint': 'Bagikan rencana cuti kamu dengan pengguna TREK lainnya',
+  'vacay.sharingHint': 'Bagikan rencana cuti kamu dengan pengguna ROUTD lainnya',
   'vacay.owner': 'Pemilik',
-  'vacay.shareEmailPlaceholder': 'Email pengguna TREK',
+  'vacay.shareEmailPlaceholder': 'Email pengguna ROUTD',
   'vacay.shareSuccess': 'Rencana berhasil dibagikan',
   'vacay.shareError': 'Gagal membagikan rencana',
   'vacay.dissolve': 'Pisahkan Gabungan',
@@ -80,7 +80,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Ganti warna',
   'vacay.inviteUser': 'Undang Pengguna',
   'vacay.inviteHint':
-    'Undang pengguna TREK lain untuk berbagi kalender cuti bersama.',
+    'Undang pengguna ROUTD lain untuk berbagi kalender cuti bersama.',
   'vacay.selectUser': 'Pilih pengguna',
   'vacay.sendInvite': 'Kirim Undangan',
   'vacay.inviteSent': 'Undangan terkirim',

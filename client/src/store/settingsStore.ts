@@ -39,6 +39,10 @@ export const useSettingsStore = create<SettingsState>((set, get) => ({
     mapbox_style: 'mapbox://styles/mapbox/standard',
     mapbox_3d_enabled: true,
     mapbox_quality_mode: false,
+    dashboard_currency: 'off',
+    dashboard_timezone: 'off',
+    map_nav_zoom: 14,
+    home_country: '',
   },
   isLoaded: false,
 

@@ -21,11 +21,13 @@ if (isTest) {
   const dir = path.dirname(dbPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
 } else {
-  const dataDir = path.join(__dirname, '../../data');
+  const dataDir = process.env.TREK_DB_PATH
+    ? path.dirname(process.env.TREK_DB_PATH)
+    : path.join(__dirname, '../../data');
   if (!fs.existsSync(dataDir)) {
     fs.mkdirSync(dataDir, { recursive: true });
   }
-  dbPath = path.join(dataDir, 'travel.db');
+  dbPath = process.env.TREK_DB_PATH || path.join(dataDir, 'travel.db');
 }
 
 let _db: Database.Database | null = null;
@@ -143,6 +145,10 @@ function isOwner(tripId: number | string, userId: number): boolean {
   return !!db.prepare('SELECT id FROM trips WHERE id = ? AND user_id = ?').get(tripId, userId);
 }
 
+function canAccessGroup(groupId: number | string, userId: number): boolean {
+  return !!db.prepare('SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ?').get(groupId, userId);
+}
+
 try {
   const { backfillFlightEndpoints } = require('../services/airportService');
   backfillFlightEndpoints();
@@ -150,4 +156,4 @@ try {
   console.error('[DB] Flight endpoint backfill failed:', err);
 }
 
-export { db, closeDb, reinitialize, getPlaceWithTags, canAccessTrip, isOwner };
+export { db, closeDb, reinitialize, getPlaceWithTags, canAccessTrip, canAccessGroup, isOwner };

@@ -64,9 +64,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     'Automatycznie przenosi pozostałe dni urlopowe na kolejny rok',
   'vacay.sharing': 'Udostępnianie',
-  'vacay.sharingHint': 'Udostępnij swój plan urlopów innym użytkownikom TREK',
+  'vacay.sharingHint': 'Udostępnij swój plan urlopów innym użytkownikom ROUTD',
   'vacay.owner': 'Właściciel',
-  'vacay.shareEmailPlaceholder': 'E-mail użytkownika TREK',
+  'vacay.shareEmailPlaceholder': 'E-mail użytkownika ROUTD',
   'vacay.shareSuccess': 'Plan został udostępniony pomyślnie',
   'vacay.shareError': 'Nie udało się udostępnić planu',
   'vacay.dissolve': 'Rozłącz kalendarze',
@@ -80,7 +80,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Zmień kolor',
   'vacay.inviteUser': 'Zaproś użytkownika',
   'vacay.inviteHint':
-    'Zaproś innego użytkownika TREK do wspólnego kalendarza urlopów.',
+    'Zaproś innego użytkownika ROUTD do wspólnego kalendarza urlopów.',
   'vacay.selectUser': 'Wybierz użytkownika',
   'vacay.sendInvite': 'Wyślij zaproszenie',
   'vacay.inviteSent': 'Zaproszenie zostało wysłane',
@@ -102,5 +102,14 @@ const vacay: TranslationStrings = {
     'Ustawienia, takie jak święta państwowe i urlopy firmowe, są współdzielone.',
   'vacay.fuseInfo5':
     'Połączenie może zostać rozwiązane w dowolnym momencie przez każdą ze stron. Twoje wpisy zostaną zachowane.',
+  'vacay.hours': 'godzin',
+  'vacay.modeComp': 'Czas wolny',
+  'vacay.compTime': 'Czas wolny',
+  'vacay.hoursPerDay': 'Godzin na dzień roboczy',
+  'vacay.hoursPerDayHint': 'Określa, ile godzin odpowiada jednemu pełnemu dniu urlopu',
+  'vacay.stdDay': 'Cały dzień',
+  'vacay.rightClickHint': 'Prawy klik dla godzin',
+  'vacay.save': 'Zapisz',
+  'vacay.cancel': 'Anuluj',
 };
 export default vacay;

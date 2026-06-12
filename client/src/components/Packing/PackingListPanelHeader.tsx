@@ -1,9 +1,23 @@
 import {
-  X, Check, CheckCheck, Luggage, Package, FolderPlus, Upload,
+  X, Check, CheckCheck, Luggage, Package, FolderPlus, Upload, Download,
 } from 'lucide-react'
 import type { PackingState } from './usePackingListPanel'
 
 export function PackingHeader(S: PackingState) {
+  const handleExport = () => {
+    const csv = S.items.map(item => {
+      const parts = [item.category || '', item.name, item.weight_grams || '', item.bag || '', item.checked ? 'checked' : 'unchecked']
+      return parts.join(',')
+    }).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `packing-list-${new Date().toISOString().split('T')[0]}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   const {
     inlineHeader, t, items, abgehakt, fortschritt, canEdit, isAdmin,
     showSaveTemplate, saveTemplateName, setSaveTemplateName, handleSaveAsTemplate, setShowSaveTemplate,
@@ -47,6 +61,15 @@ export function PackingHeader(S: PackingState) {
               fontFamily: 'inherit', background: 'var(--bg-card)', color: 'var(--text-muted)',
             }}>
               <Upload size={12} /> <span className="hidden sm:inline">{t('packing.import')}</span>
+            </button>
+          )}
+          {inlineHeader && items.length > 0 && (
+            <button onClick={handleExport} style={{
+              display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 99,
+              border: '1px solid var(--border-primary)', fontSize: 12, fontWeight: 500, cursor: 'pointer',
+              fontFamily: 'inherit', background: 'var(--bg-card)', color: 'var(--text-muted)',
+            }}>
+              <Download size={12} /> <span className="hidden sm:inline">{t('packing.export')}</span>
             </button>
           )}
           {inlineHeader && canEdit && abgehakt > 0 && (

@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': '透過以下分享',
   'shared.confirmed': '已確認',
   'shared.pending': '待確認',
+  'shared.tabMap': '地圖',
 };
 export default shared;

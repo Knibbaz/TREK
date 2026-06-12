@@ -955,7 +955,7 @@ describe('autocompletePlaces (fetch stubbed)', () => {
     const { autocompletePlaces } = await import('../../../src/services/mapsService');
     const result = await autocompletePlaces(999, 'Big Ben');
     expect(result.suggestions[0].mainText).toBe('Big Ben');
-    expect(result.suggestions[0].secondaryText).toBe('Westminster, London, UK');
+    expect(result.suggestions[0].secondaryText).toBe('Westminster, London');
   });
 
   it('MAPS-093: Nominatim fallback filters out results with empty osm_id', async () => {

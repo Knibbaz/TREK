@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react'
-import { adminApi } from '../../api/client'
+import { adminApi, mollieApi } from '../../api/client'
 import { useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useAddonStore } from '../../store/addonStore'
 import { useToast } from '../shared/Toast'
-import { Puzzle, ListChecks, Wallet, FileText, CalendarDays, Globe, Briefcase, Image, Terminal, Link2, Compass, BookOpen, MessageCircle, StickyNote, BarChart3, Sparkles, Luggage } from 'lucide-react'
+import { useBranding } from '../../context/BrandingContext'
+import { Puzzle, ListChecks, Wallet, FileText, CalendarDays, Globe, Briefcase, Image, Terminal, Link2, Compass, BookOpen, MessageCircle, StickyNote, BarChart3, Sparkles, Luggage, CreditCard } from 'lucide-react'
 
 const ICON_MAP = {
   ListChecks, Wallet, FileText, CalendarDays, Puzzle, Globe, Briefcase, Image, Terminal, Link2, Compass, BookOpen,
@@ -39,6 +40,7 @@ interface Addon {
   type: string
   enabled: boolean
   config?: Record<string, unknown>
+  parent_id?: string | null
 }
 
 interface ProviderOption {
@@ -68,18 +70,35 @@ const COLLAB_SUB_FEATURES = [
   { key: 'whatsnext', icon: Sparkles, titleKey: 'admin.collab.whatsnext.title', subtitleKey: 'admin.collab.whatsnext.subtitle' },
 ] as const
 
+const EXPLORE_SUB_FEATURES = [
+  { key: 'creator-hub', addonId: 'creator_hub', icon: Sparkles, titleKey: 'admin.explore.creator-hub.title', subtitleKey: 'admin.explore.creator-hub.subtitle' },
+  { key: 'payout-payments', addonId: 'explore_payments', icon: CreditCard, titleKey: 'admin.explore.payout-payments.title', subtitleKey: 'admin.explore.payout-payments.subtitle' },
+] as const
+
 export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, collabFeatures, onToggleCollabFeature }: { bagTrackingEnabled?: boolean; onToggleBagTracking?: () => void; collabFeatures?: CollabFeatures; onToggleCollabFeature?: (key: string) => void }) {
   const { t } = useTranslation()
   const dm = useSettingsStore(s => s.settings.dark_mode)
   const dark = dm === true || dm === 'dark' || (dm === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  const branding = useBranding()
   const toast = useToast()
   const refreshGlobalAddons = useAddonStore(s => s.loadAddons)
   const [addons, setAddons] = useState<Addon[]>([])
   const [loading, setLoading] = useState(true)
+  const [mollieConfigured, setMollieConfigured] = useState(false)
 
   useEffect(() => {
     loadAddons()
+    checkMollieStatus()
   }, [])
+
+  const checkMollieStatus = async () => {
+    try {
+      const response = await mollieApi.getStatus()
+      setMollieConfigured(response.connected)
+    } catch {
+      setMollieConfigured(false)
+    }
+  }
 
   const loadAddons = async () => {
     setLoading(true)
@@ -136,7 +155,7 @@ export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, 
   const photoProviderAddons = addons.filter(isPhotoProviderAddon)
   const photosAddon = addons.filter(a => a.type === 'trip').find(isPhotosAddon)
   const tripAddons = addons.filter(a => a.type === 'trip' && !isPhotosAddon(a))
-  const globalAddons = addons.filter(a => a.type === 'global')
+  const globalAddons = addons.filter(a => a.type === 'global' && !a.parent_id)
   const integrationAddons = addons.filter(a => a.type === 'integration')
   const providerOptions: ProviderOption[] = photoProviderAddons.map((provider) => ({
       key: provider.id,
@@ -162,7 +181,7 @@ export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, 
         <div className="px-6 py-4 border-b border-edge-secondary">
           <h2 className="font-semibold text-content">{t('admin.addons.title')}</h2>
           <p className="text-xs mt-1 text-content-muted" style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
-            {t('admin.addons.subtitleBefore')}<img src={dark ? '/text-light.svg' : '/text-dark.svg'} alt="TREK" style={{ height: 11, display: 'inline', verticalAlign: 'middle', opacity: 0.7 }} />{t('admin.addons.subtitleAfter')}
+            {t('admin.addons.subtitleBefore')}<span style={{ fontWeight: 700, opacity: 0.7 }}>{branding.name}</span>{t('admin.addons.subtitleAfter')}
           </p>
         </div>
 
@@ -251,6 +270,45 @@ export default function AddonManager({ bagTrackingEnabled, onToggleBagTracking, 
                 {globalAddons.map(addon => (
                   <div key={addon.id}>
                     <AddonRow addon={addon} onToggle={handleToggle} t={t} />
+                    {/* Sub-features under Explore addon */}
+                    {addon.id === 'explore' && addon.enabled && (
+                      <div className="px-6 py-3 border-b" style={{ borderColor: 'var(--border-secondary)', background: 'var(--bg-secondary)', paddingLeft: 70 }}>
+                        <div className="space-y-2">
+                          {EXPLORE_SUB_FEATURES.map(feat => {
+                            const subAddon = addons.find(a => a.id === feat.addonId)
+                            const enabled = subAddon?.enabled ?? false
+                            const Icon = feat.icon
+                            return (
+                              <div key={feat.key} className="flex items-center gap-4" style={{ minHeight: 32 }}>
+                                <Icon size={14} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div className="text-sm font-medium" style={{ color: 'var(--text-secondary)' }}>{t(feat.titleKey)}</div>
+                                  <div className="text-xs mt-0.5" style={{ color: 'var(--text-faint)' }}>{t(feat.subtitleKey)}</div>
+                                  {feat.addonId === 'explore_payments' && !mollieConfigured && (
+                                    <div className="text-xs mt-1 px-2 py-1 rounded" style={{ background: 'var(--border-primary)', color: 'var(--text-faint)' }}>
+                                      ⚠ Mollie API key required
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <span className="hidden sm:inline text-xs font-medium" style={{ color: enabled ? 'var(--text-primary)' : 'var(--text-faint)' }}>
+                                    {enabled ? t('admin.addons.enabled') : t('admin.addons.disabled')}
+                                  </span>
+                                  <button
+                                    onClick={() => subAddon && handleToggle(subAddon)}
+                                    className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+                                    style={{ background: enabled ? 'var(--text-primary)' : 'var(--border-primary)' }}
+                                  >
+                                    <span className="absolute left-0.5 h-5 w-5 rounded-full bg-white transition-transform duration-200"
+                                      style={{ transform: enabled ? 'translateX(20px)' : 'translateX(0)' }} />
+                                  </button>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )}
                     {/* Memories providers as sub-items under Journey addon */}
                     {addon.id === 'journey' && providerOptions.length > 0 && (
                       <div className="px-6 py-3 border-b border-edge-secondary bg-surface-secondary" style={{ paddingLeft: 70 }}>

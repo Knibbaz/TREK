@@ -63,9 +63,9 @@ const vacay: TranslationStrings = {
   'vacay.carryOverHint':
     "Riporta automaticamente i giorni di ferie rimanenti all'anno successivo",
   'vacay.sharing': 'Condivisione',
-  'vacay.sharingHint': 'Condividi il tuo piano ferie con altri utenti TREK',
+  'vacay.sharingHint': 'Condividi il tuo piano ferie con altri utenti ROUTD',
   'vacay.owner': 'Proprietario',
-  'vacay.shareEmailPlaceholder': "Email dell'utente TREK",
+  'vacay.shareEmailPlaceholder': "Email dell'utente ROUTD",
   'vacay.shareSuccess': 'Piano condiviso con successo',
   'vacay.shareError': 'Impossibile condividere il piano',
   'vacay.dissolve': 'Sciogli unione',
@@ -79,7 +79,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Cambia colore',
   'vacay.inviteUser': 'Invita utente',
   'vacay.inviteHint':
-    'Invita un altro utente TREK a condividere un calendario ferie combinato.',
+    'Invita un altro utente ROUTD a condividere un calendario ferie combinato.',
   'vacay.selectUser': 'Seleziona utente',
   'vacay.sendInvite': 'Invia invito',
   'vacay.inviteSent': 'Invito inviato',
@@ -101,5 +101,14 @@ const vacay: TranslationStrings = {
     'Le impostazioni come festività pubbliche e ferie aziendali sono condivise.',
   'vacay.fuseInfo5':
     "L'unione può essere sciolta in qualsiasi momento da una delle due parti. Le tue voci verranno preservate.",
+  'vacay.hours': 'ore',
+  'vacay.modeComp': 'Ore di recupero',
+  'vacay.compTime': 'Ore di recupero',
+  'vacay.hoursPerDay': 'Ore per giorno lavorativo',
+  'vacay.hoursPerDayHint': 'Definisce quante ore equivalgono a un giorno di ferie completo',
+  'vacay.stdDay': 'Giornata intera',
+  'vacay.rightClickHint': 'Clic destro per le ore',
+  'vacay.save': 'Salva',
+  'vacay.cancel': 'Annulla',
 };
 export default vacay;

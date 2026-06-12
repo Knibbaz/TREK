@@ -62,9 +62,9 @@ const vacay: TranslationStrings = {
     "Reporter automatiquement les jours de vacances restants à l'année suivante",
   'vacay.sharing': 'Partage',
   'vacay.sharingHint':
-    "Partagez votre plan de vacances avec d'autres utilisateurs TREK",
+    "Partagez votre plan de vacances avec d'autres utilisateurs ROUTD",
   'vacay.owner': 'Propriétaire',
-  'vacay.shareEmailPlaceholder': "E-mail de l'utilisateur TREK",
+  'vacay.shareEmailPlaceholder': "E-mail de l'utilisateur ROUTD",
   'vacay.shareSuccess': 'Plan partagé avec succès',
   'vacay.shareError': 'Impossible de partager le plan',
   'vacay.dissolve': 'Séparer les calendriers',
@@ -78,7 +78,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Changer la couleur',
   'vacay.inviteUser': 'Inviter un utilisateur',
   'vacay.inviteHint':
-    'Invitez un autre utilisateur TREK à partager un calendrier de vacances combiné.',
+    'Invitez un autre utilisateur ROUTD à partager un calendrier de vacances combiné.',
   'vacay.selectUser': 'Sélectionner un utilisateur',
   'vacay.sendInvite': "Envoyer l'invitation",
   'vacay.inviteSent': 'Invitation envoyée',
@@ -105,5 +105,14 @@ const vacay: TranslationStrings = {
   'vacay.calendarColor': 'Couleur',
   'vacay.calendarLabel': 'Libellé',
   'vacay.noCalendars': 'Aucun calendrier',
+  'vacay.hours': 'heures',
+  'vacay.modeComp': 'Heures récup.',
+  'vacay.compTime': 'Heures récup.',
+  'vacay.hoursPerDay': 'Heures par jour de travail',
+  'vacay.hoursPerDayHint': 'Définit combien d\'heures équivalent à une journée de congé complète',
+  'vacay.stdDay': 'Journée complète',
+  'vacay.rightClickHint': 'Clic droit pour les heures',
+  'vacay.save': 'Enregistrer',
+  'vacay.cancel': 'Annuler',
 };
 export default vacay;

@@ -61,9 +61,9 @@ const vacay: TranslationStrings = {
     'Автоматично переносити залишкові дні відпустки на наступний рік',
   'vacay.sharing': 'Спільний доступ',
   'vacay.sharingHint':
-    'Поділіться планом відпустки з іншими користувачами TREK',
+    'Поділіться планом відпустки з іншими користувачами ROUTD',
   'vacay.owner': 'Власник',
-  'vacay.shareEmailPlaceholder': 'Ел. пошта користувача TREK',
+  'vacay.shareEmailPlaceholder': 'Ел. пошта користувача ROUTD',
   'vacay.shareSuccess': 'План успішно надано',
   'vacay.shareError': 'Не вдалося поділитися планом',
   'vacay.dissolve': 'Розділити об’єднання',
@@ -77,7 +77,7 @@ const vacay: TranslationStrings = {
   'vacay.changeColor': 'Змінити колір',
   'vacay.inviteUser': 'Запросити користувача',
   'vacay.inviteHint':
-    'Запросіть іншого користувача TREK для спільного календаря відпусток.',
+    'Запросіть іншого користувача ROUTD для спільного календаря відпусток.',
   'vacay.selectUser': 'Виберіть користувача',
   'vacay.sendInvite': 'Надіслати запрошення',
   'vacay.inviteSent': 'Запрошення надіслано',

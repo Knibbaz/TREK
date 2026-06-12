@@ -4,6 +4,7 @@ import { db, getPlaceWithTags } from '../db/database';
 import { loadTagsByPlaceIds } from './queryHelpers';
 import { checkSsrf, safeFetchFollow, SsrfBlockedError } from '../utils/ssrfGuard';
 import { Place } from '../types';
+import { getUnsplashApiKeyRaw } from './adminService';
 import {
   buildCategoryNameLookup,
   createKmlImportSummary,
@@ -21,7 +22,7 @@ interface PlaceWithCategory extends Place {
 }
 
 interface UnsplashSearchResponse {
-  results?: { id: string; urls?: { regular?: string; thumb?: string }; description?: string; alt_description?: string; user?: { name?: string }; links?: { html?: string } }[];
+  results?: { id: string; urls?: { regular?: string; thumb?: string }; description?: string; alt_description?: string; user?: { name?: string; links?: { html?: string } }; links?: { html?: string } }[];
   errors?: string[];
 }
 
@@ -98,7 +99,7 @@ export function createPlace(
   tripId: string,
   body: {
     name: string; description?: string; lat?: number; lng?: number; address?: string;
-    category_id?: number; price?: number; currency?: string;
+    category_id?: number; price?: number; currency?: string; price_type?: string;
     place_time?: string; end_time?: string;
     duration_minutes?: number; notes?: string; image_url?: string;
     google_place_id?: string; osm_id?: string; website?: string; phone?: string;
@@ -106,20 +107,20 @@ export function createPlace(
   },
 ) {
   const {
-    name, description, lat, lng, address, category_id, price, currency,
+    name, description, lat, lng, address, category_id, price, currency, price_type,
     place_time, end_time,
     duration_minutes, notes, image_url, google_place_id, osm_id, website, phone,
     transport_mode, tags = [],
   } = body;
 
   const result = db.prepare(`
-    INSERT INTO places (trip_id, name, description, lat, lng, address, category_id, price, currency,
+    INSERT INTO places (trip_id, name, description, lat, lng, address, category_id, price, currency, price_type,
       place_time, end_time,
       duration_minutes, notes, image_url, google_place_id, osm_id, website, phone, transport_mode)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(
     tripId, name, description || null, lat || null, lng || null, address || null,
-    category_id || null, price || null, currency || null,
+    category_id || null, price || null, currency || null, price_type || 'total',
     place_time || null, end_time || null, duration_minutes || 60, notes || null, image_url || null,
     google_place_id || null, osm_id || null, website || null, phone || null, transport_mode || 'walking',
   );
@@ -155,7 +156,7 @@ export function updatePlace(
   placeId: string,
   body: {
     name?: string; description?: string; lat?: number; lng?: number; address?: string;
-    category_id?: number; price?: number; currency?: string;
+    category_id?: number; price?: number; currency?: string; price_type?: string;
     place_time?: string; end_time?: string;
     duration_minutes?: number; notes?: string; image_url?: string;
     google_place_id?: string; osm_id?: string; website?: string; phone?: string;
@@ -166,7 +167,7 @@ export function updatePlace(
   if (!existingPlace) return null;
 
   const {
-    name, description, lat, lng, address, category_id, price, currency,
+    name, description, lat, lng, address, category_id, price, currency, price_type,
     place_time, end_time,
     duration_minutes, notes, image_url, google_place_id, osm_id, website, phone,
     transport_mode, tags,
@@ -182,6 +183,7 @@ export function updatePlace(
       category_id = ?,
       price = ?,
       currency = COALESCE(?, currency),
+      price_type = COALESCE(?, price_type),
       place_time = ?,
       end_time = ?,
       duration_minutes = COALESCE(?, duration_minutes),
@@ -203,6 +205,7 @@ export function updatePlace(
     category_id !== undefined ? category_id : existingPlace.category_id,
     price !== undefined ? price : existingPlace.price,
     currency || null,
+    price_type || null,
     place_time !== undefined ? place_time : existingPlace.place_time,
     end_time !== undefined ? end_time : existingPlace.end_time,
     duration_minutes || null,
@@ -833,18 +836,16 @@ export async function importNaverList(
 // Search place image (Unsplash)
 // ---------------------------------------------------------------------------
 
-export async function searchPlaceImage(tripId: string, placeId: string, userId: number) {
+export async function searchPlaceImage(tripId: string, placeId: string, _userId: number, manualQuery?: string) {
   const place = db.prepare('SELECT * FROM places WHERE id = ? AND trip_id = ?').get(placeId, tripId) as Place | undefined;
   if (!place) return { error: 'Place not found', status: 404 };
 
-  const user = db.prepare('SELECT unsplash_api_key FROM users WHERE id = ?').get(userId) as { unsplash_api_key: string | null } | undefined;
-  if (!user || !user.unsplash_api_key) {
-    return { error: 'No Unsplash API key configured', status: 400 };
-  }
+  const apiKey = getUnsplashApiKeyRaw();
+  if (!apiKey) return { error: 'Unsplash not configured', status: 400 };
 
-  const query = encodeURIComponent(place.name + (place.address ? ' ' + place.address : ''));
+  const query = encodeURIComponent(manualQuery || (place.name + (place.address ? ' ' + place.address : '')));
   const response = await fetch(
-    `https://api.unsplash.com/search/photos?query=${query}&per_page=5&client_id=${user.unsplash_api_key}`,
+    `https://api.unsplash.com/search/photos?query=${query}&per_page=12&client_id=${apiKey}`,
   );
   const data = await response.json() as UnsplashSearchResponse;
 
@@ -858,6 +859,7 @@ export async function searchPlaceImage(tripId: string, placeId: string, userId: 
     thumb: p.urls?.thumb,
     description: p.description || p.alt_description,
     photographer: p.user?.name,
+    photographerUrl: p.user?.links?.html,
     link: p.links?.html,
   }));
 

@@ -2,10 +2,10 @@ import type { NotificationLocale } from '../externalNotifications/types';
 
 const ru: NotificationLocale = {
   email: {
-    footer: 'Вы получили это, потому что у вас включены уведомления в TREK.',
+    footer: 'Вы получили это, потому что у вас включены уведомления в ROUTD.',
     manage: 'Управление настройками',
     madeWith: 'Made with',
-    openTrek: 'Открыть TREK',
+    openTrek: 'Открыть ROUTD',
   },
   events: {
     trip_invite: (p) => ({
@@ -26,7 +26,7 @@ const ru: NotificationLocale = {
     }),
     vacay_invite: (p) => ({
       title: 'Приглашение Vacay Fusion',
-      body: `${p.actor} приглашает вас объединить планы отпуска. Откройте TREK для подтверждения.`,
+      body: `${p.actor} приглашает вас объединить планы отпуска. Откройте ROUTD для подтверждения.`,
     }),
     photos_shared: (p) => ({
       title: `${p.count} фото`,
@@ -41,18 +41,23 @@ const ru: NotificationLocale = {
       body: `${p.actor} назначил вас в категорию "${p.category}" в "${p.trip}".`,
     }),
     version_available: (p) => ({
-      title: 'Доступна новая версия TREK',
-      body: `TREK ${p.version} теперь доступен. Перейдите в панель администратора для обновления.`,
+      title: 'Доступна новая версия ROUTD',
+      body: `ROUTD ${p.version} теперь доступен. Перейдите в панель администратора для обновления.`,
     }),
     synology_session_cleared: () => ({
       title: 'Сессия Synology сброшена',
       body: 'Ваш аккаунт или URL Synology изменился. Вы вышли из Synology Photos.',
     }),
+    date_proposal_created: p => ({ title: 'Опрос доступности: ' + p.proposal, body: `${p.actor} создал опрос доступности "${p.proposal}" в группе "${p.group}". Пожалуйста, укажите свою доступность.` }),
+    date_proposal_confirmed: p => ({ title: 'Даты подтверждены: ' + p.proposal, body: `Даты для "${p.proposal}" подтверждены: ${p.confirmed_start} по ${p.confirmed_end}.` }),
+    date_proposal_deadline: p => ({ title: 'Srok dostupnosti: ' + p.proposal, body: 'Opros "' + p.proposal + '" v gruppe "' + p.group + '" zakryvaetsya ' + p.deadline + '.' }),
+    date_proposal_ping: p => ({ title: 'Напоминание: укажите свою доступность', body: `${p.actor} просит вас указать вашу доступность для "${p.proposal}" в группе "${p.group}". В настоящее время ${p.filled} членов ответили.` }),
+    date_proposal_threshold_reached: p => ({ title: `Порог достигнут: ${p.proposal}`, body: `${p.respondents} из ${p.members} членов указали свою доступность для "${p.proposal}" в группе "${p.group}".` }),
   },
   passwordReset: {
     subject: 'Сброс пароля',
     greeting: 'Здравствуйте',
-    body: 'Мы получили запрос на сброс пароля вашего аккаунта TREK. Нажмите кнопку ниже, чтобы установить новый пароль.',
+    body: 'Мы получили запрос на сброс пароля вашего аккаунта ROUTD. Нажмите кнопку ниже, чтобы установить новый пароль.',
     ctaIntro: 'Сбросить пароль',
     expiry: 'Ссылка действительна 60 минут.',
     ignore:

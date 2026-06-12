@@ -184,9 +184,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Javasolj egy új funkciót',
   'settings.about.wikiHint': 'Dokumentáció és útmutatók',
   'settings.about.supporters.badge': 'Havi támogatók',
-  'settings.about.supporters.title': 'Útitársak a TREK mellett',
+  'settings.about.supporters.title': 'Útitársak a ROUTD mellett',
   'settings.about.supporters.subtitle':
-    'Miközben te a következő útvonaladat tervezed, ők a TREK jövőjét tervezik velem együtt. Havi hozzájárulásuk közvetlenül fejlesztésre és valódi órákra fordítódik — hogy a TREK Open Source maradhasson.',
+    'Miközben te a következő útvonaladat tervezed, ők a ROUTD jövőjét tervezik velem együtt. Havi hozzájárulásuk közvetlenül fejlesztésre és valódi órákra fordítódik — hogy a ROUTD Open Source maradhasson.',
   'settings.about.supporters.since': 'támogató {date} óta',
   'settings.about.supporters.tierEmpty': 'Légy az első',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -196,7 +196,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    'A TREK egy saját szerveren üzemeltetett útitervező, amely segít az utazásaid megszervezésében az első ötlettől az utolsó emlékig. Napi tervezés, költségvetés, csomagolási listák, fotók és még sok más — minden egy helyen, a saját szervereden.',
+    'A ROUTD egy saját szerveren üzemeltetett útitervező, amely segít az utazásaid megszervezésében az első ötlettől az utolsó emlékig. Napi tervezés, költségvetés, csomagolási listák, fotók és még sok más — minden egy helyen, a saját szervereden.',
   'settings.about.madeWith': 'Készítve',
   'settings.about.madeBy':
     'Maurice és egy növekvő nyílt forráskódú közösség által.',

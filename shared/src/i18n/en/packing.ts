@@ -182,5 +182,7 @@ const packing: TranslationStrings = {
       category: 'Health',
     },
   ],
+  'packing.export': 'Export',
+  'packing.exportSuccess': 'List exported',
 };
 export default packing;

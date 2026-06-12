@@ -18,9 +18,24 @@ export const TRIP_SELECT = `
     (SELECT COUNT(*) FROM places p WHERE p.trip_id = t.id) as place_count,
     CASE WHEN t.user_id = :userId THEN 1 ELSE 0 END as is_owner,
     u.username as owner_username,
-    (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count
+    (SELECT COUNT(*) FROM trip_members tm WHERE tm.trip_id = t.id) as shared_count,
+    CASE WHEN ep.trip_id IS NOT NULL AND ep.is_published = 1 THEN 1 ELSE 0 END as is_published,
+    COALESCE(eut.source_trip_id, NULL) as source_trip_id,
+    CASE WHEN eut.id IS NOT NULL THEN 1 ELSE 0 END as from_explore,
+    -- Attribution for share-link clones
+    cft.title as cloned_from_trip_title,
+    cfu.username as cloned_from_username,
+    cfc.display_name as cloned_from_creator_name,
+    cfc.slug as cloned_from_creator_slug,
+    cfc.avatar as cloned_from_creator_avatar,
+    cfc.social_links as cloned_from_social_links
   FROM trips t
   JOIN users u ON u.id = t.user_id
+  LEFT JOIN explore_published ep ON ep.trip_id = t.id
+  LEFT JOIN explore_user_trips eut ON eut.trip_id = t.id
+  LEFT JOIN trips cft ON cft.id = t.cloned_from_trip_id
+  LEFT JOIN users cfu ON cfu.id = cft.user_id
+  LEFT JOIN explore_creators cfc ON cfc.user_id = cft.user_id
 `;
 
 // ── Access helpers ────────────────────────────────────────────────────────
@@ -115,11 +130,24 @@ export function generateDays(tripId: number | bigint | string, startDate: string
     }
   }
 
-  // Overflow dated days (trip shrunk): delete them (issue #909).
-  // Cascade removes their assignments, notes, and accommodations.
-  const del = db.prepare('DELETE FROM days WHERE id = ?');
-  for (let i = targetDates.length; i < dated.length; i++) {
-    del.run(dated[i].id);
+  // Overflow dated days (trip shrunk): clip spanning accommodations, then make dateless
+  const overflowDays = dated.slice(targetDates.length);
+  if (overflowDays.length > 0) {
+    const overflowIds = overflowDays.map(d => d.id);
+    if (targetDates.length > 0) {
+      // Accommodations whose end_day is in overflow but start_day is still valid:
+      // shorten them to the last kept day instead of losing them entirely.
+      const lastValidDayId = dated[targetDates.length - 1].id;
+      const validIds = dated.slice(0, targetDates.length).map(d => d.id);
+      db.prepare(
+        `UPDATE day_accommodations SET end_day_id = ?
+         WHERE end_day_id IN (${overflowIds.join(',')})
+           AND start_day_id IN (${validIds.join(',')})`
+      ).run(lastValidDayId);
+    }
+    // Convert overflow days to dateless (preserve assignments, notes, etc.)
+    const nullify = db.prepare('UPDATE days SET date = NULL WHERE id = ?');
+    for (const d of overflowDays) nullify.run(d.id);
   }
 
   // Any remaining unused dateless days: drop the empty placeholders so day_count
@@ -147,6 +175,32 @@ export function generateDays(tripId: number | bigint | string, startDate: string
   // Final renumber to compact and eliminate any gaps/negatives
   const remaining = db.prepare('SELECT id FROM days WHERE trip_id = ? ORDER BY day_number').all(tripId) as { id: number }[];
   renumber(remaining);
+}
+
+// ── Overflow check ────────────────────────────────────────────────────────
+
+export function getOverflowInfo(tripId: number, newStart: string | null, newEnd: string | null) {
+  if (!newStart || !newEnd) return { daysToRemove: 0, assignments: 0, notes: 0, accommodations: 0 };
+
+  const dated = db.prepare(
+    'SELECT id FROM days WHERE trip_id = ? AND date IS NOT NULL ORDER BY day_number'
+  ).all(tripId) as { id: number }[];
+
+  const [sy, sm, sd] = newStart.split('-').map(Number);
+  const [ey, em, ed] = newEnd.split('-').map(Number);
+  const startMs = Date.UTC(sy, sm - 1, sd);
+  const endMs = Date.UTC(ey, em - 1, ed);
+  const numDays = Math.min(Math.floor((endMs - startMs) / MS_PER_DAY) + 1, MAX_TRIP_DAYS);
+
+  const overflow = dated.slice(numDays);
+  if (overflow.length === 0) return { daysToRemove: 0, assignments: 0, notes: 0, accommodations: 0 };
+
+  const ids = overflow.map(d => d.id).join(',');
+  const assignments = (db.prepare(`SELECT COUNT(*) as cnt FROM day_assignments WHERE day_id IN (${ids})`).get() as { cnt: number }).cnt;
+  const notes = (db.prepare(`SELECT COUNT(*) as cnt FROM day_notes WHERE day_id IN (${ids})`).get() as { cnt: number }).cnt;
+  const accommodations = (db.prepare(`SELECT COUNT(*) as cnt FROM day_accommodations WHERE start_day_id IN (${ids})`).get() as { cnt: number }).cnt;
+
+  return { daysToRemove: overflow.length, assignments, notes, accommodations };
 }
 
 // ── Trip CRUD ─────────────────────────────────────────────────────────────
@@ -433,8 +487,8 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
     return d.replace(/[-:]/g, '');
   };
 
-  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//TREK//Travel Planner//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
-  ics += `X-WR-CALNAME:${esc(trip.title || 'TREK Trip')}\r\n`;
+  let ics = 'BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ROUTD//Travel Planner//EN\r\nCALSCALE:GREGORIAN\r\nMETHOD:PUBLISH\r\n';
+  ics += `X-WR-CALNAME:${esc(trip.title || 'ROUTD Trip')}\r\n`;
 
   // Trip as all-day event
   if (trip.start_date && trip.end_date) {
@@ -572,7 +626,7 @@ export function exportICS(tripId: string | number): { ics: string; filename: str
  * Packing items are reset to unchecked. Budget paid status is cleared.
  * Returns the new trip's ID.
  */
-export function copyTripById(sourceTripId: string | number, newOwnerId: number, title?: string): number {
+export function copyTripById(sourceTripId: string | number, newOwnerId: number, title?: string, trackCloneOrigin = false): number {
   const src = db.prepare('SELECT * FROM trips WHERE id = ?').get(sourceTripId) as any;
   if (!src) throw new NotFoundError('Trip not found');
 
@@ -580,9 +634,9 @@ export function copyTripById(sourceTripId: string | number, newOwnerId: number, 
 
   const fn = db.transaction(() => {
     const tripResult = db.prepare(`
-      INSERT INTO trips (user_id, title, description, start_date, end_date, currency, cover_image, is_archived, reminder_days)
-      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
-    `).run(newOwnerId, newTitle, src.description, src.start_date, src.end_date, src.currency, src.cover_image, src.reminder_days ?? 3);
+      INSERT INTO trips (user_id, title, description, start_date, end_date, currency, cover_image, is_archived, reminder_days, cloned_from_trip_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)
+    `).run(newOwnerId, newTitle, src.description, src.start_date, src.end_date, src.currency, src.cover_image, src.reminder_days ?? 3, trackCloneOrigin ? sourceTripId : null);
     const newTripId = tripResult.lastInsertRowid;
 
     const oldDays = db.prepare('SELECT * FROM days WHERE trip_id = ? ORDER BY day_number').all(sourceTripId) as any[];

@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': 'Sdíleno přes',
   'shared.confirmed': 'Potvrzeno',
   'shared.pending': 'Čeká na potvrzení',
+  'shared.tabMap': 'Mapa',
 };
 export default shared;

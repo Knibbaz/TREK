@@ -19,7 +19,7 @@ const notifications: TranslationStrings = {
     'Ο διακομιστής ή ο λογαριασμός σας άλλαξε — μεταβείτε στις Ρυθμίσεις για να δοκιμάσετε ξανά τη σύνδεσή σας.',
   'notifications.versionAvailable.title': 'Διαθέσιμη Ενημέρωση',
   'notifications.versionAvailable.text':
-    'Το TREK {version} είναι τώρα διαθέσιμο.',
+    'Το ROUTD {version} είναι τώρα διαθέσιμο.',
   'notifications.versionAvailable.button': 'Προβολή Λεπτομερειών',
   'notifications.test.title': 'Δοκιμαστική ειδοποίηση από {actor}',
   'notifications.test.text': 'Αυτή είναι μια απλή δοκιμαστική ειδοποίηση.',

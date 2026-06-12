@@ -123,7 +123,31 @@ export const apiClient: AxiosInstance = axios.create({
 
 const MUTATING_METHODS = new Set(['post', 'put', 'patch', 'delete'])
 
-// Request interceptor - add socket ID + idempotency key for mutating requests
+// ── Simple in-memory cache for GET requests ────────────────────────────────
+interface CacheEntry {
+  data: unknown
+  expiresAt: number
+}
+const _apiCache = new Map<string, CacheEntry>()
+const CACHE_TTL_MS = 5_000 // 5 seconds
+
+function cacheKey(config: unknown): string {
+  const c = config as { url?: string; params?: Record<string, unknown> }
+  const params = c.params ? JSON.stringify(c.params) : ''
+  return `${c.url || ''}?${params}`
+}
+
+export function invalidateApiCache(urlPattern?: string): void {
+  if (!urlPattern) {
+    _apiCache.clear()
+    return
+  }
+  for (const key of _apiCache.keys()) {
+    if (key.startsWith(urlPattern)) _apiCache.delete(key)
+  }
+}
+
+// Request interceptor - add socket ID + idempotency key + cache lookup
 apiClient.interceptors.request.use(
     (config) => {
       const sid = getSocketId()
@@ -147,7 +171,7 @@ apiClient.interceptors.request.use(
 
 export function isAuthPublicPath(pathname: string): boolean {
   const publicPaths = ['/login', '/register', '/forgot-password', '/reset-password']
-  const publicPrefixes = ['/shared/', '/public/']
+  const publicPrefixes = ['/shared/', '/public/', '/invite/', '/guest/']
   return publicPaths.includes(pathname) || publicPrefixes.some((p) => pathname.startsWith(p))
 }
 
@@ -327,6 +351,8 @@ export const tripsApi = {
   update: (id: number | string, data: TripUpdateRequest) => apiClient.put(`/trips/${id}`, data).then(r => r.data),
   delete: (id: number | string) => apiClient.delete(`/trips/${id}`).then(r => r.data),
   uploadCover: (id: number | string, formData: FormData) => apiClient.post(`/trips/${id}/cover`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  searchCoverImages: (q: string) => apiClient.get(`/trips/cover-search?q=${encodeURIComponent(q)}`).then(r => r.data) as Promise<{ photos: { id: string; url: string; thumb: string; description: string | null; photographer: string | null; photographerUrl: string | null; link: string }[] }>,
+  triggerUnsplashDownload: (photoId: string) => apiClient.post('/trips/unsplash-download', { photoId }).then(r => r.data),
   archive: (id: number | string) => apiClient.put(`/trips/${id}`, { is_archived: true }).then(r => r.data),
   unarchive: (id: number | string) => apiClient.put(`/trips/${id}`, { is_archived: false }).then(r => r.data),
   getMembers: (id: number | string) => apiClient.get(`/trips/${id}/members`).then(r => r.data),
@@ -334,6 +360,9 @@ export const tripsApi = {
   removeMember: (id: number | string, userId: number) => apiClient.delete(`/trips/${id}/members/${userId}`).then(r => r.data),
   copy: (id: number | string, data?: TripCopyRequest) => apiClient.post(`/trips/${id}/copy`, data || {}).then(r => r.data),
   bundle: (id: number | string) => apiClient.get(`/trips/${id}/bundle`).then(r => r.data),
+  checkOverflow: (id: number | string, startDate: string, endDate: string) =>
+    apiClient.get(`/trips/${id}/overflow-check`, { params: { start_date: startDate, end_date: endDate } }).then(r => r.data) as Promise<{ daysToRemove: number; assignments: number; notes: number; accommodations: number }>,
+  getGroups: (id: number | string) => apiClient.get(`/trips/${id}/groups`).then(r => r.data) as Promise<{ groups: Array<{ id: number; name: string }> }>,
 }
 
 export const daysApi = {
@@ -350,7 +379,10 @@ export const placesApi = {
   get: (tripId: number | string, id: number | string) => apiClient.get(`/trips/${tripId}/places/${id}`).then(r => r.data),
   update: (tripId: number | string, id: number | string, data: PlaceUpdateRequest) => apiClient.put(`/trips/${tripId}/places/${id}`, data).then(r => r.data),
   delete: (tripId: number | string, id: number | string) => apiClient.delete(`/trips/${tripId}/places/${id}`).then(r => r.data),
-  searchImage: (tripId: number | string, id: number | string) => apiClient.get(`/trips/${tripId}/places/${id}/image`).then(r => r.data),
+  searchImage: (tripId: number | string, id: number | string, q?: string) => apiClient.get(`/trips/${tripId}/places/${id}/image${q ? `?q=${encodeURIComponent(q)}` : ''}`).then(r => r.data),
+  setImage: (tripId: number | string, id: number | string, imageUrl: string) => apiClient.post(`/trips/${tripId}/places/${id}/image`, { image_url: imageUrl }).then(r => r.data),
+  uploadPhoto: (tripId: number | string, id: number | string, formData: FormData) => apiClient.post(`/trips/${tripId}/places/${id}/photo`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  deletePhoto: (tripId: number | string, id: number | string) => apiClient.delete(`/trips/${tripId}/places/${id}/photo`).then(r => r.data),
   importGpx: (tripId: number | string, file: File, opts?: { waypoints?: boolean; routes?: boolean; tracks?: boolean }) => {
     const fd = new FormData()
     fd.append('file', file)
@@ -372,6 +404,21 @@ export const placesApi = {
       apiClient.post(`/trips/${tripId}/places/import/naver-list`, { url }).then(r => r.data),
   bulkDelete: (tripId: number | string, ids: number[]) =>
       apiClient.post(`/trips/${tripId}/places/bulk-delete`, { ids } satisfies PlaceBulkDeleteRequest).then(r => r.data),
+  importKml: (tripId: string | number, formData: FormData) =>
+    apiClient.post(`/trips/${tripId}/places/import/kml`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  getVotes: (tripId: number | string, placeId: number | string) =>
+    apiClient.get(`/trips/${tripId}/places/${placeId}/votes`).then(r => r.data),
+  vote: (tripId: number | string, placeId: number | string, vote: 1 | -1 | null) =>
+    apiClient.put(`/trips/${tripId}/places/${placeId}/vote`, { vote }).then(r => r.data),
+  exportGpx: async (tripId: number | string): Promise<void> => {
+    const res = await apiClient.get(`/trips/${tripId}/places/export.gpx`, { responseType: 'blob' })
+    const url = URL.createObjectURL(res.data as Blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `places-${tripId}.gpx`
+    a.click()
+    URL.revokeObjectURL(url)
+  },
 }
 
 export const assignmentsApi = {
@@ -424,6 +471,7 @@ export const tagsApi = {
 
 export const categoriesApi = {
   list: () => apiClient.get('/categories').then(r => r.data),
+  listMy: () => apiClient.get('/categories/my').then(r => r.data),
   create: (data: CreateCategoryRequest) => apiClient.post('/categories', data).then(r => r.data),
   update: (id: number, data: UpdateCategoryRequest) => apiClient.put(`/categories/${id}`, data).then(r => r.data),
   delete: (id: number) => apiClient.delete(`/categories/${id}`).then(r => r.data),
@@ -431,11 +479,20 @@ export const categoriesApi = {
 
 export const adminApi = {
   users: () => apiClient.get('/admin/users').then(r => r.data),
+  usersTripStats: () => apiClient.get('/admin/users/stats/trips').then(r => r.data),
   createUser: (data: Record<string, unknown>) => apiClient.post('/admin/users', data).then(r => r.data),
   updateUser: (id: number, data: Record<string, unknown>) => apiClient.put(`/admin/users/${id}`, data).then(r => r.data),
   deleteUser: (id: number) => apiClient.delete(`/admin/users/${id}`).then(r => r.data),
   resetUserPasskeys: (id: number) => apiClient.delete(`/admin/users/${id}/passkeys`).then(r => r.data),
+  transferTrip: (tripId: number, newUserId: number) =>
+    apiClient.patch(`/admin/trips/${tripId}/owner`, { new_user_id: newUserId }).then(r => r.data),
   stats: () => apiClient.get('/admin/stats').then(r => r.data),
+  getPlatformFee: () => apiClient.get('/admin/platform-fee').then(r => r.data),
+  setPlatformFee: (platform_fee_percent: number | null) => apiClient.put('/admin/platform-fee', { platform_fee_percent }).then(r => r.data),
+  getMollieFees: () => apiClient.get('/admin/mollie-fees').then(r => r.data),
+  setMollieFees: (methods: Array<{ name: string; fixed_cents: number; variable_pct: number }>) => apiClient.put('/admin/mollie-fees', { methods }).then(r => r.data),
+  getPayouts: () => apiClient.get('/admin/payouts').then(r => r.data),
+  registerPayout: (data: { creator_user_id: number; amount_cents: number; description?: string }) => apiClient.post('/admin/payouts', data).then(r => r.data),
   saveDemoBaseline: () => apiClient.post('/admin/save-demo-baseline').then(r => r.data),
   getOidc: () => apiClient.get('/admin/oidc').then(r => r.data),
   updateOidc: (data: Record<string, unknown>) => apiClient.put('/admin/oidc', data).then(r => r.data),
@@ -481,6 +538,19 @@ export const adminApi = {
   updateNotificationPreferences: (prefs: Record<string, Record<string, boolean>>) => apiClient.put('/admin/notification-preferences', prefs).then(r => r.data),
   getDefaultUserSettings: () => apiClient.get('/admin/default-user-settings').then(r => r.data),
   updateDefaultUserSettings: (settings: Record<string, unknown>) => apiClient.put('/admin/default-user-settings', settings).then(r => r.data),
+  getGroupWelcomeNotice: () => apiClient.get('/admin/group-welcome-notice').then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
+  updateGroupWelcomeNotice: (data: { title: string; body: string; icon: string }) => apiClient.put('/admin/group-welcome-notice', data).then(r => r.data) as Promise<{ title: string; body: string; icon: string }>,
+  getUnsplash: () => apiClient.get('/admin/unsplash').then(r => r.data) as Promise<{ configured: boolean }>,
+  updateUnsplash: (key: string) => apiClient.put('/admin/unsplash', { key }).then(r => r.data) as Promise<{ configured: boolean }>,
+  getBranding: () => apiClient.get('/admin/branding').then(r => r.data),
+  updateBranding: (data: { brand_name?: string; brand_accent?: string; brand_accent_text?: string; brand_bg_primary?: string; brand_bg_secondary?: string; brand_text_primary?: string; brand_text_secondary?: string; brand_text_muted?: string; brand_nav_bg?: string; disable_dark_mode?: string }) => apiClient.put('/admin/branding', data).then(r => r.data),
+  uploadBrandingLogo: (key: string, file: File) => {
+    const fd = new FormData()
+    fd.append('key', key)
+    fd.append('file', file)
+    return apiClient.post('/admin/branding/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data) as Promise<{ url: string }>
+  },
+  deleteBrandingLogo: (key: string) => apiClient.delete('/admin/branding/logo', { data: { key } }).then(r => r.data),
 }
 
 export const addonsApi = {
@@ -552,8 +622,8 @@ export const journeyApi = {
 
 export const mapsApi = {
   search: (query: string, lang?: string) => apiClient.post(`/maps/search?lang=${lang || 'en'}`, { query }).then(r => checkInDev(mapsSearchResultSchema, r.data, 'maps.search')),
-  autocomplete: (input: string, lang?: string, locationBias?: { low: { lat: number; lng: number }; high: { lat: number; lng: number } }, signal?: AbortSignal) =>
-      apiClient.post('/maps/autocomplete', { input, lang, locationBias }, { signal }).then(r => checkInDev(mapsAutocompleteResultSchema, r.data, 'maps.autocomplete')),
+  autocomplete: (input: string, lang?: string, locationBias?: { low: { lat: number; lng: number }; high: { lat: number; lng: number } }, signal?: AbortSignal, types?: string[]) =>
+      apiClient.post('/maps/autocomplete', { input, lang, locationBias, types }, { signal }).then(r => checkInDev(mapsAutocompleteResultSchema, r.data, 'maps.autocomplete')),
   details: (placeId: string, lang?: string) => apiClient.get(`/maps/details/${encodeURIComponent(placeId)}`, { params: { lang } }).then(r => checkInDev(mapsPlaceDetailsResultSchema, r.data, 'maps.details')),
   placePhoto: (placeId: string, lat?: number, lng?: number, name?: string) => apiClient.get(`/maps/place-photo/${encodeURIComponent(placeId)}`, { params: { lat, lng, name } }).then(r => checkInDev(mapsPlacePhotoResultSchema, r.data, 'maps.placePhoto')),
   reverse: (lat: number, lng: number, lang?: string) => apiClient.get('/maps/reverse', { params: { lat, lng, lang } }).then(r => checkInDev(mapsReverseResultSchema, r.data, 'maps.reverse')),
@@ -675,6 +745,45 @@ export const collabApi = {
   linkPreview: (tripId: number | string, url: string) => apiClient.get(`/trips/${tripId}/collab/link-preview?url=${encodeURIComponent(url)}`).then(r => r.data),
 }
 
+export const dateProposalsApi = {
+  list: (groupId: number | string) => apiClient.get(`/groups/${groupId}/date-proposals`).then(r => r.data),
+  create: (groupId: number | string, data: { title?: string; period_start: string; period_end: string; deadline?: string | null; reminder_days?: number; response_threshold?: number }) =>
+    apiClient.post(`/groups/${groupId}/date-proposals`, data).then(r => r.data),
+  delete: (groupId: number | string, proposalId: number) =>
+    apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),
+  setAvailability: (groupId: number | string, proposalId: number, responses: Record<string, 'yes' | 'no' | 'maybe' | null>, notes?: Record<string, string | null>) =>
+    apiClient.put(`/groups/${groupId}/date-proposals/${proposalId}/availability`, { responses, notes }).then(r => r.data),
+  myProposals: () => apiClient.get('/date-proposals').then(r => r.data),
+  getAnalysis: (groupId: number | string, proposalId: number, minDays = 3, maxSuggestions = 5) =>
+    apiClient.get(`/groups/${groupId}/date-proposals/${proposalId}/analysis`, { params: { min_days: minDays, max_suggestions: maxSuggestions } }).then(r => r.data),
+  confirm: (groupId: number | string, proposalId: number, data: { confirmed_start: string; confirmed_end: string }) =>
+    apiClient.patch(`/groups/${groupId}/date-proposals/${proposalId}/confirm`, data).then(r => r.data),
+  reopen: (groupId: number | string, proposalId: number) =>
+    apiClient.patch(`/groups/${groupId}/date-proposals/${proposalId}/reopen`).then(r => r.data),
+  createGuestLink: (groupId: number | string, proposalId: number, expiresInDays?: number) =>
+    apiClient.post(`/groups/${groupId}/date-proposals/${proposalId}/guest-link`, { expires_in_days: expiresInDays }).then(r => r.data),
+  deleteGuestLink: (groupId: number | string, proposalId: number, tokenId: number) =>
+    apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}/guest-link/${tokenId}`).then(r => r.data),
+  ping: (groupId: number | string, proposalId: number) =>
+    apiClient.post(`/groups/${groupId}/date-proposals/${proposalId}/ping`).then(r => r.data),
+}
+
+export const availabilityApi = {
+  listVacationDays: () => apiClient.get('/availability/vacation-days').then(r => r.data),
+  createVacationDay: (data: { start_date: string; end_date: string; label?: string; color?: string }) =>
+    apiClient.post('/availability/vacation-days', data).then(r => r.data),
+  deleteVacationDay: (id: number) => apiClient.delete(`/availability/vacation-days/${id}`).then(r => r.data),
+
+  listCompanyHolidays: () => apiClient.get('/availability/company-holidays').then(r => r.data),
+  createCompanyHoliday: (data: { date: string; name: string; color?: string }) =>
+    apiClient.post('/availability/company-holidays', data).then(r => r.data),
+  deleteCompanyHoliday: (id: number) => apiClient.delete(`/availability/company-holidays/${id}`).then(r => r.data),
+
+  listHolidayCountries: () => apiClient.get('/availability/holidays/countries').then(r => r.data),
+  getHolidays: (year: number | string, country: string) =>
+    apiClient.get(`/availability/holidays/${year}/${country}`).then(r => r.data),
+}
+
 export const backupApi = {
   list: () => apiClient.get('/backup/list').then(r => r.data),
   create: () => apiClient.post('/backup/create').then(r => r.data),
@@ -702,11 +811,76 @@ export const backupApi = {
   setAutoSettings: (settings: Record<string, unknown>) => apiClient.put('/backup/auto-settings', settings).then(r => r.data),
 }
 
+export const userExportApi = {
+  preview: () => apiClient.get('/user/export/preview').then(r => r.data),
+  start: () => apiClient.post('/user/export').then(r => r.data),
+  status: () => apiClient.get('/user/export/status').then(r => r.data),
+  downloadUrl: (token: string) => `/api/user/export/download/${token}`,
+  import: (file: File) => {
+    const fd = new FormData()
+    fd.append('trek', file)
+    return apiClient.post('/user/import', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
+}
+
+export const gdprApi = {
+  requestDeletion: () => apiClient.post('/user/delete-account').then(r => r.data),
+  cancelDeletion: () => apiClient.post('/user/cancel-deletion').then(r => r.data),
+  exports: () => apiClient.get('/admin/gdpr/exports').then(r => r.data),
+  deletions: () => apiClient.get('/admin/gdpr/deletions').then(r => r.data),
+}
+
+export const adminRestoreApi = {
+  upload: (file: File) => {
+    const fd = new FormData()
+    fd.append('trek', file)
+    return apiClient.post('/admin/backup-v2/upload', fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+  },
+  preview: (uploadId: string) => apiClient.get(`/admin/backup-v2/upload/${uploadId}/preview`).then(r => r.data),
+  restore: (uploadId: string, strategy: string, scopes?: string[], dryRun?: boolean) =>
+    apiClient.post(`/admin/backup-v2/upload/${uploadId}/restore`, { strategy, scopes, dryRun }).then(r => r.data),
+}
+
+export const backupScheduleApi = {
+  list: () => apiClient.get('/admin/backup-v2/schedules').then(r => r.data),
+  create: (data: Record<string, unknown>) => apiClient.post('/admin/backup-v2/schedules', data).then(r => r.data),
+  update: (id: string, data: Record<string, unknown>) => apiClient.put(`/admin/backup-v2/schedules/${id}`, data).then(r => r.data),
+  delete: (id: string) => apiClient.delete(`/admin/backup-v2/schedules/${id}`).then(r => r.data),
+  run: (id: string) => apiClient.post(`/admin/backup-v2/schedules/${id}/run`).then(r => r.data),
+}
+
 export const shareApi = {
   getLink: (tripId: number | string) => apiClient.get(`/trips/${tripId}/share-link`).then(r => r.data),
   createLink: (tripId: number | string, perms?: Record<string, boolean>) => apiClient.post(`/trips/${tripId}/share-link`, perms || {}).then(r => r.data),
   deleteLink: (tripId: number | string) => apiClient.delete(`/trips/${tripId}/share-link`).then(r => r.data),
+  getVisits: (tripId: number | string) => apiClient.get(`/trips/${tripId}/share-visits`).then(r => r.data),
   getSharedTrip: (token: string) => apiClient.get(`/shared/${token}`).then(r => r.data),
+  cloneTrip: (token: string) => apiClient.post(`/shared/${token}/clone`).then(r => r.data),
+  getCollabInvite: (tripId: number | string) => apiClient.get(`/trips/${tripId}/collab-invite`).then(r => r.data),
+  createCollabInvite: (tripId: number | string) => apiClient.post(`/trips/${tripId}/collab-invite`).then(r => r.data),
+  revokeCollabInvite: (tripId: number | string) => apiClient.delete(`/trips/${tripId}/collab-invite`).then(r => r.data),
+  updateCollabInvite: (tripId: number | string, data: { visible_to_members: boolean }) => apiClient.patch(`/trips/${tripId}/collab-invite`, data).then(r => r.data),
+  previewCollabInvite: (token: string) => apiClient.get(`/invite/trip/${token}`).then(r => r.data),
+  joinTripViaInvite: (token: string) => apiClient.post(`/invite/trip/${token}/join`).then(r => r.data),
+}
+
+export type VisitPageType = 'shared_trip' | 'journey' | 'link_in_bio'
+export type VisitSourceAnswer = 'social_media' | 'friend' | 'search_engine' | 'blog_website' | 'other'
+
+export const visitsApi = {
+  track: (data: { page_type: VisitPageType; page_ref: string; referrer?: string; utm_source?: string; utm_medium?: string; utm_campaign?: string }) =>
+    apiClient.post('/visits', data).then(r => r.data),
+  survey: (data: { page_type: VisitPageType; page_ref: string; answer: VisitSourceAnswer }) =>
+    apiClient.post('/visits/survey', data).then(r => r.data),
+  getInsights: (days?: number) =>
+    apiClient.get('/visits/insights', { params: { days } }).then(r => r.data as {
+      days: number
+      totals: Array<{ page_type: string; visits: number; unique_visitors: number }>
+      referrers: Array<{ host: string; count: number }>
+      utmSources: Array<{ utm_source: string; count: number }>
+      surveyAnswers: Array<{ source_answer: string; count: number }>
+      recent: Array<{ page_type: string; page_ref: string; referrer_host: string | null; utm_source: string | null; utm_medium: string | null; utm_campaign: string | null; source_answer: string | null; visited_at: string }>
+    }),
 }
 
 export const notificationsApi = {
@@ -735,5 +909,289 @@ export const inAppNotificationsApi = {
   respond: (id: number, response: NotificationRespondRequest['response']) =>
       apiClient.post(`/notifications/in-app/${id}/respond`, { response }).then(r => r.data),
 }
+
+export const groupsApi = {
+  list: () => apiClient.get('/addons/groups').then(r => r.data),
+  create: (data: { name: string; description?: string; cover_image?: string }) =>
+    apiClient.post('/addons/groups', data).then(r => r.data),
+  get: (id: number) => apiClient.get(`/addons/groups/${id}`).then(r => r.data),
+  update: (id: number, data: { name?: string; description?: string | null; cover_image?: string | null }) =>
+    apiClient.put(`/addons/groups/${id}`, data).then(r => r.data),
+  delete: (id: number) => apiClient.delete(`/addons/groups/${id}`).then(r => r.data),
+
+  addMember: (id: number, userId: number, role?: string) =>
+    apiClient.post(`/addons/groups/${id}/members`, { user_id: userId, role }).then(r => r.data),
+  removeMember: (id: number, userId: number) =>
+    apiClient.delete(`/addons/groups/${id}/members/${userId}`).then(r => r.data),
+  leaveGroup: (id: number, newAdminId?: number) =>
+    apiClient.post(`/addons/groups/${id}/leave`, { new_admin_id: newAdminId }).then(r => r.data),
+  updateMemberRole: (id: number, userId: number, role: string) =>
+    apiClient.put(`/addons/groups/${id}/members/${userId}/role`, { role }).then(r => r.data),
+
+  addTrip: (id: number, tripId: number) =>
+    apiClient.post(`/addons/groups/${id}/trips`, { trip_id: tripId }).then(r => r.data),
+  removeTrip: (id: number, tripId: number) =>
+    apiClient.delete(`/addons/groups/${id}/trips/${tripId}`).then(r => r.data),
+  getTripParticipants: (groupId: number, tripId: number) =>
+    apiClient.get(`/addons/groups/${groupId}/trips/${tripId}/participants`).then(r => r.data),
+  setTripParticipants: (groupId: number, tripId: number, userIds: number[]) =>
+    apiClient.put(`/addons/groups/${groupId}/trips/${tripId}/participants`, { user_ids: userIds }).then(r => r.data),
+  setMyVacaySharing: (groupId: number, share_vacay: boolean | null) =>
+    apiClient.patch(`/addons/groups/${groupId}/my-vacay-sharing`, { share_vacay }).then(r => r.data),
+  updateWelcome: (id: number, data: { welcome_title?: string | null; welcome_body?: string | null; welcome_icon?: string | null }) =>
+    apiClient.patch(`/addons/groups/${id}/welcome`, data).then(r => r.data),
+  uploadCover: (id: number, file: File) => {
+    const fd = new FormData(); fd.append('cover', file);
+    return apiClient.post(`/addons/groups/${id}/cover`, fd, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data as { url: string });
+  },
+  deleteCover: (id: number) => apiClient.delete(`/addons/groups/${id}/cover`).then(r => r.data),
+  rsvpTrip: (id: number, tripId: number) =>
+    apiClient.post(`/addons/groups/${id}/trips/${tripId}/rsvp`).then(r => r.data as { participating: boolean; participants: Array<{ id: number; username: string; avatar?: string | null }> }),
+  getStats: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/stats`).then(r => r.data as { trip_count: number; country_count: number; total_days: number; milestones: string[] }),
+  getAtlas: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/atlas`).then(r => r.data as { countries: Array<{ code: string; place_count: number }> }),
+  getActivity: (id: number, options?: { limit?: number; before?: number }) =>
+    apiClient.get(`/addons/groups/${id}/activity`, { params: options }).then(r => r.data as { events: Array<{ id: number; actor_id: number | null; actor_name: string | null; event_type: string; resource_id: number | null; resource_title: string | null; created_at: string }>; hasMore: boolean }),
+  setBrandColor: (id: number, brand_color: string | null) =>
+    apiClient.patch(`/addons/groups/${id}/brand-color`, { brand_color }).then(r => r.data),
+
+  // Prikbord
+  listIdeas: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/ideas`).then(r => r.data as { ideas: Array<{ id: number; user_id: number; username: string | null; title: string; body: string | null; created_at: string }> }),
+  createIdea: (id: number, data: { title: string; body?: string }) =>
+    apiClient.post(`/addons/groups/${id}/ideas`, data).then(r => r.data as { idea: { id: number; user_id: number; username: string | null; title: string; body: string | null; created_at: string } }),
+  deleteIdea: (id: number, ideaId: number) =>
+    apiClient.delete(`/addons/groups/${id}/ideas/${ideaId}`).then(r => r.data),
+
+  // Taakverdeling
+  listTasks: (id: number) =>
+    apiClient.get(`/addons/groups/${id}/tasks`).then(r => r.data as { tasks: Array<{ id: number; title: string; done: number; assigned_to: number | null; assigned_username: string | null; assigned_avatar: string | null; created_by: number; sort_order: number; created_at: string }> }),
+  createTask: (id: number, data: { title: string; assigned_to?: number | null }) =>
+    apiClient.post(`/addons/groups/${id}/tasks`, data).then(r => r.data as { task: { id: number; title: string; done: number; assigned_to: number | null; assigned_username: string | null; assigned_avatar: string | null; created_by: number; sort_order: number; created_at: string } }),
+  updateTask: (id: number, taskId: number, data: { done?: number; title?: string; assigned_to?: number | null }) =>
+    apiClient.patch(`/addons/groups/${id}/tasks/${taskId}`, data).then(r => r.data),
+  deleteTask: (id: number, taskId: number) =>
+    apiClient.delete(`/addons/groups/${id}/tasks/${taskId}`).then(r => r.data),
+
+  searchUsers: (q: string) => apiClient.get('/addons/groups/users/search', { params: { q } }).then(r => r.data),
+
+  createInviteLink: (id: number, data?: { role?: string; max_uses?: number; expires_in_days?: number }) =>
+    apiClient.post(`/addons/groups/${id}/invite-link`, data || {}).then(r => r.data),
+  getInviteLink: (id: number) => apiClient.get(`/addons/groups/${id}/invite-link`).then(r => r.data),
+  deleteInviteLink: (id: number) => apiClient.delete(`/addons/groups/${id}/invite-link`).then(r => r.data),
+  validateInvite: (token: string) => apiClient.get(`/addons/groups/join/${token}`).then(r => r.data),
+  joinWithToken: (token: string) => apiClient.post(`/addons/groups/join/${token}`).then(r => r.data),
+
+  // Polls
+  listPolls: (tripId: number | string) => apiClient.get(`/addons/groups/polls/${tripId}`).then(r => r.data),
+  createPoll: (tripId: number | string, data: { title: string; description?: string; type?: string; deadline?: string; anonymous?: boolean; allow_guest_votes?: boolean }) =>
+    apiClient.post(`/addons/groups/polls/${tripId}`, data).then(r => r.data),
+  addPollOption: (tripId: number | string, pollId: string, data: { label: string; description?: string; lat?: number; lng?: number; image_url?: string }) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/options`, data).then(r => r.data),
+  deletePollOption: (tripId: number | string, pollId: string, optionId: string) =>
+    apiClient.delete(`/addons/groups/polls/${tripId}/${pollId}/options/${optionId}`).then(r => r.data),
+  updatePollOptionOrder: (tripId: number | string, pollId: string, options: Array<{ option_id: string; sort_order: number }>) =>
+    apiClient.patch(`/addons/groups/polls/${tripId}/${pollId}/options`, { options }).then(r => r.data),
+  vote: (tripId: number | string, pollId: string, optionId: string) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/vote`, { option_id: optionId }).then(r => r.data),
+  closePoll: (tripId: number | string, pollId: string, status: 'closed' | 'decided', decidedOptionId?: string) =>
+    apiClient.patch(`/addons/groups/polls/${tripId}/${pollId}`, { status, decided_option_id: decidedOptionId }).then(r => r.data),
+  submitRankedVote: (tripId: number | string, pollId: string, rankings: Array<{ option_id: string; rank: number }>) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/ranked-vote`, { rankings }).then(r => r.data),
+  swipeVote: (tripId: number | string, pollId: string, optionId: string, swipeValue: string) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/swipe`, { option_id: optionId, swipe_value: swipeValue }).then(r => r.data),
+  getSwipeMatches: (tripId: number | string, pollId: string) =>
+    apiClient.get(`/addons/groups/polls/${tripId}/${pollId}/matches`).then(r => r.data),
+  createGuestLink: (tripId: number | string, pollId: string) =>
+    apiClient.post(`/addons/groups/polls/${tripId}/${pollId}/guest-link`).then(r => r.data),
+}
+
+export const exploreApi = {
+  getFeaturedTrips: (limit?: number) =>
+    apiClient.get('/addons/explore/trips/featured', { params: limit ? { limit } : undefined }).then(r => r.data),
+  listTrips: (params?: {
+    filter?: 'all' | 'curated' | 'community'
+    q?: string
+    minPrice?: number
+    maxPrice?: number
+    destination?: string
+    difficulty?: string
+    tag?: string
+    sort?: 'newest' | 'popular' | 'rating' | 'price_asc' | 'price_desc'
+    page?: number
+    limit?: number
+  }) =>
+    apiClient.get('/addons/explore/trips', { params: params || undefined }).then(r => r.data),
+  getTrip: (id: number | string) => apiClient.get(`/addons/explore/trips/${id}`).then(r => r.data),
+  publishTrip: (id: number | string, price: number, descriptions?: Record<string, string>, community_enabled?: boolean) =>
+    apiClient.post(`/addons/explore/trips/${id}/publish`, { price, descriptions, community_enabled }).then(r => r.data),
+  publishUpdate: (id: number | string, descriptions?: Record<string, string>) =>
+    apiClient.post(`/addons/explore/trips/${id}/publish-update`, { descriptions }).then(r => r.data),
+  unpublishTrip: (id: number | string) => apiClient.post(`/addons/explore/trips/${id}/unpublish`).then(r => r.data),
+  purchaseTrip: (id: number | string, data: { title: string }) => apiClient.post(`/addons/explore/trips/${id}/purchase`, data).then(r => r.data),
+  syncTrip: (tripId: number | string) => apiClient.post(`/addons/explore/trips/${tripId}/sync`).then(r => r.data),
+  getSyncStatus: (tripId: number | string) => apiClient.get(`/addons/explore/trips/${tripId}/sync-status`).then(r => r.data),
+  getCommunityPlaces: (sourceTripId: number | string) =>
+    apiClient.get(`/addons/explore/trips/${sourceTripId}/community-places`).then(r => r.data),
+  contributeCommunityPlace: (sourceTripId: number | string, data: Record<string, unknown>) =>
+    apiClient.post(`/addons/explore/trips/${sourceTripId}/community-places`, data).then(r => r.data),
+  deleteCommunityPlace: (sourceTripId: number | string, placeId: number | string) =>
+    apiClient.delete(`/addons/explore/trips/${sourceTripId}/community-places/${placeId}`).then(r => r.data),
+  // Creator submission flow
+  submitTrip: (id: number | string, data: {
+    price?: number;
+    descriptions?: Record<string, string>;
+    community_enabled?: boolean;
+    listing_title?: string;
+    tagline?: string;
+    tags?: string[];
+    destination?: string;
+    country_code?: string;
+    difficulty?: string;
+    best_season?: string[];
+  }) =>
+    apiClient.post(`/addons/explore/trips/${id}/submit`, data).then(r => r.data),
+  getMySubmissions: () => apiClient.get('/addons/explore/my-submissions').then(r => r.data),
+  withdrawSubmission: (submissionId: number | string) => apiClient.delete(`/addons/explore/submissions/${submissionId}`).then(r => r.data),
+  // Creator updates to published listings
+  pushUpdate: (id: number | string, changelog?: string) =>
+    apiClient.post(`/addons/explore/trips/${id}/push-update`, { changelog }).then(r => r.data),
+  resubmitForReview: (id: number | string, message?: string) =>
+    apiClient.post(`/addons/explore/trips/${id}/resubmit-for-review`, { message }).then(r => r.data),
+  getPublicationStatus: (id: number | string) =>
+    apiClient.get(`/addons/explore/trips/${id}/publication-status`).then(r => r.data),
+  getPublishedSnapshot: (id: number | string) =>
+    apiClient.get(`/addons/explore/trips/${id}/published-snapshot`).then(r => r.data),
+  // Admin submission management
+  getSubmissions: (status?: 'pending' | 'approved' | 'rejected') =>
+    apiClient.get('/addons/explore/submissions', { params: status ? { status } : undefined }).then(r => r.data),
+  getAdminSubmissions: (status?: 'pending' | 'approved' | 'rejected' | 'all') =>
+    apiClient.get('/addons/explore/submissions', { params: status && status !== 'all' ? { status } : undefined }).then(r => r.data),
+  approveSubmission: (submissionId: number | string, data: { auto_approve?: boolean; price?: number; descriptions?: Record<string, string>; community_enabled?: boolean }) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/approve`, data).then(r => r.data),
+  rejectSubmission: (submissionId: number | string, data?: { notes?: string }) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/reject`, data || {}).then(r => r.data),
+  // Version history & suspension
+  getVersionHistory: (tripId: number | string) =>
+    apiClient.get(`/addons/explore/version-history/${tripId}`).then(r => r.data),
+  suspendListing: (submissionId: number | string, data: { reason?: string }) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/suspend`, data).then(r => r.data),
+  unsuspendListing: (submissionId: number | string) =>
+    apiClient.post(`/addons/explore/submissions/${submissionId}/unsuspend`, {}).then(r => r.data),
+  suspendCreator: (creatorId: number | string, data: { reason?: string }) =>
+    apiClient.post(`/addons/explore/creators/${creatorId}/suspend`, data).then(r => r.data),
+  unsuspendCreator: (creatorId: number | string) =>
+    apiClient.post(`/addons/explore/creators/${creatorId}/unsuspend`, {}).then(r => r.data),
+  // Fork deltas (tracking changes in forked trips)
+  getForkDeltas: (sourceId: number | string, forkedId: number | string) =>
+    apiClient.get(`/addons/explore/fork-deltas/${sourceId}/${forkedId}`).then(r => r.data),
+  // Reviews & Ratings
+  getReviews: (sourceTripId: number | string, sortBy?: 'recent' | 'helpful' | 'rating_high' | 'rating_low') =>
+    apiClient.get(`/addons/explore/trips/${sourceTripId}/reviews`, { params: sortBy ? { sortBy } : undefined }).then(r => r.data),
+  createReview: (sourceTripId: number | string, data: { rating: number; title?: string; content: string }) =>
+    apiClient.post(`/addons/explore/trips/${sourceTripId}/reviews`, data).then(r => r.data),
+  deleteReview: (reviewId: number | string) =>
+    apiClient.delete(`/addons/explore/reviews/${reviewId}`).then(r => r.data),
+  markReviewHelpful: (reviewId: number | string, isHelpful: boolean) =>
+    apiClient.post(`/addons/explore/reviews/${reviewId}/helpful`, { is_helpful: isHelpful }).then(r => r.data),
+  removeReviewHelpful: (reviewId: number | string) =>
+    apiClient.delete(`/addons/explore/reviews/${reviewId}/helpful`).then(r => r.data),
+  // Configuration
+  getConfig: () =>
+    apiClient.get('/addons/explore/config').then(r => r.data),
+  // Creator profile
+  applyCreator: (data: { display_name: string; slug: string; bio?: string; avatar?: string; social_links?: Record<string, string> }) =>
+    apiClient.post('/addons/explore/creators/apply', data).then(r => r.data),
+  getCreatorProfile: () =>
+    apiClient.get('/addons/explore/creators/me').then(r => r.data),
+  checkSlugAvailability: (slug: string) =>
+    apiClient.get(`/addons/explore/creators/check-slug/${slug}`).then(r => r.data),
+  getCreatorStorefront: (slug: string) =>
+    apiClient.get(`/addons/explore/creators/${slug}`).then(r => r.data),
+  // Payments
+  createPayment: (id: number | string) =>
+    apiClient.post(`/addons/explore/payments/trips/${id}/create-payment`).then(r => r.data),
+  getEarnings: () =>
+    apiClient.get('/addons/explore/payments/earnings').then(r => r.data),
+  getDetailedEarnings: () =>
+    apiClient.get('/addons/explore/payments/earnings/detailed').then(r => r.data),
+  // Admin
+  toggleFeatured: (listingId: number | string, is_featured: boolean) =>
+    apiClient.patch(`/admin/explore/listings/${listingId}/featured`, { is_featured }).then(r => r.data),
+  // Creator earnings
+  getCreatorEarnings: () =>
+    apiClient.get('/addons/explore/creators/me/earnings').then(r => r.data),
+  getCreatorPayouts: () =>
+    apiClient.get('/addons/explore/creators/me/payouts').then(r => r.data),
+  // Creator customization
+  updateCreatorProfile: (data: {
+    display_name?: string;
+    bio?: string;
+    avatar_url?: string;
+    cover_image_url?: string;
+    social_links?: Record<string, string>;
+    tagline?: string;
+  }) =>
+    apiClient.patch('/addons/explore/creators/me', data).then(r => r.data),
+}
+
+export const mollieApi = {
+  getStatus: () => apiClient.get('/mollie/status').then(r => r.data),
+}
+
+export const worldmapApi = {
+  getCountries: () => apiClient.get('/addons/worldmap/countries').then(r => r.data),
+  getEntries: (country?: string) =>
+    apiClient.get('/addons/worldmap/entries', { params: country ? { country } : undefined }).then(r => r.data),
+  addEntry: (data: { country_code: string; name: string; description?: string; category?: string; lat?: number; lng?: number }) =>
+    apiClient.post('/addons/worldmap/entries', data).then(r => r.data),
+  deleteEntry: (id: number) => apiClient.delete(`/addons/worldmap/entries/${id}`).then(r => r.data),
+}
+
+export const atlasApi = {
+  listResidency: () => apiClient.get('/addons/atlas/residency').then(r => r.data),
+  createResidency: (data: Record<string, unknown>) => apiClient.post('/addons/atlas/residency', data).then(r => r.data),
+  deleteResidency: (id: number) => apiClient.delete(`/addons/atlas/residency/${id}`).then(r => r.data),
+  listVolunteering: () => apiClient.get('/addons/atlas/volunteering').then(r => r.data),
+  createVolunteering: (data: Record<string, unknown>) => apiClient.post('/addons/atlas/volunteering', data).then(r => r.data),
+  deleteVolunteering: (id: number) => apiClient.delete(`/addons/atlas/volunteering/${id}`).then(r => r.data),
+}
+
+export const creatorHubApi = {
+  // Link-in-Bio config
+  getLibConfig: () => apiClient.get('/addons/explore/creator-hub/lib/config').then(r => r.data),
+  updateLibConfig: (data: Record<string, unknown>) =>
+    apiClient.patch('/addons/explore/creator-hub/lib/config', data).then(r => r.data),
+  // Blocks
+  getBlocks: () => apiClient.get('/addons/explore/creator-hub/lib/blocks').then(r => r.data),
+  createBlock: (data: Record<string, unknown>) =>
+    apiClient.post('/addons/explore/creator-hub/lib/blocks', data).then(r => r.data),
+  updateBlock: (id: string, data: Record<string, unknown>) =>
+    apiClient.patch(`/addons/explore/creator-hub/lib/blocks/${id}`, data).then(r => r.data),
+  deleteBlock: (id: string) =>
+    apiClient.delete(`/addons/explore/creator-hub/lib/blocks/${id}`).then(r => r.data),
+  reorderBlocks: (order: Array<{ id: string; sort_order: number }>) =>
+    apiClient.patch('/addons/explore/creator-hub/lib/blocks/reorder', { order }).then(r => r.data),
+  // Public
+  getPublicLib: (slug: string) => apiClient.get(`/public/lib/${slug}`).then(r => r.data),
+}
+
+export const affiliatesApi = {
+  getLinks: () => apiClient.get('/addons/explore/creator-hub/affiliates').then(r => r.data),
+  getStats: () => apiClient.get('/addons/explore/creator-hub/affiliates/stats').then(r => r.data),
+  createLink: (data: Record<string, unknown>) =>
+    apiClient.post('/addons/explore/creator-hub/affiliates', data).then(r => r.data),
+  updateLink: (id: string, data: Record<string, unknown>) =>
+    apiClient.patch(`/addons/explore/creator-hub/affiliates/${id}`, data).then(r => r.data),
+  deleteLink: (id: string) =>
+    apiClient.delete(`/addons/explore/creator-hub/affiliates/${id}`).then(r => r.data),
+}
+
+export const tipsApi = {
+  getTips: () => apiClient.get('/addons/explore/creator-hub/tips').then(r => r.data),
+}
+
+export default apiClient
 
 export default apiClient

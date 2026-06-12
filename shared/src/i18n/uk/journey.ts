@@ -219,7 +219,7 @@ const journey: TranslationStrings = {
   'journey.public.sharedVia': 'Опубліковано через',
   'journey.public.madeWith': 'Зроблено з допомогою',
   'journey.pdf.journeyBook': 'Книга подорожі',
-  'journey.pdf.madeWith': 'Зроблено з допомогою TREK',
+  'journey.pdf.madeWith': 'Зроблено з допомогою ROUTD',
   'journey.pdf.day': 'День',
   'journey.pdf.theEnd': 'Кінець',
   'journey.pdf.saveAsPdf': 'Зберегти як PDF',

@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import Database from 'better-sqlite3';
 import { db, closeDb, reinitialize } from '../db/database';
+import { runMigrations } from '../db/migrations';
 import * as scheduler from '../scheduler';
 import { invalidatePermissionsCache } from './permissions';
 
@@ -146,7 +147,11 @@ export async function createBackup(): Promise<BackupInfo> {
       const archive = archiver('zip', { zlib: { level: 9 } });
 
       output.on('close', resolve);
+      output.on('error', reject);
       archive.on('error', reject);
+      archive.on('warning', (err) => {
+        if (err.code !== 'ENOENT') reject(err); // Ignore missing files
+      });
 
       archive.pipe(output);
 
@@ -190,6 +195,15 @@ export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
   const extractDir = path.join(dataDir, `restore-${Date.now()}`);
   let reinitFailed: unknown = null;
   try {
+    // Validate file exists and has content
+    if (!fs.existsSync(zipPath)) {
+      return { success: false, error: 'Backup file not found', status: 400 };
+    }
+    const stats = fs.statSync(zipPath);
+    if (stats.size < 1000) {
+      return { success: false, error: 'Backup file is too small or truncated', status: 400 };
+    }
+
     // Check the declared uncompressed size from the central directory and bail
     // if it exceeds the cap, before extracting anything.
     const directory = await unzipper.Open.file(zipPath);
@@ -198,9 +212,18 @@ export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
       return { success: false, error: 'Backup exceeds the maximum decompressed size.', status: 400 };
     }
 
-    await fs.createReadStream(zipPath)
-      .pipe(unzipper.Extract({ path: extractDir }))
-      .promise();
+    try {
+      await fs.createReadStream(zipPath)
+        .pipe(unzipper.Extract({ path: extractDir }))
+        .promise();
+    } catch (unzipErr: unknown) {
+      fs.rmSync(extractDir, { recursive: true, force: true });
+      const errMsg = unzipErr instanceof Error ? unzipErr.message : String(unzipErr);
+      if (errMsg.includes('unexpected end of file') || errMsg.includes('Z_BUF_ERROR')) {
+        return { success: false, error: 'Backup file is corrupted or truncated. Please try uploading the backup again.', status: 400 };
+      }
+      return { success: false, error: `Failed to extract backup: ${errMsg}`, status: 400 };
+    }
 
     const extractedDb = path.join(extractDir, 'travel.db');
     if (!fs.existsSync(extractedDb)) {
@@ -210,7 +233,8 @@ export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
 
     let uploadedDb: InstanceType<typeof Database> | null = null;
     try {
-      uploadedDb = new Database(extractedDb, { readonly: true });
+      // Open in read-write mode to support schema upgrades
+      uploadedDb = new Database(extractedDb);
 
       const integrityResult = uploadedDb.prepare('PRAGMA integrity_check').get() as { integrity_check: string };
       if (integrityResult.integrity_check !== 'ok') {
@@ -226,8 +250,21 @@ export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
       for (const table of requiredTables) {
         if (!tableNames.has(table)) {
           fs.rmSync(extractDir, { recursive: true, force: true });
-          return { success: false, error: `Uploaded database is missing required table: ${table}. This does not appear to be a TREK backup.`, status: 400 };
+          return { success: false, error: `Uploaded database is missing required table: ${table}. This does not appear to be a ROUTD backup.`, status: 400 };
         }
+      }
+
+      // Run migrations to upgrade schema if backup is from older version
+      try {
+        const versionBefore = uploadedDb.prepare('SELECT version FROM schema_version').get() as { version: number } | undefined;
+        console.log('[backup] Schema version before migration:', versionBefore?.version ?? 'unknown');
+        runMigrations(uploadedDb);
+        const versionAfter = uploadedDb.prepare('SELECT version FROM schema_version').get() as { version: number } | undefined;
+        console.log('[backup] Schema upgraded from', versionBefore?.version ?? 'unknown', 'to', versionAfter?.version ?? 'unknown');
+      } catch (migErr: unknown) {
+        const migErrMsg = migErr instanceof Error ? migErr.message : String(migErr);
+        console.warn('[backup] Warning: Could not upgrade backup schema:', migErrMsg, migErr);
+        // Don't fail restore for migration issues — backup still might be usable
       }
     } catch (err) {
       fs.rmSync(extractDir, { recursive: true, force: true });

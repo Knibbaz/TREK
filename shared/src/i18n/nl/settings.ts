@@ -181,9 +181,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Stel een nieuwe functie voor',
   'settings.about.wikiHint': 'Documentatie en handleidingen',
   'settings.about.supporters.badge': 'Maandelijkse Steuners',
-  'settings.about.supporters.title': 'Reisgezelschap voor TREK',
+  'settings.about.supporters.title': 'Reisgezelschap voor ROUTD',
   'settings.about.supporters.subtitle':
-    'Terwijl jij je volgende route plant, plannen deze mensen mee aan de toekomst van TREK. Hun maandelijkse bijdrage gaat rechtstreeks naar ontwikkeling en echte uren — zodat TREK Open Source blijft.',
+    'Terwijl jij je volgende route plant, plannen deze mensen mee aan de toekomst van ROUTD. Hun maandelijkse bijdrage gaat rechtstreeks naar ontwikkeling en echte uren — zodat ROUTD Open Source blijft.',
   'settings.about.supporters.since': 'steuner sinds {date}',
   'settings.about.supporters.tierEmpty': 'Wees de eerste',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -193,7 +193,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    "TREK is een zelf-gehoste reisplanner die je helpt je reizen te organiseren van het eerste idee tot de laatste herinnering. Dagplanning, budget, paklijsten, foto's en nog veel meer — alles op één plek, op je eigen server.",
+    "ROUTD is een zelf-gehoste reisplanner die je helpt je reizen te organiseren van het eerste idee tot de laatste herinnering. Dagplanning, budget, paklijsten, foto's en nog veel meer — alles op één plek, op je eigen server.",
   'settings.about.madeWith': 'Gemaakt met',
   'settings.about.madeBy':
     'door Maurice en een groeiende open-source community.',
@@ -325,6 +325,16 @@ const settings: TranslationStrings = {
   'settings.passkey.neverUsed': 'Nooit gebruikt',
   'settings.mapPoiPill': 'Plaatsen op de kaart ontdekken',
   'settings.mapPoiPillHint': 'Toon een categorielabel op de reiskaart om restaurants, hotels en meer in de buurt te vinden via OpenStreetMap.',
+  'settings.navZoom': 'Navigatie zoomniveau',
+  'settings.defaultCurrency': 'Standaardvaluta',
+  'settings.defaultCurrencyHint': 'Wordt als standaard gebruikt bij het toevoegen van prijzen aan plekken.',
+  'settings.routeWalkingThreshold': 'Wandelen tot',
+  'settings.routeWalkingThresholdHint': 'Routes tot deze afstand tonen wandeltijd; daarboven auto.',
+  'settings.routeDrivingThreshold': 'Auto tot',
+  'settings.routeDrivingThresholdHint': 'Routes tot deze afstand tonen rijtijd; daarboven vlucht.',
+  'settings.shareVacayInGroups': 'Verlof en reizen delen in groepen',
+  'settings.shareVacayInGroupsHint': 'Jouw verlof en geplande reizen worden automatisch meegeteld bij beschikbaarheidsanalyses in groepen.',
+  'settings.roleCreator': 'Creator',
 };
 
 export default settings;

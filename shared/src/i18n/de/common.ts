@@ -51,5 +51,6 @@ const common: TranslationStrings = {
   'common.reset': 'Zurücksetzen',
   'common.copy': 'Kopieren',
   'common.copied': 'Kopiert',
+  'common.notNow': 'Nicht jetzt',
 };
 export default common;

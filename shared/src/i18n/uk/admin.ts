@@ -183,7 +183,7 @@ const admin: TranslationStrings = {
   'admin.tabs.addons': 'Дополнения',
   'admin.addons.title': 'Доповнення',
   'admin.addons.subtitle':
-    'Увімкніть або вимкніть функції, щоб налаштувати TREK під себе.',
+    'Увімкніть або вимкніть функції, щоб налаштувати ROUTD під себе.',
   'admin.addons.catalog.memories.name': 'Фото (Immich)',
   'admin.addons.catalog.memories.description':
     'Діліться фотографіями з подорожей через Immich',
@@ -226,7 +226,7 @@ const admin: TranslationStrings = {
   'admin.weather.title': 'Дані про погоду',
   'admin.weather.badge': 'З 24 березня 2026',
   'admin.weather.description':
-    'TREK використовує Open-Meteo як джерело даних про погоду. Open-Meteo — безкоштовний сервіс з відкритим кодом, API-ключ не потрібен.',
+    'ROUTD використовує Open-Meteo як джерело даних про погоду. Open-Meteo — безкоштовний сервіс з відкритим кодом, API-ключ не потрібен.',
   'admin.weather.forecast': 'Прогноз на 16 днів',
   'admin.weather.forecastDesc': 'Раніше 5 днів (OpenWeatherMap)',
   'admin.weather.climate': 'Історичні кліматичні дані',
@@ -286,17 +286,17 @@ const admin: TranslationStrings = {
   'admin.github.hideDetails': 'Сховати деталі',
   'admin.github.loadMore': 'Завантажити ще',
   'admin.github.loading': 'Завантаження...',
-  'admin.github.support': 'Допомагає продовжувати розробку TREK',
+  'admin.github.support': 'Допомагає продовжувати розробку ROUTD',
   'admin.github.error': 'Не вдалося завантажити релізи',
   'admin.github.by': 'від',
   'admin.update.available': 'Доступне оновлення',
   'admin.update.text':
-    'Доступна версія TREK {version}. У вас встановлено {current}.',
+    'Доступна версія ROUTD {version}. У вас встановлено {current}.',
   'admin.update.button': 'Переглянути на GitHub',
   'admin.update.install': 'Встановити оновлення',
   'admin.update.confirmTitle': 'Встановити оновлення?',
   'admin.update.confirmText':
-    'TREK буде оновлено з {current} до {version}. Сервер перезапуститься автоматично.',
+    'ROUTD буде оновлено з {current} до {version}. Сервер перезапуститься автоматично.',
   'admin.update.dataInfo':
     'Усі ваші дані (поїздки, користувачі, API-ключі, завантаження, Vacay, Atlas, бюджети) будуть збережені.',
   'admin.update.warning':
@@ -310,7 +310,7 @@ const admin: TranslationStrings = {
   'admin.update.backupLink': 'Перейти до резервних копій',
   'admin.update.howTo': 'Як оновити',
   'admin.update.dockerText':
-    'Ваш екземпляр TREK працює в Docker. Для оновлення до {version} виконайте ці команди на сервері:',
+    'Ваш екземпляр ROUTD працює в Docker. Для оновлення до {version} виконайте ці команди на сервері:',
   'admin.update.reloadHint': 'Перезавантажте сторінку через кілька секунд.',
   'admin.tabs.permissions': 'Дозволи',
   'admin.notifications.emailPanel.title': 'Email (SMTP)',

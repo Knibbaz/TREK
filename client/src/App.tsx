@@ -1,4 +1,6 @@
-import React, { useEffect, ReactNode } from 'react'
+import React, { useCallback, useEffect, useState, ReactNode } from 'react'
+import ErrorBoundary from './components/shared/ErrorBoundary'
+import { BrandingProvider, Branding } from './context/BrandingContext'
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuthStore } from './store/authStore'
 import { useSettingsStore } from './store/settingsStore'
@@ -15,14 +17,24 @@ import VacayPage from './pages/VacayPage'
 import AtlasPage from './pages/AtlasPage'
 import JourneyPage from './pages/JourneyPage'
 import JourneyDetailPage from './pages/JourneyDetailPage'
+import GroupsPage from './pages/GroupsPage'
+import GroupJoinPage from './pages/GroupJoinPage'
+import GuestAvailabilityPage from './pages/GuestAvailabilityPage'
+import GuestPollPage from './pages/GuestPollPage'
 import JourneyPublicPage from './pages/JourneyPublicPage'
+import ExplorePage from './pages/ExplorePage'
+import { CreatorStorefrontPage } from './pages/CreatorStorefrontPage'
+import CreatorHubPage from './pages/CreatorHubPage'
+import { LinkInBioPage } from './pages/LinkInBioPage'
+import WorldMapPage from './pages/WorldMapPage'
 import SharedTripPage from './pages/SharedTripPage'
+import TripInvitePage from './pages/TripInvitePage'
 import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx'
 import OAuthAuthorizePage from './pages/OAuthAuthorizePage'
 import { ToastContainer } from './components/shared/Toast'
 import BottomNav from './components/Layout/BottomNav'
 import { TranslationProvider, useTranslation } from './i18n'
-import { authApi } from './api/client'
+import { authApi, adminApi } from './api/client'
 import { usePermissionsStore, PermissionLevel } from './store/permissionsStore'
 import { useInAppNotificationListener } from './hooks/useInAppNotificationListener.ts'
 import { registerSyncTriggers, unregisterSyncTriggers } from './sync/syncTriggers'
@@ -102,12 +114,40 @@ function RootRedirect() {
 }
 
 export default function App() {
-  const { loadUser, isAuthenticated, demoMode, setDemoMode, setDevMode, setIsPrerelease, setAppVersion, setHasMapsKey, setServerTimezone, setAppRequireMfa, setTripRemindersEnabled, setPlacesPhotosEnabled, setPlacesAutocompleteEnabled, setPlacesDetailsEnabled } = useAuthStore()
+  const { loadUser, isAuthenticated, demoMode, setDemoMode, setDevMode, setIsPrerelease, setAppVersion, setHasMapsKey, setServerTimezone, setAppRequireMfa, setTripRemindersEnabled, setPlacesPhotosEnabled, setPlacesAutocompleteEnabled, setPlacesDetailsEnabled, setUnsplashConfigured } = useAuthStore()
   const { loadSettings } = useSettingsStore()
   const { loadAddons } = useAddonStore()
+  const [branding, setBranding] = useState<Partial<Branding> | null>(null)
+
+  const reloadBranding = useCallback(async () => {
+    try {
+      const data = await adminApi.getBranding() as Record<string, string>
+      setBranding({
+        name: data.brand_name || undefined,
+        logoLight: data.brand_logo_light || undefined,
+        logoDark: data.brand_logo_dark || undefined,
+        iconLight: data.brand_icon_light || undefined,
+        iconDark: data.brand_icon_dark || undefined,
+        accent: data.brand_accent || undefined,
+        accentText: data.brand_accent_text || undefined,
+        bgPrimary: data.brand_bg_primary || undefined,
+        bgSecondary: data.brand_bg_secondary || undefined,
+        textPrimary: data.brand_text_primary || undefined,
+        textSecondary: data.brand_text_secondary || undefined,
+        textMuted: data.brand_text_muted || undefined,
+        navBg: data.brand_nav_bg || undefined,
+        disableDarkMode: data.disable_dark_mode === 'true' ? true : undefined,
+      })
+    } catch { /* ignore */ }
+  }, [])
 
   useEffect(() => {
-    if (!location.pathname.startsWith('/shared/') && !location.pathname.startsWith('/public/') && !location.pathname.startsWith('/login')) {
+    window.addEventListener('branding-updated', reloadBranding)
+    return () => window.removeEventListener('branding-updated', reloadBranding)
+  }, [reloadBranding])
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/shared/') && !location.pathname.startsWith('/public/') && !location.pathname.startsWith('/invite/') && !location.pathname.startsWith('/login')) {
       // If the persist snapshot already has an authenticated user, validate
       // silently so the PWA shell renders immediately without a spinner.
       const alreadyAuthenticated = useAuthStore.getState().isAuthenticated
@@ -118,7 +158,7 @@ export default function App() {
         loadUser()
       }
     }
-    authApi.getAppConfig().then(async (config: { demo_mode?: boolean; dev_mode?: boolean; is_prerelease?: boolean; has_maps_key?: boolean; version?: string; timezone?: string; require_mfa?: boolean; trip_reminders_enabled?: boolean; places_photos_enabled?: boolean; places_autocomplete_enabled?: boolean; places_details_enabled?: boolean; permissions?: Record<string, PermissionLevel> }) => {
+    authApi.getAppConfig().then(async (config: { demo_mode?: boolean; dev_mode?: boolean; is_prerelease?: boolean; has_maps_key?: boolean; version?: string; timezone?: string; require_mfa?: boolean; trip_reminders_enabled?: boolean; places_photos_enabled?: boolean; places_autocomplete_enabled?: boolean; places_details_enabled?: boolean; unsplash_configured?: boolean; permissions?: Record<string, PermissionLevel>; branding?: { name?: string; logo_light?: string; logo_dark?: string; icon_light?: string; icon_dark?: string; accent?: string; accent_text?: string; bg_primary?: string; bg_secondary?: string; text_primary?: string; text_secondary?: string; text_muted?: string; nav_bg?: string; disable_dark_mode?: boolean } }) => {
       setDemoMode(!!config?.demo_mode)
       if (config?.dev_mode) setDevMode(true)
       if (config?.is_prerelease !== undefined) setIsPrerelease(config.is_prerelease)
@@ -130,7 +170,27 @@ export default function App() {
       if (config?.places_photos_enabled !== undefined) setPlacesPhotosEnabled(config.places_photos_enabled)
       if (config?.places_autocomplete_enabled !== undefined) setPlacesAutocompleteEnabled(config.places_autocomplete_enabled)
       if (config?.places_details_enabled !== undefined) setPlacesDetailsEnabled(config.places_details_enabled)
+      if (config?.unsplash_configured !== undefined) setUnsplashConfigured(config.unsplash_configured)
       if (config?.permissions) usePermissionsStore.getState().setPermissions(config.permissions)
+      if (config?.branding) {
+        const b = config.branding
+        setBranding({
+          name: b.name || undefined,
+          logoLight: b.logo_light || undefined,
+          logoDark: b.logo_dark || undefined,
+          iconLight: b.icon_light || undefined,
+          iconDark: b.icon_dark || undefined,
+          accent: b.accent || undefined,
+          accentText: b.accent_text || undefined,
+          bgPrimary: b.bg_primary || undefined,
+          bgSecondary: b.bg_secondary || undefined,
+          textPrimary: b.text_primary || undefined,
+          textSecondary: b.text_secondary || undefined,
+          textMuted: b.text_muted || undefined,
+          navBg: b.nav_bg || undefined,
+          disableDarkMode: b.disable_dark_mode ?? undefined,
+        })
+      }
 
       if (config?.version) {
         const storedVersion = localStorage.getItem('trek_app_version')
@@ -171,11 +231,11 @@ export default function App() {
   }, [])
 
   const location = useLocation()
-  const isSharedPage = location.pathname.startsWith('/shared/')
+  const isSharedPage = location.pathname.startsWith('/shared/') || location.pathname.startsWith('/invite/')
 
   useEffect(() => {
-    // Shared page always forces light mode
-    if (isSharedPage) {
+    // Shared page or admin-disabled dark mode always forces light mode
+    if (isSharedPage || document.documentElement.hasAttribute('data-force-light')) {
       document.documentElement.classList.remove('dark')
       const meta = document.querySelector('meta[name="theme-color"]')
       if (meta) meta.setAttribute('content', '#ffffff')
@@ -205,7 +265,9 @@ export default function App() {
     || location.pathname.startsWith('/reset-password')
 
   return (
+    <BrandingProvider branding={branding}>
     <TranslationProvider>
+      <ErrorBoundary>
       {!isAuthPage && <SystemNoticeHost />}
       <ToastContainer />
       <OfflineBanner />
@@ -213,10 +275,16 @@ export default function App() {
         <Route path="/" element={<RootRedirect />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/shared/:token" element={<SharedTripPage />} />
+        <Route path="/@:slug" element={<LinkInBioPage />} />
+        <Route path="/creator/:slug" element={<CreatorStorefrontPage />} />
+        <Route path="/invite/trip/:token" element={<TripInvitePage />} />
         <Route path="/public/journey/:token" element={<JourneyPublicPage />} />
         <Route path="/register" element={<LoginPage />} />
         <Route path="/forgot-password" element={<ForgotPasswordPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/join-group/:token" element={<GroupJoinPage />} />
+        <Route path="/guest/availability/:token" element={<GuestAvailabilityPage />} />
+        <Route path="/guest/poll/:token" element={<GuestPollPage />} />
         {/* OAuth 2.1 consent page — intentionally outside ProtectedRoute */}
         <Route path="/oauth/consent" element={<OAuthAuthorizePage />} />
         <Route
@@ -262,7 +330,7 @@ export default function App() {
         <Route
           path="/vacay"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="vacay">
               <VacayPage />
             </ProtectedRoute>
           }
@@ -270,7 +338,7 @@ export default function App() {
         <Route
           path="/atlas"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute addonId="atlas">
               <AtlasPage />
             </ProtectedRoute>
           }
@@ -292,6 +360,46 @@ export default function App() {
           }
         />
         <Route
+          path="/groups"
+          element={
+            <ProtectedRoute addonId="groups">
+              <GroupsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/groups/:id"
+          element={
+            <ProtectedRoute addonId="groups">
+              <GroupsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/explore"
+          element={
+            <ProtectedRoute addonId="explore">
+              <ExplorePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/creator-hub"
+          element={
+            <ProtectedRoute addonId="creator_hub">
+              <CreatorHubPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/worldmap"
+          element={
+            <ProtectedRoute addonId="worldmap">
+              <WorldMapPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/notifications"
           element={
             <ProtectedRoute>
@@ -301,6 +409,8 @@ export default function App() {
         />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      </ErrorBoundary>
     </TranslationProvider>
+    </BrandingProvider>
   )
 }

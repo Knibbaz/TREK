@@ -20,5 +20,7 @@ const members: TranslationStrings = {
   'members.addError': 'Toevoegen mislukt',
   'members.removed': 'Lid verwijderd',
   'members.removeError': 'Verwijderen mislukt',
+  'members.sharedWithGroups': 'Gedeeld met groepen',
+  'members.noGroups': 'Deze reis is niet gekoppeld aan een groep. Voeg hem toe via een groep om stemmen op bestemmingen mogelijk te maken.',
 };
 export default members;

@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': '通过以下分享',
   'shared.confirmed': '已确认',
   'shared.pending': '待确认',
+  'shared.tabMap': '地图',
 };
 export default shared;

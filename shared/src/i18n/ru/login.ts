@@ -28,7 +28,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Вход…',
   'login.signIn': 'Войти',
   'login.createAdmin': 'Создать аккаунт администратора',
-  'login.createAdminHint': 'Настройте первый аккаунт администратора для TREK.',
+  'login.createAdminHint': 'Настройте первый аккаунт администратора для ROUTD.',
   'login.setNewPassword': 'Установить новый пароль',
   'login.setNewPasswordHint':
     'Вы должны сменить пароль, прежде чем продолжить.',

@@ -51,5 +51,6 @@ const common: TranslationStrings = {
   'common.justNow': 'az imént',
   'common.hoursAgo': '{count} órája',
   'common.daysAgo': '{count} napja',
+  'common.notNow': 'Most nem',
 };
 export default common;

@@ -50,5 +50,6 @@ const common: TranslationStrings = {
   'common.justNow': 'agora mesmo',
   'common.hoursAgo': 'há {count}h',
   'common.daysAgo': 'há {count}d',
+  'common.notNow': 'Agora não',
 };
 export default common;

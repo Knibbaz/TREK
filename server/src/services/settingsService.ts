@@ -19,6 +19,9 @@ export const DEFAULTABLE_USER_SETTING_KEYS = [
   'mapbox_style',
   'mapbox_3d_enabled',
   'mapbox_quality_mode',
+  'home_country',
+  'route_walking_threshold',
+  'route_driving_threshold',
 ] as const;
 
 type DefaultableKey = typeof DEFAULTABLE_USER_SETTING_KEYS[number];
@@ -98,6 +101,9 @@ export function setAdminUserDefaults(partial: Record<string, unknown>): void {
 
 export function getUserSettings(userId: number): Record<string, unknown> {
   const adminDefaults = getAdminUserDefaults();
+
+  const bookingAffiliateRow = db.prepare("SELECT value FROM app_settings WHERE key = 'booking_affiliate_id'").get() as { value: string } | undefined;
+  if (bookingAffiliateRow?.value) adminDefaults.booking_affiliate_id = bookingAffiliateRow.value;
 
   const rows = db.prepare('SELECT key, value FROM settings WHERE user_id = ?').all(userId) as { key: string; value: string }[];
   const userSettings: Record<string, unknown> = {};

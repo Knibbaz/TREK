@@ -50,5 +50,6 @@ const common: TranslationStrings = {
   'common.justNow': '刚刚',
   'common.hoursAgo': '{count}小时前',
   'common.daysAgo': '{count}天前',
+  'common.notNow': '暂时不要',
 };
 export default common;

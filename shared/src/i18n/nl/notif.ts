@@ -25,7 +25,7 @@ const notif: TranslationStrings = {
   'notif.packing_tagged.text':
     '{actor} heeft je toegewezen aan {category} in {trip}',
   'notif.version_available.title': 'Nieuwe versie beschikbaar',
-  'notif.version_available.text': 'TREK {version} is nu beschikbaar',
+  'notif.version_available.text': 'ROUTD {version} is nu beschikbaar',
   'notif.action.view_trip': 'Reis bekijken',
   'notif.action.view_collab': 'Berichten bekijken',
   'notif.action.view_packing': 'Paklijst bekijken',
@@ -40,5 +40,8 @@ const notif: TranslationStrings = {
   'notif.dev.unknown_event.title': '[DEV] Onbekende gebeurtenis',
   'notif.dev.unknown_event.text':
     'Gebeurtenistype "{event}" is niet geregistreerd in EVENT_NOTIFICATION_CONFIG',
+  'notif.date_proposal_threshold.title': 'Drempel bereikt',
+  'notif.date_proposal_threshold.text': '{respondents} van {members} leden hebben hun beschikbaarheid ingevuld voor {proposal}',
+  'notif.action.view_group': 'Groep bekijken',
 };
 export default notif;

@@ -31,7 +31,7 @@ const login: TranslationStrings = {
   'login.signingIn': 'Oturum açılıyor…',
   'login.signIn': 'Oturum Aç',
   'login.createAdmin': 'Yönetici Hesabı Oluştur',
-  'login.createAdminHint': 'TREK için ilk yönetici hesabını kurun.',
+  'login.createAdminHint': 'ROUTD için ilk yönetici hesabını kurun.',
   'login.setNewPassword': 'Yeni Şifre Belirle',
   'login.setNewPasswordHint': 'Devam etmeden önce şifrenizi değiştirmelisiniz.',
   'login.createAccount': 'Hesap Oluşturmak',

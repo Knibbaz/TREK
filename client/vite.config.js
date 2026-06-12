@@ -68,9 +68,9 @@ export default defineConfig({
         ],
       },
       manifest: {
-        name: 'TREK \u2014 Travel Planner',
-        short_name: 'TREK',
-        description: 'Travel Resource & Exploration Kit',
+        name: 'ROUTD \u2014 Travel Planner',
+        short_name: 'ROUTD',
+        description: 'Routes Organized for Unforgettable Travel Days',
         theme_color: '#111827',
         background_color: '#0f172a',
         display: 'standalone',
@@ -95,19 +95,19 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3003',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3003',
         changeOrigin: true,
       },
       '/ws': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3003',
         ws: true,
       },
       '/mcp': {
-        target: 'http://localhost:3001',
+        target: 'http://localhost:3003',
         changeOrigin: true,
       },
       // OAuth 2.1 endpoints handled by backend (SDK authorize handler + token/revoke)

@@ -12,5 +12,6 @@ const share: TranslationStrings = {
   'share.permPacking': 'Valigia',
   'share.permBudget': 'Budget',
   'share.permCollab': 'Chat',
+  'share.permDescription': 'Descrizione',
 };
 export default share;

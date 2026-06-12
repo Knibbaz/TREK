@@ -50,5 +50,6 @@ const common: TranslationStrings = {
   'common.collapse': 'Ciutkan',
   'common.copy': 'Salin',
   'common.copied': 'Disalin',
+  'common.notNow': 'Jangan sekarang',
 };
 export default common;

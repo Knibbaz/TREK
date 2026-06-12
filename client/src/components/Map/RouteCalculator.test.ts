@@ -32,9 +32,10 @@ describe('calculateRoute', () => {
     await expect(calculateRoute([wp1])).rejects.toThrow('At least 2 waypoints required')
   })
 
-  it('FE-COMP-ROUTECALCULATOR-002: returns parsed coordinates on success', async () => {
+  it('FE-COMP-ROUTECALCULATOR-002: auto profile returns parsed coordinates on success', async () => {
+    // wp1→wp2 is < 2 km → auto picks walking
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json(buildOsrmRouteResponse())
       )
     )
@@ -44,7 +45,7 @@ describe('calculateRoute', () => {
 
   it('FE-COMP-ROUTECALCULATOR-003: returns formatted distance text for >= 1000 m', async () => {
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json(buildOsrmRouteResponse(1500, 360))
       )
     )
@@ -54,7 +55,7 @@ describe('calculateRoute', () => {
 
   it('FE-COMP-ROUTECALCULATOR-004: returns formatted distance in meters for short routes', async () => {
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json(buildOsrmRouteResponse(800, 360))
       )
     )
@@ -78,31 +79,58 @@ describe('calculateRoute', () => {
 
   it('FE-COMP-ROUTECALCULATOR-006: throws when OSRM returns non-ok HTTP status', async () => {
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json({}, { status: 500 })
       )
     )
-    await expect(calculateRoute([wp1, wp2])).rejects.toThrow('Route could not be calculated')
+    // Explicit profile bypasses auto fallback
+    await expect(calculateRoute([wp1, wp2], 'walking')).rejects.toThrow('Route could not be calculated')
   })
 
   it('FE-COMP-ROUTECALCULATOR-007: throws when OSRM code is not Ok', async () => {
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json({ code: 'NoRoute', routes: [] })
       )
     )
-    await expect(calculateRoute([wp1, wp2])).rejects.toThrow('No route found')
+    // Explicit profile bypasses auto fallback
+    await expect(calculateRoute([wp1, wp2], 'walking')).rejects.toThrow('No route found')
   })
 
   it('FE-COMP-ROUTECALCULATOR-008: respects AbortSignal', async () => {
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json(buildOsrmRouteResponse())
       )
     )
     const controller = new AbortController()
     controller.abort()
-    await expect(calculateRoute([wp1, wp2], 'driving', { signal: controller.signal })).rejects.toThrow()
+    await expect(calculateRoute([wp1, wp2], 'walking', { signal: controller.signal })).rejects.toThrow()
+  })
+
+  it('FE-COMP-ROUTECALCULATOR-016: auto profile uses driving for medium distances', async () => {
+    // Waypoints ~30 km apart → auto picks driving (>30 km walking threshold)
+    const near = { lat: 48.8566, lng: 2.3522 }
+    const far = { lat: 49.0000, lng: 2.6000 }
+    server.use(
+      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+        HttpResponse.json(buildOsrmRouteResponse(30100, 1440))
+      )
+    )
+    const result = await calculateRoute([near, far])
+    expect(result.distanceText).toBe('30.1 km')
+  })
+
+  it('FE-COMP-ROUTECALCULATOR-017: auto profile treats >500 km as flight (straight line)', async () => {
+    // Amsterdam → Tenerife (~3600 km)
+    const amsterdam = { lat: 52.3676, lng: 4.9041 }
+    const tenerife = { lat: 28.2916, lng: -16.6291 }
+    const result = await calculateRoute([amsterdam, tenerife])
+    // Should NOT call OSRM at all – returns straight-line estimate
+    expect(result.distance).toBeGreaterThan(3_000_000) // > 3000 km
+    expect(result.duration).toBeGreaterThan(3600 * 4) // > 4h flight
+    // Coordinates should be a straight line (more than 2 points)
+    expect(result.coordinates.length).toBeGreaterThan(2)
   })
 })
 
@@ -115,13 +143,14 @@ describe('calculateSegments', () => {
   })
 
   it('FE-COMP-ROUTECALCULATOR-010: returns segment midpoints and travel times', async () => {
+    // wp1→wp2 is < 2 km → auto picks walking
     server.use(
-      http.get(`${OSRM_BASE}/driving/:coords`, () =>
+      http.get(`${OSRM_BASE}/walking/:coords`, () =>
         HttpResponse.json({
           code: 'Ok',
           routes: [
             {
-              legs: [{ distance: 1000, duration: 120 }],
+              legs: [{ distance: 1000, duration: 720 }],
             },
           ],
         })
@@ -136,7 +165,18 @@ describe('calculateSegments', () => {
     ]
     expect(seg.mid[0]).toBeCloseTo(expectedMid[0])
     expect(seg.mid[1]).toBeCloseTo(expectedMid[1])
-    expect(seg.drivingText).toBe('2 min')
+    expect(seg.drivingText).toBe('12 min')
+  })
+
+  it('FE-COMP-ROUTECALCULATOR-018: long-distance segment returns flight estimate', async () => {
+    const amsterdam = { lat: 52.3676, lng: 4.9041 }
+    const tenerife = { lat: 28.2916, lng: -16.6291 }
+    const result = await calculateSegments([amsterdam, tenerife])
+    expect(result).toHaveLength(1)
+    const seg = result[0]
+    expect(seg.distance).toBeGreaterThan(3_000_000)
+    // Flight duration should be ~4-5 hours
+    expect(seg.drivingText).toMatch(/h/)
   })
 })
 

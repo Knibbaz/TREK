@@ -182,9 +182,9 @@ const settings: TranslationStrings = {
   'settings.about.featureRequestHint': 'Suggerisci una nuova funzionalità',
   'settings.about.wikiHint': 'Documentazione e guide',
   'settings.about.supporters.badge': 'Sostenitori Mensili',
-  'settings.about.supporters.title': 'Compagni di viaggio per TREK',
+  'settings.about.supporters.title': 'Compagni di viaggio per ROUTD',
   'settings.about.supporters.subtitle':
-    'Mentre pianifichi il tuo prossimo itinerario, queste persone aiutano a pianificare il futuro di TREK. Il loro contributo mensile va direttamente allo sviluppo e alle ore realmente investite — per mantenere TREK Open Source.',
+    'Mentre pianifichi il tuo prossimo itinerario, queste persone aiutano a pianificare il futuro di ROUTD. Il loro contributo mensile va direttamente allo sviluppo e alle ore realmente investite — per mantenere ROUTD Open Source.',
   'settings.about.supporters.since': 'sostenitore da {date}',
   'settings.about.supporters.tierEmpty': 'Sii il primo',
   'settings.about.supporter.tier.noReturnTicket': 'No Return Ticket',
@@ -194,7 +194,7 @@ const settings: TranslationStrings = {
   'settings.about.supporter.tier.budgetTraveller': 'Budget Traveller',
   'settings.about.supporter.tier.hostelBunkmate': 'Hostel Bunkmate',
   'settings.about.description':
-    "TREK è un pianificatore di viaggi self-hosted che ti aiuta a organizzare i tuoi viaggi dalla prima idea all'ultimo ricordo. Pianificazione giornaliera, budget, liste bagagli, foto e molto altro — tutto in un unico posto, sul tuo server.",
+    "ROUTD è un pianificatore di viaggi self-hosted che ti aiuta a organizzare i tuoi viaggi dalla prima idea all'ultimo ricordo. Pianificazione giornaliera, budget, liste bagagli, foto e molto altro — tutto in un unico posto, sul tuo server.",
   'settings.about.madeWith': 'Fatto con',
   'settings.about.madeBy': 'da Maurice e una crescente comunità open-source.',
   'settings.username': 'Nome utente',

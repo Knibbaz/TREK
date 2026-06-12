@@ -4,6 +4,7 @@ import type { INestApplication } from '@nestjs/common';
 import { AppModule } from './nest/app.module';
 import { applyGlobalMiddleware } from './middleware/globalMiddleware';
 import { applyPlatformUploads, applyPlatformTransport, applyPlatformStatic } from './nest/platform/platform.routes';
+import { applyLegacyFeatureRoutes } from './routes/legacyBridge';
 
 /**
  * Builds the unified TREK NestJS application that serves the ENTIRE surface — the
@@ -39,6 +40,7 @@ export async function buildApp(): Promise<INestApplication> {
   applyGlobalMiddleware(instance, { bodyParser: false });
   applyPlatformUploads(instance);
   applyPlatformTransport(instance);
+  applyLegacyFeatureRoutes(instance);
   applyPlatformStatic(instance);
   await app.init();
   return app;

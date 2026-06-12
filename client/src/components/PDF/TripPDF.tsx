@@ -6,6 +6,7 @@ import { accommodationsApi, mapsApi } from '../../api/client'
 import type { Trip, Day, Place, Category, AssignmentsMap, DayNote } from '../../types'
 import { isDayInAccommodationRange, getDayOrder } from '../../utils/dayOrder'
 import { splitReservationDateTime } from '../../utils/formatters'
+import { getBrandingSnapshot } from '../../context/BrandingContext'
 
 function renderLucideIcon(icon:LucideIcon, props = {}) {
   if (!_renderToStaticMarkup) return ''
@@ -514,14 +515,14 @@ export async function downloadTripPDF({ trip, days, places, assignments, categor
 <!-- Footer on every page -->
 <div class="pdf-footer">
   <span>made with</span>
-  <img src="${absUrl('/logo-dark.svg')}" style="height:10px;opacity:0.6;" />
+  <img src="${absUrl(getBrandingSnapshot().logoDark)}" style="height:10px;opacity:0.6;" />
 </div>
 
 <!-- Cover -->
 <div class="cover">
   ${coverImg ? `<div class="cover-bg" style="background-image:url('${escHtml(coverImg)}')"></div>` : ''}
   <div class="cover-dim"></div>
-  <div class="cover-brand"><img src="${absUrl('/logo-light.svg')}" style="height:28px;opacity:0.5;" /></div>
+  <div class="cover-brand"><img src="${absUrl(getBrandingSnapshot().logoLight)}" style="height:28px;opacity:0.5;" /></div>
   <div class="cover-body">
     ${coverImg
       ? `<div class="cover-circle"><img src="${escHtml(coverImg)}" /></div>`
