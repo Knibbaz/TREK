@@ -63,5 +63,7 @@ const planner: TranslationStrings = {
   'planner.keepPosition': '最適化中も位置を保持',
   'planner.dayDetails': '日詳細',
   'planner.dayN': '{n}日目',
+  'planner.mode.edit': 'Edit',
+  'planner.mode.view': 'Overview',
 };
 export default planner;

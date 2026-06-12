@@ -57,5 +57,7 @@ const system_notice: TranslationStrings = {
     'Tindakan diperlukan: konflik akun pengguna',
   'system_notice.v3014_whitespace_collision.body':
     'Pembaruan 3.0.14 mendeteksi satu atau lebih konflik nama pengguna atau email yang disebabkan oleh spasi di awal atau akhir nilai yang tersimpan. Akun yang terpengaruh telah diganti nama secara otomatis. Periksa log server untuk baris yang dimulai dengan **[migration] WHITESPACE COLLISION** guna mengidentifikasi akun mana yang perlu ditinjau.',
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

@@ -49,5 +49,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.counter': '{current} / {total}',
   'system_notice.pager.goto': '通知{n}へ',
   'system_notice.pager.position': '{total}件中{current}件目',
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

@@ -20,5 +20,7 @@ const members: TranslationStrings = {
   'members.addError': '추가 실패',
   'members.removed': '멤버가 제거되었습니다',
   'members.removeError': '제거 실패',
+  'members.sharedWithGroups': 'Shared with groups',
+  'members.noGroups': 'This trip is not linked to any group. Add it via a group to enable voting on places.',
 };
 export default members;

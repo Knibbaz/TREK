@@ -98,5 +98,9 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': '右键设置小时',
   'vacay.save': '保存',
   'vacay.cancel': '取消',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
 };
 export default vacay;

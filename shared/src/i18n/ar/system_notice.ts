@@ -50,5 +50,7 @@ const system_notice: TranslationStrings = {
   'system_notice.dev_test_modal.title': '[Dev] Test notice', // en-fallback
   'system_notice.dev_test_modal.body': 'This is a dev-only test notice.', // en-fallback
   'system_notice.pager.counter': '{current} / {total}', // en-fallback
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

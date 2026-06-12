@@ -18,5 +18,10 @@ const inspector: TranslationStrings = {
   'inspector.editRes': 'Редактировать бронирование',
   'inspector.participants': 'Участники',
   'inspector.trackStats': 'Данные маршрута',
+  'inspector.addedToBudget': 'Added to budget',
+  'inspector.addToBudget': 'Add to budget',
+  'inspector.persons': 'Persons',
+  'inspector.days': 'Days',
+  'inspector.budgetTotal': 'Total',
 };
 export default inspector;

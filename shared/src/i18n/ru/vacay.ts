@@ -112,5 +112,9 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': 'Правый клик для часов',
   'vacay.save': 'Сохранить',
   'vacay.cancel': 'Отмена',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
 };
 export default vacay;

@@ -55,5 +55,7 @@ const system_notice: TranslationStrings = {
     'Vyžadována akce: konflikt uživatelského účtu',
   'system_notice.v3014_whitespace_collision.body':
     'Aktualizace 3.0.14 zjistila jeden nebo více konfliktů uživatelského jména nebo e-mailu způsobených mezerami na začátku nebo konci uložených hodnot. Dotčené účty byly automaticky přejmenovány. Zkontrolujte protokoly serveru na řádky začínající **[migration] WHITESPACE COLLISION** a zjistěte, které účty vyžadují kontrolu.',
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

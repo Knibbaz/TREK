@@ -52,5 +52,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.counter': '{current} / {total}',
   'system_notice.pager.goto': '{n}번 공지로 이동',
   'system_notice.pager.position': '공지 {current}/{total}',
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

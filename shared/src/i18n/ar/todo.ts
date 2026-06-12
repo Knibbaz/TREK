@@ -36,5 +36,7 @@ const todo: TranslationStrings = {
   'todo.detail.priority': 'الأولوية',
   'todo.detail.noPriority': 'لا شيء',
   'todo.detail.create': 'إنشاء مهمة',
+  'todo.export': 'Export',
+  'todo.exportSuccess': 'List exported',
 };
 export default todo;

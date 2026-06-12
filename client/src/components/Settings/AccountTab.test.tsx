@@ -474,21 +474,26 @@ describe('AccountTab – Account deletion', () => {
     expect(screen.queryByText('Delete your account?')).not.toBeInTheDocument();
   });
 
-  it('FE-COMP-ACCOUNT-044: confirming deletion calls deleteOwnAccount and logout', async () => {
+  // ROUTD fork: deletion is a GDPR request with a grace period, not an immediate delete.
+  it('FE-COMP-ACCOUNT-044: confirming deletion requests GDPR deletion', async () => {
     const user = userEvent.setup();
-    const logoutMock = vi.fn();
+    const loadUserMock = vi.fn().mockResolvedValue(undefined);
+    let deletionRequested = false;
     seedStore(useAuthStore, {
       user: buildUser({ username: 'testuser', email: 'test@example.com', role: 'user' }),
-      logout: logoutMock,
+      loadUser: loadUserMock,
     });
     server.use(
-      http.delete('/api/auth/me', () => HttpResponse.json({ success: true })),
+      http.post('/api/user/delete-account', () => {
+        deletionRequested = true;
+        return HttpResponse.json({ success: true });
+      }),
     );
     render(<AccountTab />);
     await user.click(screen.getByText('Delete account'));
     await waitFor(() => screen.getByText('Delete your account?'));
     await user.click(screen.getByText('Delete permanently'));
-    await waitFor(() => expect(logoutMock).toHaveBeenCalled());
+    await waitFor(() => expect(deletionRequested).toBe(true));
   });
 
   it('FE-COMP-ACCOUNT-045: blocked modal shown when last admin tries to delete', async () => {

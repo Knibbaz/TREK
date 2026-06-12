@@ -72,5 +72,6 @@ const collab: TranslationStrings = {
   'collab.polls.options': 'Pilihan',
   'collab.polls.delete': 'Hapus',
   'collab.polls.closedSection': 'Ditutup',
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

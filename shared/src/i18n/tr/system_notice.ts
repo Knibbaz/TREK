@@ -61,5 +61,7 @@ const system_notice: TranslationStrings = {
   'system_notice.pager.counter': '{güncel} / {toplam}',
   'system_notice.pager.goto': '{n}. bildirime git',
   'system_notice.pager.position': '{total} Bildirimden {current}.',
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

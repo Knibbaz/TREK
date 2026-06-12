@@ -40,5 +40,8 @@ const notif: TranslationStrings = {
   'notif.dev.unknown_event.title': '[DEV] 不明なイベント',
   'notif.dev.unknown_event.text':
     'イベントタイプ「{event}」はEVENT_NOTIFICATION_CONFIGに登録されていません',
+  'notif.date_proposal_threshold.title': 'Threshold reached',
+  'notif.date_proposal_threshold.text': '{respondents} of {members} members have filled in their availability for {proposal}',
+  'notif.action.view_group': 'View Group',
 };
 export default notif;

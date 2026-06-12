@@ -58,5 +58,8 @@ const dayplan: TranslationStrings = {
   'dayplan.reorderUndo': 'Αναδιάταξη ημερών',
   'dayplan.reorderError': 'Η αναδιάταξη των ημερών απέτυχε',
   'dayplan.addDayError': 'Η προσθήκη ημέρας απέτυχε',
+  'dayplan.routeCalculating': 'Calculating route…',
+  'dayplan.routeReady': 'Route ready',
+  'dayplan.noRoute': 'No route calculated',
 };
 export default dayplan;

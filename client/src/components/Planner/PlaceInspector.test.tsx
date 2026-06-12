@@ -232,12 +232,12 @@ describe('PlaceInspector', () => {
   });
 
   it('FE-PLANNER-INSPECTOR-017: "Remove from day" button appears when place IS assigned to selectedDay', () => {
-    const assignmentInDay = [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
+    const assignmentInDay = [{ id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
     render(
       <PlaceInspector
         {...defaultProps}
         selectedDayId={1}
-        assignments={{ '1': assignmentInDay }}
+        assignments={{ '1': assignmentInDay } as any}
       />
     );
     expect(screen.getByText('Remove')).toBeTruthy();
@@ -246,12 +246,12 @@ describe('PlaceInspector', () => {
   it('FE-PLANNER-INSPECTOR-018: clicking remove calls onRemoveAssignment with dayId and assignmentId', async () => {
     const user = userEvent.setup();
     const onRemoveAssignment = vi.fn();
-    const assignmentInDay = [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
+    const assignmentInDay = [{ id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
     render(
       <PlaceInspector
         {...defaultProps}
         selectedDayId={1}
-        assignments={{ '1': assignmentInDay }}
+        assignments={{ '1': assignmentInDay } as any}
         onRemoveAssignment={onRemoveAssignment}
       />
     );
@@ -267,7 +267,7 @@ describe('PlaceInspector', () => {
 
   it('FE-PLANNER-INSPECTOR-047: clicking "Add to day" without selectedDayId opens a day picker popover', async () => {
     const user = userEvent.setup();
-    const days = [{ id: 1, trip_id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
+    const days = [{ id: 1, trip_id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }] as any;
     render(<PlaceInspector {...defaultProps} selectedDayId={null} assignments={{}} days={days} />);
     const addBtn = screen.getByText('Add to Day').closest('button')!;
     await user.click(addBtn);
@@ -277,7 +277,7 @@ describe('PlaceInspector', () => {
   it('FE-PLANNER-INSPECTOR-048: selecting a day from the popover calls onAssignToDay with placeId and dayId', async () => {
     const user = userEvent.setup();
     const onAssignToDay = vi.fn();
-    const days = [{ id: 1, trip_id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
+    const days = [{ id: 1, trip_id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }] as any;
     render(
       <PlaceInspector
         {...defaultProps}
@@ -440,13 +440,13 @@ describe('PlaceInspector', () => {
 
   it('FE-PLANNER-INSPECTOR-030: linked reservation shown when selectedAssignmentId has a reservation', () => {
     const reservation = buildReservation({ title: 'Museum Ticket', status: 'confirmed', assignment_id: 99 } as any);
-    const assignmentInDay = [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
+    const assignmentInDay = [{ id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
     render(
       <PlaceInspector
         {...defaultProps}
         selectedDayId={1}
         selectedAssignmentId={99}
-        assignments={{ '1': assignmentInDay }}
+        assignments={{ '1': assignmentInDay } as any}
         reservations={[reservation]}
       />
     );
@@ -457,14 +457,14 @@ describe('PlaceInspector', () => {
 
   it('FE-PLANNER-INSPECTOR-031: participants section shown when tripMembers > 1 and selectedAssignmentId is set', () => {
     const members = [buildUser({ id: 1 }), buildUser({ id: 2 })];
-    const assignmentInDay = [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
+    const assignmentInDay = [{ id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null }];
     render(
       <PlaceInspector
         {...defaultProps}
         tripMembers={members}
         selectedDayId={1}
         selectedAssignmentId={99}
-        assignments={{ '1': assignmentInDay }}
+        assignments={{ '1': assignmentInDay } as any}
       />
     );
     // The participants section renders with a "participants" label
@@ -556,7 +556,9 @@ describe('PlaceInspector', () => {
       [48.8640, 2.3100, 130],
     ];
     const p = buildPlace({ id: 303, route_geometry: JSON.stringify(pts) } as any);
-    const { container } = render(<PlaceInspector {...defaultProps} place={p} />);
+    render(<PlaceInspector {...defaultProps} place={p} />);
+    // Stats are collapsed by default — expand first
+    fireEvent.click(screen.getByText(/track stats/i));
     // Elevation stats should show max elevation 130m
     expect(screen.getByText(/130 m/)).toBeTruthy();
   });
@@ -568,8 +570,8 @@ describe('PlaceInspector', () => {
     const member2 = buildUser({ id: 11, username: 'bob' });
     const members = [member1, member2];
     const assignmentInDay = [{
-      id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null,
-      participants: [{ user_id: 10, username: 'alice' }],
+      id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null,
+      participants: [{ user_id: 10 }],
     }];
     render(
       <PlaceInspector
@@ -577,7 +579,7 @@ describe('PlaceInspector', () => {
         tripMembers={members}
         selectedDayId={1}
         selectedAssignmentId={99}
-        assignments={{ '1': assignmentInDay }}
+        assignments={{ '1': assignmentInDay } as any}
       />
     );
     // alice is a participant, should appear
@@ -671,7 +673,7 @@ describe('PlaceInspector', () => {
         tripMembers={[member]}
         selectedDayId={1}
         selectedAssignmentId={99}
-        assignments={{ '1': [{ id: 99, place, day_id: 1, place_id: place.id, order_index: 0, notes: null }] }}
+        assignments={{ '1': [{ id: 99, place: { id: place.id }, day_id: 1, place_id: place.id, order_index: 0, notes: null }] } as any}
       />
     );
     // "solo" username might be visible from other parts but participants box should not render

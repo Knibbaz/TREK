@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': '일 전 출발',
   'trips.reminderDisabledHint':
     '여행 리마인더가 비활성화되어 있습니다. 관리자 > 설정 > 알림에서 활성화하세요.',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 };
 export default trips;

@@ -36,5 +36,7 @@ const todo: TranslationStrings = {
   'todo.detail.priority': '우선순위',
   'todo.detail.noPriority': '없음',
   'todo.detail.create': '작업 만들기',
+  'todo.export': 'Export',
+  'todo.exportSuccess': 'List exported',
 };
 export default todo;

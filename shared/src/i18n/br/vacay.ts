@@ -113,5 +113,9 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': 'Clique direito para horas',
   'vacay.save': 'Salvar',
   'vacay.cancel': 'Cancelar',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
 };
 export default vacay;

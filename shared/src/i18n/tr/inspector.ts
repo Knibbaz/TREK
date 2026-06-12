@@ -18,5 +18,10 @@ const inspector: TranslationStrings = {
   'inspector.editRes': 'Rezervasyonu Düzenle',
   'inspector.participants': 'Katılımcılar',
   'inspector.trackStats': 'İstatistikleri Takip Et',
+  'inspector.addedToBudget': 'Added to budget',
+  'inspector.addToBudget': 'Add to budget',
+  'inspector.persons': 'Persons',
+  'inspector.days': 'Days',
+  'inspector.budgetTotal': 'Total',
 };
 export default inspector;

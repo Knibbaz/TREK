@@ -72,5 +72,6 @@ const collab: TranslationStrings = {
   'collab.polls.options': 'Seçenekler',
   'collab.polls.delete': 'Sil',
   'collab.polls.closedSection': 'Kapalı',
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

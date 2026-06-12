@@ -104,5 +104,9 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': 'Pravé tlačítko pro hodiny',
   'vacay.save': 'Uložit',
   'vacay.cancel': 'Zrušit',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
 };
 export default vacay;

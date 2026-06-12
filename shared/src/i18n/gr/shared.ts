@@ -18,5 +18,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': 'Κοινοποιήθηκε μέσω',
   'shared.confirmed': 'Επιβεβαιωμένο',
   'shared.pending': 'Σε εκκρεμότητα',
+  'shared.tabMap': 'Map',
 };
 export default shared;

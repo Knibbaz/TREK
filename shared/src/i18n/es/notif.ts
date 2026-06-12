@@ -38,5 +38,8 @@ const notif: TranslationStrings = {
   'notif.dev.unknown_event.title': '[DEV] Evento desconocido',
   'notif.dev.unknown_event.text':
     'El tipo de evento "{event}" no está registrado en EVENT_NOTIFICATION_CONFIG',
+  'notif.date_proposal_threshold.title': 'Threshold reached',
+  'notif.date_proposal_threshold.text': '{respondents} of {members} members have filled in their availability for {proposal}',
+  'notif.action.view_group': 'View Group',
 };
 export default notif;

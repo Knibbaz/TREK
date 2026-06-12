@@ -58,5 +58,8 @@ const dayplan: TranslationStrings = {
   'dayplan.reorderUndo': 'Riordina i giorni',
   'dayplan.reorderError': 'Riordino dei giorni non riuscito',
   'dayplan.addDayError': 'Aggiunta del giorno non riuscita',
+  'dayplan.routeCalculating': 'Calculating route…',
+  'dayplan.routeReady': 'Route ready',
+  'dayplan.noRoute': 'No route calculated',
 };
 export default dayplan;

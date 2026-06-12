@@ -18,5 +18,10 @@ const inspector: TranslationStrings = {
   'inspector.editRes': '예약 편집',
   'inspector.participants': '참가자',
   'inspector.trackStats': '트랙 통계',
+  'inspector.addedToBudget': 'Added to budget',
+  'inspector.addToBudget': 'Add to budget',
+  'inspector.persons': 'Persons',
+  'inspector.days': 'Days',
+  'inspector.budgetTotal': 'Total',
 };
 export default inspector;

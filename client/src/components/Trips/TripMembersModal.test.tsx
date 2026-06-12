@@ -217,7 +217,7 @@ describe('TripMembersModal', () => {
     );
 
     render(<TripMembersModal {...defaultProps} />);
-    const createBtn = await screen.findByText('Create link');
+    const createBtn = (await screen.findAllByText('Create link'))[0];
     await user.click(createBtn);
 
     await waitFor(() => {
@@ -286,7 +286,7 @@ describe('TripMembersModal', () => {
     await user.click(deleteBtn);
 
     expect(deleteHandlerCalled).toBe(true);
-    await screen.findByText('Create link');
+    await screen.findAllByText('Create link');
   });
 
   it('FE-COMP-MEMBERS-021: clicking permission toggle calls POST with updated perms', async () => {

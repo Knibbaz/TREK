@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': '共有元',
   'shared.confirmed': '確定',
   'shared.pending': '保留',
+  'shared.tabMap': 'Map',
 };
 export default shared;

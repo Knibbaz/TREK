@@ -1,5 +1,6 @@
 import React from 'react'
-import { render, screen, waitFor, fireEvent } from '@testing-library/react'
+import { screen, waitFor, fireEvent } from '@testing-library/react'
+import { render } from '../../../tests/helpers/render'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { server } from '../../../tests/helpers/msw/server'
@@ -12,6 +13,10 @@ import AccountTab from './AccountTab'
 describe('AccountTab — Backup Export & Import', () => {
   beforeEach(() => {
     resetAllStores()
+    server.use(
+      http.get('/api/user/export/status', () => HttpResponse.json({ status: null })),
+      http.get('/api/auth/passkey/credentials', () => HttpResponse.json({ credentials: [] })),
+    )
     useAuthStore.setState({
       user: buildUser({ id: 1, username: 'testuser' }),
       isAuthenticated: true,
@@ -27,10 +32,7 @@ describe('AccountTab — Backup Export & Import', () => {
     it('loads export preview on mount', async () => {
       server.use(
         http.get('/api/user/export/preview', () => {
-          return HttpResponse.json({
-            stats: { trips: 5, places: 20, files_mb: 150 },
-            status: null,
-          })
+          return HttpResponse.json({ trips: 5, places: 20, files_mb: 150 })
         })
       )
 
@@ -45,10 +47,7 @@ describe('AccountTab — Backup Export & Import', () => {
     it('shows export button when no active export', async () => {
       server.use(
         http.get('/api/user/export/preview', () => {
-          return HttpResponse.json({
-            stats: { trips: 2, places: 10, files_mb: 50 },
-            status: null,
-          })
+          return HttpResponse.json({ trips: 2, places: 10, files_mb: 50 })
         })
       )
 
@@ -65,14 +64,16 @@ describe('AccountTab — Backup Export & Import', () => {
     it('shows download link when export ready', async () => {
       server.use(
         http.get('/api/user/export/preview', () => {
+          return HttpResponse.json({ trips: 1, places: 5, files_mb: 25 })
+        }),
+        http.get('/api/user/export/status', () => {
           return HttpResponse.json({
-            stats: { trips: 1, places: 5, files_mb: 25 },
             status: 'ready',
+            canDownload: true,
             token: 'test-token-abc',
-            expires_at: new Date().toISOString(),
-            downloads_left: 2,
+            expiresAt: new Date(Date.now() + 3600_000).toISOString(),
           })
-        })
+        }),
       )
 
       render(<AccountTab />)

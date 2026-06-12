@@ -92,5 +92,7 @@ const packing: TranslationStrings = {
     { name: 'Yara bandı', category: 'Sağlık' },
     { name: 'Dezenfektan', category: 'Sağlık' },
   ],
+  'packing.export': 'Export',
+  'packing.exportSuccess': 'List exported',
 };
 export default packing;

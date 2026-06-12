@@ -46,5 +46,7 @@ const system_notice: TranslationStrings = {
   'system_notice.v3014_whitespace_collision.title': '需要操作：用户账户冲突',
   'system_notice.v3014_whitespace_collision.body':
     '3.0.14 版本升级检测到一个或多个由存储账户中首尾空白字符引发的用户名或邮箱冲突。受影响的账户已自动重命名。请检查服务器日志中以 **[migration] WHITESPACE COLLISION** 开头的行，以确认哪些账户需要审查。',
+  'system_notice.group_welcome.title': 'Welcome to the group!',
+  'system_notice.group_welcome.body': 'You\'re now a member. Start exploring shared trips and availability together.',
 };
 export default system_notice;

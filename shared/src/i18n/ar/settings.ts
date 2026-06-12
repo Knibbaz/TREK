@@ -319,6 +319,16 @@ const settings: TranslationStrings = {
   'settings.passkey.neverUsed': 'لم يُستخدم قط',
   'settings.mapPoiPill': 'استكشاف الأماكن على الخريطة',
   'settings.mapPoiPillHint': 'أظهر شريط فئات على خريطة الرحلة للعثور على المطاعم والفنادق والمزيد القريبة من OpenStreetMap.',
+  'settings.navZoom': 'Navigation zoom',
+  'settings.defaultCurrency': 'Default Currency',
+  'settings.defaultCurrencyHint': 'Used as the default when adding prices to places.',
+  'settings.routeWalkingThreshold': 'Walking up to',
+  'settings.routeWalkingThresholdHint': 'Routes up to this distance show walking time; above it shows driving.',
+  'settings.routeDrivingThreshold': 'Driving up to',
+  'settings.routeDrivingThresholdHint': 'Routes up to this distance show driving time; above it shows flight.',
+  'settings.shareVacayInGroups': 'Share vacay & trips in groups',
+  'settings.shareVacayInGroupsHint': 'Your vacay entries and planned trips are automatically counted in group availability analyses.',
+  'settings.roleCreator': 'Creator',
 };
 
 export default settings;

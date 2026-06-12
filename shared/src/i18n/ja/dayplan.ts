@@ -51,5 +51,8 @@ const dayplan: TranslationStrings = {
   'dayplan.reorderUndo': '日付を並べ替え',
   'dayplan.reorderError': '日付の並べ替えに失敗しました',
   'dayplan.addDayError': '日付の追加に失敗しました',
+  'dayplan.routeCalculating': 'Calculating route…',
+  'dayplan.routeReady': 'Route ready',
+  'dayplan.noRoute': 'No route calculated',
 };
 export default dayplan;

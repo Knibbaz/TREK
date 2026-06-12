@@ -112,6 +112,8 @@ const budget: TranslationStrings = {
   "costs.travelers": "{count} viajeros",
   "costs.liveRate": "tasa en vivo",
   "costs.settleAll": "Saldar todo",
+  'budget.deleteCategoryTitle': 'Delete category',
+  'budget.deleteCategoryMessage': 'This will permanently delete the category "{cat}" and all its items. This cannot be undone.',
 };
 
 export default budget;

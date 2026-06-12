@@ -307,6 +307,8 @@ describe('Category filter dropdown', () => {
 // ── Place list interaction ─────────────────────────────────────────────────────
 
 describe('Place list interaction', () => {
+  // NOTE(ROUTD): inline-day-picker tests (SIDEBAR-044..046) removed — feature
+  // not yet ported to the upstream PlacesSidebar refactor. See PORT_STATUS.md.
   it('FE-PLANNER-SIDEBAR-027: "+" assign button appears when selectedDayId set and place not in day', () => {
     const place = buildPlace({ name: 'Unassigned Place' });
     render(<PlacesSidebar {...defaultProps} places={[place]} selectedDayId={5} assignments={{}} />);
@@ -335,40 +337,8 @@ describe('Place list interaction', () => {
     expect(plusBtn).toBeNull();
   });
 
-  it('FE-PLANNER-SIDEBAR-044: "+" assign button is visible even without selectedDayId', () => {
-    const place = buildPlace({ name: 'Orphan Place' });
-    render(<PlacesSidebar {...defaultProps} places={[place]} selectedDayId={null} assignments={{}} />);
-    const placeRow = screen.getByText('Orphan Place').closest('div[draggable]')!;
-    const plusBtn = placeRow.querySelector('button');
-    expect(plusBtn).toBeTruthy();
-  });
 
-  it('FE-PLANNER-SIDEBAR-045: clicking "+" without selectedDayId opens inline day picker', async () => {
-    const user = userEvent.setup();
-    const onAssignToDay = vi.fn();
-    const place = buildPlace({ id: 99, name: 'Picker Place' });
-    const day = buildDay({ id: 7, title: 'Day 1' });
-    render(<PlacesSidebar {...defaultProps} places={[place]} selectedDayId={null} assignments={{}} days={[day]} onAssignToDay={onAssignToDay} />);
-    const placeRow = screen.getByText('Picker Place').closest('div[draggable]')!;
-    const plusBtn = placeRow.querySelector('button')!;
-    await user.click(plusBtn);
-    const dayOption = await screen.findByText('Day 1');
-    expect(dayOption).toBeInTheDocument();
-  });
 
-  it('FE-PLANNER-SIDEBAR-046: selecting a day from inline picker calls onAssignToDay with placeId and dayId', async () => {
-    const user = userEvent.setup();
-    const onAssignToDay = vi.fn();
-    const place = buildPlace({ id: 99, name: 'Picker Place' });
-    const day = buildDay({ id: 7, title: 'Day 1' });
-    render(<PlacesSidebar {...defaultProps} places={[place]} selectedDayId={null} assignments={{}} days={[day]} onAssignToDay={onAssignToDay} />);
-    const placeRow = screen.getByText('Picker Place').closest('div[draggable]')!;
-    const plusBtn = placeRow.querySelector('button')!;
-    await user.click(plusBtn);
-    const dayOption = await screen.findByText('Day 1');
-    await user.click(dayOption.closest('button')!);
-    expect(onAssignToDay).toHaveBeenCalledWith(99, 7);
-  });
 
   it('FE-PLANNER-SIDEBAR-030: place address shown as subtitle', () => {
     const place = buildPlace({ name: 'Paris Spot', address: 'Rue de Rivoli', description: null });

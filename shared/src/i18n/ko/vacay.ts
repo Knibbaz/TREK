@@ -95,5 +95,18 @@ const vacay: TranslationStrings = {
   'vacay.fuseInfo4': '공휴일 및 회사 휴일 등의 설정이 공유됩니다.',
   'vacay.fuseInfo5':
     '어느 쪽이든 언제든지 퓨전을 해제할 수 있습니다. 항목은 보존됩니다.',
+  'vacay.hours': 'hours',
+  'vacay.modeComp': 'Earn TvT',
+  'vacay.compTime': 'Comp Time',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
+  'vacay.hoursPerDay': 'Hours per work day',
+  'vacay.hoursPerDayHint': 'Defines how many hours equal one full vacation day',
+  'vacay.stdDay': 'Full day',
+  'vacay.rightClickHint': 'Right-click for hours',
+  'vacay.save': 'Save',
+  'vacay.cancel': 'Cancel',
 };
 export default vacay;

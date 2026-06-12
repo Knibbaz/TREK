@@ -58,5 +58,7 @@ const common: TranslationStrings = {
   'common.submit': 'Indienen',
   'common.submitting': 'Bezig...',
   'common.notNow': 'Niet nu',
+  'common.viewAll': 'View all',
+  'common.create': 'Create',
 };
 export default common;

@@ -51,5 +51,14 @@ const common: TranslationStrings = {
   'common.hoursAgo': 'před {count} h',
   'common.daysAgo': 'před {count} d',
   'common.notNow': 'Teď ne',
+  'common.transfer': 'Transfer',
+  'common.refresh': 'Refresh',
+  'common.noData': 'No data',
+  'common.settings': 'Settings',
+  'common.next': 'Next',
+  'common.submit': 'Submit',
+  'common.submitting': 'Submitting...',
+  'common.viewAll': 'View all',
+  'common.create': 'Create',
 };
 export default common;

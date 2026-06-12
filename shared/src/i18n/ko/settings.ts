@@ -322,6 +322,16 @@ const settings: TranslationStrings = {
   'settings.passkey.neverUsed': '사용한 적 없음',
   'settings.mapPoiPill': '지도에서 장소 탐색',
   'settings.mapPoiPillHint': '여행 지도에 카테고리 칩을 표시하여 OpenStreetMap에서 주변 음식점, 숙소 등을 찾아보세요.',
+  'settings.navZoom': 'Navigation zoom',
+  'settings.defaultCurrency': 'Default Currency',
+  'settings.defaultCurrencyHint': 'Used as the default when adding prices to places.',
+  'settings.routeWalkingThreshold': 'Walking up to',
+  'settings.routeWalkingThresholdHint': 'Routes up to this distance show walking time; above it shows driving.',
+  'settings.routeDrivingThreshold': 'Driving up to',
+  'settings.routeDrivingThresholdHint': 'Routes up to this distance show driving time; above it shows flight.',
+  'settings.shareVacayInGroups': 'Share vacay & trips in groups',
+  'settings.shareVacayInGroupsHint': 'Your vacay entries and planned trips are automatically counted in group availability analyses.',
+  'settings.roleCreator': 'Creator',
 };
 
 export default settings;

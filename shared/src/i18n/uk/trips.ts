@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': "днів до від'їзду",
   'trips.reminderDisabledHint':
     'Нагадування про поїздки вимкнено. Увімкніть їх в Адмін > Налаштування > Сповіщення.',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 };
 export default trips;

@@ -20,5 +20,7 @@ const members: TranslationStrings = {
   'members.addError': 'Αποτυχία προσθήκης',
   'members.removed': 'Το μέλος αφαιρέθηκε',
   'members.removeError': 'Αποτυχία αφαίρεσης',
+  'members.sharedWithGroups': 'Shared with groups',
+  'members.noGroups': 'This trip is not linked to any group. Add it via a group to enable voting on places.',
 };
 export default members;

@@ -92,5 +92,7 @@ const packing: TranslationStrings = {
     { name: 'Τσιρότα', category: 'Υγεία' },
     { name: 'Απολυμαντικό', category: 'Υγεία' },
   ],
+  'packing.export': 'Export',
+  'packing.exportSuccess': 'List exported',
 };
 export default packing;

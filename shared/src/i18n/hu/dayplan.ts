@@ -57,5 +57,8 @@ const dayplan: TranslationStrings = {
   'dayplan.reorderUndo': 'Napok átrendezése',
   'dayplan.reorderError': 'Nem sikerült átrendezni a napokat',
   'dayplan.addDayError': 'Nem sikerült napot hozzáadni',
+  'dayplan.routeCalculating': 'Calculating route…',
+  'dayplan.routeReady': 'Route ready',
+  'dayplan.noRoute': 'No route calculated',
 };
 export default dayplan;

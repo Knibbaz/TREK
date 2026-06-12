@@ -64,5 +64,7 @@ const planner: TranslationStrings = {
   'planner.keepPosition': 'Mantener posición durante la optimización de ruta',
   'planner.dayDetails': 'Detalles del día',
   'planner.dayN': 'Día {n}',
+  'planner.mode.edit': 'Edit',
+  'planner.mode.view': 'Overview',
 };
 export default planner;

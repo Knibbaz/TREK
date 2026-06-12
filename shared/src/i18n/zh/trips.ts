@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': '天前提醒',
   'trips.reminderDisabledHint':
     '旅行提醒已禁用。请在管理 > 设置 > 通知中启用。',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 };
 export default trips;

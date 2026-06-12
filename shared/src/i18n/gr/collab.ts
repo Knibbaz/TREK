@@ -73,5 +73,6 @@ const collab: TranslationStrings = {
   'collab.polls.options': 'Επιλογές',
   'collab.polls.delete': 'Διαγραφή',
   'collab.polls.closedSection': 'Κλειστές',
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

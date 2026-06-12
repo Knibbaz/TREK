@@ -93,5 +93,18 @@ const vacay: TranslationStrings = {
   'vacay.fuseInfo3': '双方が予定の削除や付与日数の変更を行えます。',
   'vacay.fuseInfo4': '祝日や会社休日などの設定は共有されます。',
   'vacay.fuseInfo5': '統合はいつでも解除できます。データは保持されます。',
+  'vacay.hours': 'hours',
+  'vacay.modeComp': 'Earn TvT',
+  'vacay.compTime': 'Comp Time',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
+  'vacay.hoursPerDay': 'Hours per work day',
+  'vacay.hoursPerDayHint': 'Defines how many hours equal one full vacation day',
+  'vacay.stdDay': 'Full day',
+  'vacay.rightClickHint': 'Right-click for hours',
+  'vacay.save': 'Save',
+  'vacay.cancel': 'Cancel',
 };
 export default vacay;

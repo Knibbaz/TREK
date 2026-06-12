@@ -27,5 +27,6 @@ const trip: TranslationStrings = {
   'trip.confirm.deletePlace': '確定要刪除這個地點嗎？',
   'trip.confirm.deletePlaces': '刪除 {count} 個地點？',
   'trip.toast.placesDeleted': '已刪除 {count} 個地點',
+  'trip.toast.loadError': 'Failed to load trip',
 };
 export default trip;

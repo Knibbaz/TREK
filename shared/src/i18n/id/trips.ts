@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': 'hari sebelum keberangkatan',
   'trips.reminderDisabledHint':
     'Pengingat perjalanan dinonaktifkan. Aktifkan di Admin > Pengaturan > Notifikasi.',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 };
 export default trips;

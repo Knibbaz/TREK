@@ -127,29 +127,5 @@ describe('SettingsPage', () => {
     });
   });
 
-  describe('FE-PAGE-SETTINGS-006: About tab shown when version loads', () => {
-    it('About tab appears when app version is returned by API', async () => {
-      const { http, HttpResponse } = await import('msw');
-      const { server } = await import('../../tests/helpers/msw/server');
-
-      server.use(
-        http.get('/api/auth/app-config', () => {
-          return HttpResponse.json({
-            has_users: true,
-            allow_registration: true,
-            demo_mode: false,
-            oidc_configured: false,
-            oidc_only_mode: false,
-            version: '2.9.10',
-          });
-        }),
-      );
-
-      render(<SettingsPage />);
-
-      await waitFor(() => {
-        expect(screen.getByRole('button', { name: /about/i })).toBeInTheDocument();
-      });
-    });
-  });
+  // NOTE(ROUTD): About tab removed in the fork — upstream test FE-PAGE-SETTINGS-006 dropped.
 });

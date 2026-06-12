@@ -20,5 +20,7 @@ const members: TranslationStrings = {
   'members.addError': '新增失敗',
   'members.removed': '成員已移除',
   'members.removeError': '移除失敗',
+  'members.sharedWithGroups': 'Shared with groups',
+  'members.noGroups': 'This trip is not linked to any group. Add it via a group to enable voting on places.',
 };
 export default members;

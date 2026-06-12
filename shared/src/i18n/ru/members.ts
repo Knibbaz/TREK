@@ -20,5 +20,7 @@ const members: TranslationStrings = {
   'members.addError': 'Ошибка добавления',
   'members.removed': 'Участник удалён',
   'members.removeError': 'Ошибка удаления',
+  'members.sharedWithGroups': 'Shared with groups',
+  'members.noGroups': 'This trip is not linked to any group. Add it via a group to enable voting on places.',
 };
 export default members;

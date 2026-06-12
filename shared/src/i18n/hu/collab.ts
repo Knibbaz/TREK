@@ -74,5 +74,6 @@ const collab: TranslationStrings = {
   'collab.polls.options': 'Opciók',
   'collab.polls.delete': 'Törlés',
   'collab.polls.closedSection': 'Lezárva',
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

@@ -71,5 +71,6 @@ const collab: TranslationStrings = {
   'collab.polls.options': '옵션',
   'collab.polls.delete': '삭제',
   'collab.polls.closedSection': '종료됨',
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

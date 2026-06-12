@@ -112,5 +112,9 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': 'Jobb kattintás az órákhoz',
   'vacay.save': 'Mentés',
   'vacay.cancel': 'Mégse',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
 };
 export default vacay;

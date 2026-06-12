@@ -71,5 +71,6 @@ const collab: TranslationStrings = {
   'collab.polls.delete': 'حذف',
   'collab.polls.closedSection': 'مغلق',
   'collab.notes.websitePlaceholder': 'https://...', // en-fallback
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

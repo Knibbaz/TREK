@@ -311,6 +311,16 @@ const settings: TranslationStrings = {
   'settings.passkey.neverUsed': '從未使用',
   'settings.mapPoiPill': '在地圖上探索地點',
   'settings.mapPoiPillHint': '在行程地圖上顯示分類標籤，透過 OpenStreetMap 尋找附近的餐廳、住宿等地點。',
+  'settings.navZoom': 'Navigation zoom',
+  'settings.defaultCurrency': 'Default Currency',
+  'settings.defaultCurrencyHint': 'Used as the default when adding prices to places.',
+  'settings.routeWalkingThreshold': 'Walking up to',
+  'settings.routeWalkingThresholdHint': 'Routes up to this distance show walking time; above it shows driving.',
+  'settings.routeDrivingThreshold': 'Driving up to',
+  'settings.routeDrivingThresholdHint': 'Routes up to this distance show driving time; above it shows flight.',
+  'settings.shareVacayInGroups': 'Share vacay & trips in groups',
+  'settings.shareVacayInGroupsHint': 'Your vacay entries and planned trips are automatically counted in group availability analyses.',
+  'settings.roleCreator': 'Creator',
 };
 
 export default settings;

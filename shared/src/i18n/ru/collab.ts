@@ -73,5 +73,6 @@ const collab: TranslationStrings = {
   'collab.polls.options': 'Варианты',
   'collab.polls.delete': 'Удалить',
   'collab.polls.closedSection': 'Закрытые',
+  'collab.tabs.availability': 'Dates',
 };
 export default collab;

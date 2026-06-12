@@ -65,5 +65,7 @@ const planner: TranslationStrings = {
     "Mantieni la posizione durante l'ottimizzazione del percorso",
   'planner.dayDetails': 'Dettagli del giorno',
   'planner.dayN': 'Giorno {n}',
+  'planner.mode.edit': 'Edit',
+  'planner.mode.view': 'Overview',
 };
 export default planner;

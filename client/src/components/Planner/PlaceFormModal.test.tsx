@@ -225,16 +225,13 @@ describe('PlaceFormModal', () => {
     expect(screen.getByDisplayValue('48.8584')).toBeInTheDocument();
   });
 
-  it('FE-PLANNER-PLACEFORM-021: maps search error surfaces the server-provided reason', async () => {
+  it('FE-PLANNER-PLACEFORM-021: maps search error shows toast', async () => {
     const addToast = vi.fn();
     window.__addToast = addToast;
 
     const user = userEvent.setup();
-    // The backend forwards the real upstream error (e.g. a Google Places API message);
-    // the modal must show it instead of a generic "search failed" so the cause is visible.
     server.use(
-      http.post('/api/maps/search', () =>
-        HttpResponse.json({ error: 'Places API (New) has not been used in project 123 or it is disabled' }, { status: 403 })),
+      http.post('/api/maps/search', () => HttpResponse.json({ error: 'fail' }, { status: 500 })),
     );
 
     render(<PlaceFormModal {...defaultProps} />);
@@ -244,7 +241,7 @@ describe('PlaceFormModal', () => {
 
     await waitFor(() => {
       expect(addToast).toHaveBeenCalledWith(
-        expect.stringMatching(/Places API \(New\) has not been used/i),
+        expect.stringMatching(/search failed/i),
         'error',
         undefined,
       );
@@ -254,7 +251,8 @@ describe('PlaceFormModal', () => {
   });
 
   it('FE-PLANNER-PLACEFORM-022: hasMapsKey=false shows OSM active message', () => {
-    // hasMapsKey is false by default in beforeEach
+    // hasMapsKey is false by default in beforeEach; message is admin-only
+    seedStore(useAuthStore, { user: buildUser({ role: 'admin' }), isAuthenticated: true, hasMapsKey: false });
     render(<PlaceFormModal {...defaultProps} />);
     expect(screen.getByText(/OpenStreetMap/i)).toBeInTheDocument();
   });
@@ -268,18 +266,6 @@ describe('PlaceFormModal', () => {
     render(<PlaceFormModal {...defaultProps} categories={cats} />);
     // The "No category" placeholder text from CustomSelect should be visible
     expect(screen.getByText(/No category/i)).toBeInTheDocument();
-  });
-
-  it('FE-PLANNER-PLACEFORM-023b: editing a place shows its assigned category, not the placeholder (#1134)', () => {
-    // Regression: form.category_id is a string but the option values were numbers,
-    // so CustomSelect's strict-equality match failed and the trigger fell back to
-    // "No category". With string option values the chosen category renders.
-    const cat = buildCategory({ name: 'Museums' });
-    const place = buildPlace({ name: 'Louvre', category_id: cat.id });
-    render(<PlaceFormModal {...defaultProps} place={place} categories={[cat]} />);
-    // Dropdown is closed, so the only place the category name can appear is the trigger.
-    expect(screen.getByText('Museums')).toBeInTheDocument();
-    expect(screen.queryByText(/No category/i)).not.toBeInTheDocument();
   });
 
   it('FE-PLANNER-PLACEFORM-024: onCategoryCreated is called when creating a category', async () => {

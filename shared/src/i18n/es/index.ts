@@ -39,6 +39,15 @@ import trip from './trip';
 import trips from './trips';
 import undo from './undo';
 import vacay from './vacay';
+import account from './account';
+import creatorHub from './creatorHub';
+import dateAvail from './dateAvail';
+import explore from './explore';
+import gdpr from './gdpr';
+import groups from './groups';
+import placeVote from './placeVote';
+import visitorPoll from './visitorPoll';
+import worldmap from './worldmap';
 
 const locale = {
   ...common,
@@ -82,5 +91,14 @@ const locale = {
   ...oauth,
   ...system_notice,
   ...transport,
+  ...account,
+  ...creatorHub,
+  ...dateAvail,
+  ...explore,
+  ...gdpr,
+  ...groups,
+  ...placeVote,
+  ...visitorPoll,
+  ...worldmap,
 };
 export default locale;

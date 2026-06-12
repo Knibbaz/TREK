@@ -143,42 +143,6 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
           <img src={dark ? branding.logoLight : branding.logoDark} alt={branding.name} className="hidden sm:block" style={{ height: 28 }} />
         </Link>
 
-        {/* Global addon nav items */}
-        {globalAddons.length > 0 && !tripTitle && (
-          <>
-            <span style={{ color: 'var(--text-faint)' }}>|</span>
-            <Link to="/dashboard"
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
-              style={{
-                color: location.pathname === '/dashboard' ? 'var(--text-primary)' : 'var(--text-muted)',
-                background: location.pathname === '/dashboard' ? 'var(--bg-hover)' : 'transparent',
-              }}
-              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-              onMouseLeave={e => { if (location.pathname !== '/dashboard') e.currentTarget.style.background = 'transparent' }}>
-              <Briefcase className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t('nav.myTrips')}</span>
-            </Link>
-            {globalAddons.map(addon => {
-              const Icon = ADDON_ICONS[addon.icon] || CalendarDays
-              const override = ADDON_NAV_OVERRIDES[addon.id]
-              const path = override?.to ?? `/${addon.id}`
-              const isActive = location.pathname === path
-              return (
-                <Link key={addon.id} to={path}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors flex-shrink-0"
-                  style={{
-                    color: isActive ? 'var(--text-primary)' : 'var(--text-muted)',
-                    background: isActive ? 'var(--bg-hover)' : 'transparent',
-                  }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}>
-                  <Icon className="w-3.5 h-3.5" />
-                  <span className="hidden md:inline">{getAddonName(addon)}</span>
-                </Link>
-              )
-            })}
-          </>
-        )}
 
         {tripTitle && (
           <>
@@ -204,7 +168,7 @@ export default function Navbar({ tripTitle, tripId, onBack, showBack, onShare, o
           }}
         >
           {[{ id: '__trips', path: '/dashboard', label: t('nav.myTrips'), Icon: Briefcase },
-            ...globalAddons.map(a => ({ id: a.id, path: `/${a.id}`, label: getAddonName(a), Icon: ADDON_ICONS[a.icon] || CalendarDays }))
+            ...globalAddons.map(a => ({ id: a.id, path: ADDON_NAV_OVERRIDES[a.id]?.to ?? `/${a.id}`, label: getAddonName(a), Icon: ADDON_ICONS[a.icon] || CalendarDays }))
           ].map(tab => {
             const isActive = location.pathname === tab.path
             return (

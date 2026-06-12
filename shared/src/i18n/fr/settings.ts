@@ -331,6 +331,16 @@ const settings: TranslationStrings = {
   'settings.passkey.neverUsed': 'Jamais utilisée',
   'settings.mapPoiPill': 'Explorer les lieux sur la carte',
   'settings.mapPoiPillHint': 'Afficher une pastille de catégorie sur la carte du voyage pour trouver à proximité des restaurants, hébergements et plus encore depuis OpenStreetMap.',
+  'settings.navZoom': 'Navigation zoom',
+  'settings.defaultCurrency': 'Default Currency',
+  'settings.defaultCurrencyHint': 'Used as the default when adding prices to places.',
+  'settings.routeWalkingThreshold': 'Walking up to',
+  'settings.routeWalkingThresholdHint': 'Routes up to this distance show walking time; above it shows driving.',
+  'settings.routeDrivingThreshold': 'Driving up to',
+  'settings.routeDrivingThresholdHint': 'Routes up to this distance show driving time; above it shows flight.',
+  'settings.shareVacayInGroups': 'Share vacay & trips in groups',
+  'settings.shareVacayInGroupsHint': 'Your vacay entries and planned trips are automatically counted in group availability analyses.',
+  'settings.roleCreator': 'Creator',
 };
 
 export default settings;

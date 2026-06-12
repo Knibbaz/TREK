@@ -102,5 +102,18 @@ const vacay: TranslationStrings = {
     'Pengaturan seperti hari libur nasional dan hari libur perusahaan dibagikan bersama.',
   'vacay.fuseInfo5':
     'Penggabungan dapat dipisahkan kapan saja oleh salah satu pihak. Entri kamu akan tetap disimpan.',
+  'vacay.hours': 'hours',
+  'vacay.modeComp': 'Earn TvT',
+  'vacay.compTime': 'Comp Time',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
+  'vacay.hoursPerDay': 'Hours per work day',
+  'vacay.hoursPerDayHint': 'Defines how many hours equal one full vacation day',
+  'vacay.stdDay': 'Full day',
+  'vacay.rightClickHint': 'Right-click for hours',
+  'vacay.save': 'Save',
+  'vacay.cancel': 'Cancel',
 };
 export default vacay;

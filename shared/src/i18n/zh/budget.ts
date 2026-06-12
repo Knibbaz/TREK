@@ -110,6 +110,8 @@ const budget: TranslationStrings = {
   "costs.travelers": "{count} 位同行者",
   "costs.liveRate": "实时汇率",
   "costs.settleAll": "全部结算",
+  'budget.deleteCategoryTitle': 'Delete category',
+  'budget.deleteCategoryMessage': 'This will permanently delete the category "{cat}" and all its items. This cannot be undone.',
 };
 
 export default budget;

@@ -20,5 +20,7 @@ const members: TranslationStrings = {
   'members.addError': 'Nem sikerült hozzáadni',
   'members.removed': 'Tag eltávolítva',
   'members.removeError': 'Nem sikerült eltávolítani',
+  'members.sharedWithGroups': 'Shared with groups',
+  'members.noGroups': 'This trip is not linked to any group. Add it via a group to enable voting on places.',
 };
 export default members;

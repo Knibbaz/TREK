@@ -28,5 +28,6 @@ const trip: TranslationStrings = {
     'Είστε σίγουροι ότι θέλετε να διαγράψετε αυτό το μέρος;',
   'trip.confirm.deletePlaces': 'Διαγραφή {count} μερών;',
   'trip.toast.placesDeleted': '{count} μέρη διαγράφηκαν',
+  'trip.toast.loadError': 'Failed to load trip',
 };
 export default trip;

@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { tripsApi, shareApi, groupsApi, addonsApi } from '../../api/client'
+import { tripsApi, shareApi, groupsApi, addonsApi, authApi } from '../../api/client'
+import CustomSelect from '../shared/CustomSelect'
+import { getApiErrorMessage } from '../../types'
 import { useToast } from '../shared/Toast'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
@@ -348,7 +350,10 @@ interface TripMembersModalProps {
 
 export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }: TripMembersModalProps) {
   const [data, setData] = useState(null)
+  const [allUsers, setAllUsers] = useState([])
   const [loading, setLoading] = useState(false)
+  const [selectedUserId, setSelectedUserId] = useState('')
+  const [adding, setAdding] = useState(false)
   const [removingId, setRemovingId] = useState(null)
   const [enabledAddons, setEnabledAddons] = useState<Record<string, boolean>>({})
   const toast = useToast()
@@ -362,9 +367,33 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
   useEffect(() => {
     if (isOpen && tripId) {
       loadMembers()
+      loadAllUsers()
       loadAddons()
     }
   }, [isOpen, tripId])
+
+  const loadAllUsers = async () => {
+    try {
+      const d = await authApi.listUsers()
+      setAllUsers(d.users)
+    } catch {}
+  }
+
+  const handleAdd = async () => {
+    if (!selectedUserId) return
+    setAdding(true)
+    try {
+      const target = allUsers.find(u => String(u.id) === String(selectedUserId))
+      await tripsApi.addMember(tripId, target.username)
+      setSelectedUserId('')
+      await loadMembers()
+      toast.success(`${target.username} ${t('members.added')}`)
+    } catch (err: unknown) {
+      toast.error(getApiErrorMessage(err, t('members.addError')))
+    } finally {
+      setAdding(false)
+    }
+  }
 
   const loadAddons = async () => {
     try {
@@ -408,6 +437,13 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
   }
 
   const isCurrentOwner = data?.owner?.id === user?.id
+  // Users not yet in the trip
+  const existingIds = new Set([
+    data?.owner?.id,
+    ...(data?.members?.map(m => m.id) || []),
+  ])
+  const availableUsers = allUsers.filter(u => !existingIds.has(u.id))
+
   const allMembers = data ? [
     { ...data.owner, role: 'owner' },
     ...data.members,
@@ -426,6 +462,45 @@ export default function TripMembersModal({ isOpen, onClose, tripId, tripTitle }:
           <div className="text-content-faint" style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 2 }}>{t('nav.trip')}</div>
           <div className="text-content" style={{ fontSize: 14, fontWeight: 600 }}>{tripTitle}</div>
         </div>
+
+        {/* Add member dropdown */}
+        {canManageMembers && <div>
+          <label className="text-content-secondary" style={{ display: 'block', fontSize: 12, fontWeight: 600, marginBottom: 8 }}>
+            {t('members.inviteUser')}
+          </label>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <CustomSelect
+              value={selectedUserId}
+              onChange={value => setSelectedUserId(String(value))}
+              placeholder={t('members.selectUser')}
+              options={[
+                { value: '', label: t('members.selectUser') },
+                ...availableUsers.map(u => ({
+                  value: u.id,
+                  label: u.username,
+                })),
+              ]}
+              searchable
+              style={{ flex: 1 }}
+              size="sm"
+            />
+            <button
+              onClick={handleAdd}
+              disabled={adding || !selectedUserId}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 5, padding: '8px 14px',
+                background: 'var(--accent)', color: 'var(--accent-text)', border: 'none', borderRadius: 10,
+                fontSize: 13, fontWeight: 600, cursor: adding || !selectedUserId ? 'default' : 'pointer',
+                fontFamily: 'inherit', opacity: adding || !selectedUserId ? 0.4 : 1, flexShrink: 0,
+              }}
+            >
+              <UserPlus size={13} /> {adding ? '…' : t('members.invite')}
+            </button>
+          </div>
+          {availableUsers.length === 0 && allUsers.length > 0 && canManageMembers && (
+            <p className="text-content-faint" style={{ fontSize: 11.5, margin: '6px 0 0' }}>{t('members.allHaveAccess')}</p>
+          )}
+        </div>}
 
         {/* Collab invite link */}
         <CollabInviteSection tripId={tripId} t={t} canManage={canManageShare} />

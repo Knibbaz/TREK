@@ -17,5 +17,6 @@ const shared: TranslationStrings = {
   'shared.sharedVia': 'Şununla paylaşıldı:',
   'shared.confirmed': 'Onaylandı',
   'shared.pending': 'Askıda olması',
+  'shared.tabMap': 'Map',
 };
 export default shared;

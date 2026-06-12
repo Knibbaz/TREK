@@ -36,5 +36,7 @@ const todo: TranslationStrings = {
   'todo.detail.priority': 'Priorità',
   'todo.detail.noPriority': 'Nessuna',
   'todo.sortByPrio': 'Priorità',
+  'todo.export': 'Export',
+  'todo.exportSuccess': 'List exported',
 };
 export default todo;

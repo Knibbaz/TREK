@@ -103,5 +103,18 @@ const vacay: TranslationStrings = {
   'vacay.calendarColor': 'Колір',
   'vacay.calendarLabel': 'Назва',
   'vacay.noCalendars': 'Немає календарів',
+  'vacay.hours': 'hours',
+  'vacay.modeComp': 'Earn TvT',
+  'vacay.compTime': 'Comp Time',
+  'vacay.modeTvtUsed': 'Use TvT',
+  'vacay.tvtUsed': 'used',
+  'vacay.tvtUsedLabel': 'TvT used',
+  'vacay.vacationUsed': 'Vacation used',
+  'vacay.hoursPerDay': 'Hours per work day',
+  'vacay.hoursPerDayHint': 'Defines how many hours equal one full vacation day',
+  'vacay.stdDay': 'Full day',
+  'vacay.rightClickHint': 'Right-click for hours',
+  'vacay.save': 'Save',
+  'vacay.cancel': 'Cancel',
 };
 export default vacay;

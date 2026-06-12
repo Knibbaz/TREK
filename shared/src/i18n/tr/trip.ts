@@ -27,5 +27,6 @@ const trip: TranslationStrings = {
   'trip.confirm.deletePlace': 'Bu yeri silmek istediğinizden emin misiniz?',
   'trip.confirm.deletePlaces': '{count} Yer silinsin mi?',
   'trip.toast.placesDeleted': '{count} yer silindi',
+  'trip.toast.loadError': 'Failed to load trip',
 };
 export default trip;

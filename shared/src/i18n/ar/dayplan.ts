@@ -54,5 +54,8 @@ const dayplan: TranslationStrings = {
   'dayplan.reorderUndo': 'إعادة ترتيب الأيام',
   'dayplan.reorderError': 'تعذّر إعادة ترتيب الأيام',
   'dayplan.addDayError': 'تعذّر إضافة يوم',
+  'dayplan.routeCalculating': 'Calculating route…',
+  'dayplan.routeReady': 'Route ready',
+  'dayplan.noRoute': 'No route calculated',
 };
 export default dayplan;

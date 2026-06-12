@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': 'dní před odjezdem',
   'trips.reminderDisabledHint':
     'Připomínky výletů jsou zakázány. Povolte je v Správa > Nastavení > Oznámení.',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 };
 export default trips;

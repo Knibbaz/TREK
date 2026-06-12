@@ -13,5 +13,7 @@ const trips: TranslationStrings = {
   'trips.reminderDaysBefore': 'jours avant le départ',
   'trips.reminderDisabledHint':
     'Les rappels de voyage sont désactivés. Activez-les dans Admin > Paramètres > Notifications.',
+  'trips.shrinkWarning': 'Shortening the trip will permanently remove {days} day(s). Places remain visible in the planning panel.',
+  'trips.shrinkConfirm': 'I understand — content on removed days will be permanently deleted',
 };
 export default trips;

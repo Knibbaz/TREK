@@ -97,10 +97,11 @@ describe('VacayCalendar', () => {
 
     render(<VacayCalendar />)
 
-    // Only the vacation mode button should be in the toolbar
+    // ROUTD fork: vacation + comp-time buttons remain; company button hidden
     const buttons = screen.getAllByRole('button')
     const toolbarButtons = buttons.filter(b => !b.textContent?.startsWith('click-'))
-    expect(toolbarButtons).toHaveLength(1)
+    expect(toolbarButtons).toHaveLength(2)
+    expect(toolbarButtons.some(b => b.textContent?.match(/company/i))).toBe(false)
   })
 
   it('FE-COMP-VACAYCALENDAR-005: switching to company mode highlights company button', async () => {
@@ -120,12 +121,12 @@ describe('VacayCalendar', () => {
 
     const buttons = screen.getAllByRole('button')
     const toolbarButtons = buttons.filter(b => !b.textContent?.startsWith('click-'))
-    // toolbarButtons[0] = vacation mode, toolbarButtons[1] = company mode
-    const companyBtn = toolbarButtons[1]
+    // ROUTD fork: [0] = vacation, [1] = comp-time, [2] = company
+    const companyBtn = toolbarButtons[2]
 
     await user.click(companyBtn)
 
-    expect(companyBtn).toHaveClass('bg-[#d97706]')
+    expect(companyBtn.style.background).toBe('rgb(217, 119, 6)')
   })
 
   it('FE-COMP-VACAYCALENDAR-006: cell click in vacation mode calls toggleEntry', async () => {
@@ -196,7 +197,7 @@ describe('VacayCalendar', () => {
     // Switch to company mode
     const buttons = screen.getAllByRole('button')
     const toolbarButtons = buttons.filter(b => !b.textContent?.startsWith('click-'))
-    const companyBtn = toolbarButtons[1]
+    const companyBtn = toolbarButtons[2]
     await user.click(companyBtn)
 
     // Now click a month card cell
@@ -231,7 +232,7 @@ describe('VacayCalendar', () => {
     // Switch to company mode while it was enabled
     const buttons = screen.getAllByRole('button')
     const toolbarButtons = buttons.filter(b => !b.textContent?.startsWith('click-'))
-    await user.click(toolbarButtons[1]) // company button
+    await user.click(toolbarButtons[2]) // company button
 
     // Now disable company holidays in the store
     seedStore(useVacayStore, {

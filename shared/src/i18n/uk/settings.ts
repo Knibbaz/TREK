@@ -324,6 +324,16 @@ const settings: TranslationStrings = {
   'settings.passkey.neverUsed': 'Не використовувався',
   'settings.mapPoiPill': 'Досліджуйте місця на карті',
   'settings.mapPoiPillHint': 'Показувати на карті подорожі плашку категорій, щоб знаходити поблизу ресторани, готелі та інше з OpenStreetMap.',
+  'settings.navZoom': 'Navigation zoom',
+  'settings.defaultCurrency': 'Default Currency',
+  'settings.defaultCurrencyHint': 'Used as the default when adding prices to places.',
+  'settings.routeWalkingThreshold': 'Walking up to',
+  'settings.routeWalkingThresholdHint': 'Routes up to this distance show walking time; above it shows driving.',
+  'settings.routeDrivingThreshold': 'Driving up to',
+  'settings.routeDrivingThresholdHint': 'Routes up to this distance show driving time; above it shows flight.',
+  'settings.shareVacayInGroups': 'Share vacay & trips in groups',
+  'settings.shareVacayInGroupsHint': 'Your vacay entries and planned trips are automatically counted in group availability analyses.',
+  'settings.roleCreator': 'Creator',
 };
 
 export default settings;

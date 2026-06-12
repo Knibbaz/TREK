@@ -36,5 +36,7 @@ const todo: TranslationStrings = {
   'todo.detail.priority': 'Προτεραιότητα',
   'todo.detail.noPriority': 'Καμία',
   'todo.detail.create': 'Δημιουργία εργασίας',
+  'todo.export': 'Export',
+  'todo.exportSuccess': 'List exported',
 };
 export default todo;
