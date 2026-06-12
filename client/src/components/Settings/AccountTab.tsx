@@ -287,7 +287,7 @@ export default function AccountTab(): React.ReactElement {
           >
             <option value="">{t('dateAvail.selectCountry') || 'Select country'}</option>
             {countries.map(c => (
-              <option key={c.countryCode} value={c.countryCode}>{c.name}</option>
+              <option key={c.code} value={c.code}>{c.name}</option>
             ))}
           </select>
           <p className="text-xs mt-1" style={{ color: 'var(--text-faint)' }}>{t('account.homeCountryHelp')}</p>

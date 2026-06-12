@@ -153,7 +153,7 @@ export function buildEmailHtml(subject: string, body: string, lang: string, navi
         </td></tr>
         <!-- CTA -->
         ${appUrl ? `<tr><td style="padding: 8px 32px 32px; text-align: center;">
-          <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openRoam}</a>
+          <a href="${ctaHref}" style="display: inline-block; padding: 12px 28px; background: #111827; color: #ffffff; font-size: 13px; font-weight: 600; text-decoration: none; border-radius: 10px; letter-spacing: 0.2px;">${s.openTrek}</a>
         </td></tr>` : ''}
         <!-- Footer -->
         <tr><td style="padding: 20px 32px; background: #f9fafb; border-top: 1px solid #f3f4f6; text-align: center;">

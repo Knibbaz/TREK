@@ -50,6 +50,7 @@ export async function runExport(opts: ExportOptions): Promise<ExportResult> {
   const archive = archiver('zip', { zlib: { level: 6 } });
   const output = fs.createWriteStream(filePath);
 
+  let manifest: ReturnType<typeof generateManifest> | undefined;
   await new Promise<void>((resolve, reject) => {
     output.on('close', resolve);
     output.on('error', reject);
@@ -173,7 +174,7 @@ export async function runExport(opts: ExportOptions): Promise<ExportResult> {
     stats.files = files.length;
 
     // Generate manifest
-    const manifest = generateManifest({
+    manifest = generateManifest({
       trekVersion: TREK_VERSION,
       exportType: opts.exportType,
       scope: opts.scope,
@@ -201,7 +202,7 @@ export async function runExport(opts: ExportOptions): Promise<ExportResult> {
     fileName,
     fileSize: stat.size,
     checksum,
-    manifest,
+    manifest: manifest!,
   };
 }
 

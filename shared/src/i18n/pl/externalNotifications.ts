@@ -49,6 +49,7 @@ const pl: NotificationLocale = {
       title: 'Sesja Synology wyczyszczona',
       body: 'Twoje konto lub URL Synology uległo zmianie. Zostałeś wylogowany z Synology Photos.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
     date_proposal_confirmed: p => ({ title: 'Dates confirmed: ' + p.proposal, body: `The dates for "${p.proposal}" have been confirmed: ${p.confirmed_start} to ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Termin dostępności: ' + p.proposal, body: 'Ankieta "' + p.proposal + '" w grupie "' + p.group + '" zamyka się ' + p.deadline + '.' }),

@@ -265,6 +265,7 @@ export function getSharedPlacePhotoPath(token: string, placeId: string): string 
   if (!place) return null;
 
   return serveFilePath(placeId);
+}
 
 // ── Collaboration invite tokens ────────────────────────────────────────────
 
@@ -376,6 +377,6 @@ export function getShareVisitStats(token: string): { uniqueVisitors: number; rec
 
   return {
     uniqueVisitors: stats?.unique_count || 0,
-    recentVisits: recent,
+    recentVisits: recent.map(r => ({ visitedAt: r.visited_at, userAgentHash: r.user_agent_hash })),
   };
 }

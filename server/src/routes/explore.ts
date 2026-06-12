@@ -6,6 +6,7 @@ import { copyTripTransaction, mergeTripFromSource } from '../services/tripCopySe
 import { getPlatformFeePercent } from '../services/mollieConnectService';
 import { getDeltas, getDeltaSummary, getConflictingEntities, clearDeltas } from '../services/deltaTrackingService';
 import { getCreatorBadges, BADGES, recalculateCreatorBadges } from '../services/badgeService';
+import { getCreatorEarnings } from '../services/paymentService';
 
 const router = express.Router();
 router.use(authenticate);
@@ -128,7 +129,7 @@ router.get('/creators/me', (req: AuthRequest, res: Response) => {
     const badges = getCreatorBadges(db, userId);
     const badgeDetails = badges.map(b => BADGES[b]);
 
-    res.json({ ...creator, badges: badgeDetails });
+    res.json({ ...(creator as Record<string, unknown>), badges: badgeDetails });
   } catch (err: unknown) {
     console.error('Error fetching creator profile:', err);
     res.status(500).json({ error: 'Failed to fetch creator profile' });
@@ -199,7 +200,7 @@ router.patch('/creators/me', (req: AuthRequest, res: Response) => {
     const badges = getCreatorBadges(db, userId);
     const badgeDetails = badges.map(b => BADGES[b]);
 
-    res.json({ ...updated, badges: badgeDetails });
+    res.json({ ...(updated as Record<string, unknown>), badges: badgeDetails });
   } catch (err: unknown) {
     console.error('Error updating creator profile:', err);
     res.status(500).json({ error: 'Failed to update creator profile' });
@@ -1197,7 +1198,7 @@ router.post('/trips/:id/push-update', (req: Request, res: Response) => {
     import('../services/notificationService').then(({ send }) => {
       for (const owner of forkOwners) {
         send({
-          event: 'explore_update_available',
+          event: 'explore_update',
           actorId: authReq.user.id,
           scope: 'user',
           targetId: owner.user_id,

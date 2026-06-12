@@ -1020,7 +1020,7 @@ export default function ExplorePage(): React.ReactElement {
                   fontFamily: 'inherit',
                 }}
               >
-                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', transition: 'all 0.2s', transform: 'hover' ? 'translateY(-1px)' : 'none' }}>
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.2)', transition: 'all 0.2s', transform: 'none' }}>
                   <div style={{ fontSize: 11, color: 'var(--text-faint)', marginBottom: 2 }}>{t('explore.sales') || 'Verkopen'}</div>
                   <div style={{ fontSize: 16, fontWeight: 700, color: '#059669' }}>{earnings.salesCount}</div>
                 </div>
@@ -1146,7 +1146,7 @@ export default function ExplorePage(): React.ReactElement {
 
           {/* Filter pills */}
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {(['all', 'curated'] as const).map(f => (
+            {(['all', 'curated', 'community'] as const).map(f => (
               <button
                 key={f}
                 onClick={() => { setExploreFilter(f); setPage(1) }}

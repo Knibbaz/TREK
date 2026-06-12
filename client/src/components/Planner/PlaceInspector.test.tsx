@@ -267,7 +267,7 @@ describe('PlaceInspector', () => {
 
   it('FE-PLANNER-INSPECTOR-047: clicking "Add to day" without selectedDayId opens a day picker popover', async () => {
     const user = userEvent.setup();
-    const days = [{ id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
+    const days = [{ id: 1, trip_id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
     render(<PlaceInspector {...defaultProps} selectedDayId={null} assignments={{}} days={days} />);
     const addBtn = screen.getByText('Add to Day').closest('button')!;
     await user.click(addBtn);
@@ -277,7 +277,7 @@ describe('PlaceInspector', () => {
   it('FE-PLANNER-INSPECTOR-048: selecting a day from the popover calls onAssignToDay with placeId and dayId', async () => {
     const user = userEvent.setup();
     const onAssignToDay = vi.fn();
-    const days = [{ id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
+    const days = [{ id: 1, trip_id: 1, day_number: 1, date: '2025-06-01', notes: null, title: 'Day 1' }];
     render(
       <PlaceInspector
         {...defaultProps}

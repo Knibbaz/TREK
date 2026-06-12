@@ -40,7 +40,7 @@ export class ReservationsService {
     return svc.getUpcomingReservations(userId);
   }
 
-  create(tripId: string, data: Parameters<typeof svc.createReservation>[1]) {
+  async create(tripId: string, data: Parameters<typeof svc.createReservation>[1]) {
     return svc.createReservation(tripId, data);
   }
 

@@ -4,6 +4,7 @@ import { SUPPORTED_LANGUAGES, useTranslation } from '../../i18n'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useToast } from '../shared/Toast'
 import CustomSelect from '../shared/CustomSelect'
+import { SYMBOLS } from '../Budget/BudgetPanel.constants'
 import Section from './Section'
 
 const CURRENCIES = [

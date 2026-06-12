@@ -65,7 +65,7 @@ export async function extractTrek(trekPath: string): Promise<{
   const validation = validateManifest(manifestRaw);
   if (!validation.valid) {
     fs.rmSync(extractDir, { recursive: true, force: true });
-    throw new Error(`Invalid manifest: ${validation.error}`);
+    throw new Error(`Invalid manifest: ${(validation as { valid: false; error: string }).error}`);
   }
 
   return { extractDir, manifest: validation.manifest };

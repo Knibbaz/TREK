@@ -68,7 +68,7 @@ interface StatCardProps {
 
 function StatCard({ stat: s, isMe, canEdit, selectedYear, onSave, t }: StatCardProps) {
   const [editing, setEditing] = useState(false)
-  const [localDays, setLocalDays] = useState(s.vacation_days)
+  const [localDays, setLocalDays] = useState<number | string>(s.vacation_days)
   const [hoveredStat, setHoveredStat] = useState<'used' | 'remaining' | 'header' | 'comp' | null>(null)
   const stdHours = s.standard_hours_per_day ?? 8
   const pct = s.total_available > 0 ? Math.min(100, (s.used / s.total_available) * 100) : 0

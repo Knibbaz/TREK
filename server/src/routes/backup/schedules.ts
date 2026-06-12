@@ -185,7 +185,7 @@ router.post('/schedules/:id/run', async (req: Request, res: Response) => {
       id: `schedule-${schedule.id}-${Date.now()}`,
       exportType: 'scheduled',
       scope: scopeObj,
-      initiatedBy: authReq.user.id,
+      initiatedBy: String(authReq.user.id),
       userRole: authReq.user.role,
     });
 

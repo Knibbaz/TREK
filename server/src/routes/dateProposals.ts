@@ -451,7 +451,7 @@ router.patch('/:proposalId/confirm', authenticate, (req: Request, res: Response)
   const access = getGroupAccess(groupId, authReq.user.id);
   if (!access) return res.status(404).json({ error: 'Group not found' });
 
-  const proposal = db.prepare('SELECT * FROM date_proposals WHERE id = ? AND group_id = ?').get(proposalId, groupId) as { created_by: number; period_start: string; period_end: string } | undefined;
+  const proposal = db.prepare('SELECT * FROM date_proposals WHERE id = ? AND group_id = ?').get(proposalId, groupId) as { created_by: number; period_start: string; period_end: string; title: string } | undefined;
   if (!proposal) return res.status(404).json({ error: 'Proposal not found' });
 
   const isOwnerAdmin = access.role === 'owner' || access.role === 'admin';
@@ -474,13 +474,13 @@ router.patch('/:proposalId/confirm', authenticate, (req: Request, res: Response)
   import('../services/notificationService').then(({ send }) => {
     const groupName = (db.prepare('SELECT name FROM groups WHERE id = ?').get(groupId) as { name: string } | undefined)?.name || 'Group';
     const actorName = authReq.user.username;
-    send('date_proposal_confirmed', {
-      proposal: proposal.id,
-      confirmed_start,
-      confirmed_end,
-      group: groupName,
-      actor: actorName,
-    }, groupId, authReq.user.id);
+    send({
+      event: 'date_proposal_confirmed',
+      actorId: authReq.user.id,
+      scope: 'group',
+      targetId: Number(groupId),
+      params: { proposal: proposal.title, confirmed_start: String(confirmed_start), confirmed_end: String(confirmed_end), group: groupName, actor: actorName },
+    }).catch(() => {});
   }).catch(() => {});
 });
 

@@ -26,7 +26,7 @@ const upload = multer({
 });
 
 // Track uploaded .routd files for preview/restore
-const uploadSessions = new Map<string, { filePath: string; uploadedAt: number }>();
+const uploadSessions = new Map<string, { filePath: string; uploadedAt: number; extractDir?: string }>();
 
 function generateUploadId(): string {
   return crypto.randomBytes(16).toString('hex');

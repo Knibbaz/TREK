@@ -1193,5 +1193,3 @@ export const tipsApi = {
 }
 
 export default apiClient
-
-export default apiClient

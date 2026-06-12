@@ -49,6 +49,7 @@ const fr: NotificationLocale = {
       title: 'Session Synology effacée',
       body: 'Votre compte ou URL Synology a changé. Vous avez été déconnecté de Synology Photos.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Sondage de disponibilité : ' + p.proposal, body: `${p.actor} a créé un sondage de disponibilité "${p.proposal}" dans le groupe "${p.group}". Veuillez indiquer vos disponibilités.` }),
     date_proposal_confirmed: p => ({ title: 'Dates confirmées : ' + p.proposal, body: `Les dates pour "${p.proposal}" ont été confirmées : ${p.confirmed_start} au ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Sondage de disponibilite : ' + p.proposal, body: 'Le sondage "' + p.proposal + '" dans le groupe "' + p.group + '" se termine le ' + p.deadline + '. Veuillez indiquer vos disponibilites.' }),

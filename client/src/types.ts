@@ -61,6 +61,9 @@ export interface User {
   mfa_enabled?: boolean
   /** True when a password change is required before the user can continue */
   must_change_password?: boolean
+  /** GDPR: account deletion requested (ROUTD fork) */
+  pending_deletion?: boolean
+  deletion_requested_at?: string | null
 }
 
 export interface TodoItem {
@@ -235,7 +238,6 @@ export interface RouteWithLegs {
   distance: number
   duration: number
   legs: RouteSegment[]
-  distance?: number
   distanceText?: string
 }
 
@@ -354,7 +356,7 @@ export interface VacayPlan {
   // Comma-separated weekday indices (e.g. '0,6'); stored as TEXT on vacay_plans.
   weekend_days?: string
   week_start?: number
-  standard_hours_per_day: number
+  standard_hours_per_day?: number
   name?: string
   year?: number
   owner_id?: number
@@ -387,21 +389,16 @@ export interface VacayStat {
   year: number
   vacation_days: number
   carried_over: number
+  carried_over_hours?: number
   total_available: number
   used: number
   remaining: number
-  carried_over: number
-  carried_over_hours: number
-  total_available: number
-  remaining: number
-  used_hours: number
-  remaining_hours: number
-  comp_hours: number
-  tvt_used_hours: number
-  vacation_used_hours: number
-  standard_hours_per_day: number
-  person_name: string
-  person_color: string
+  used_hours?: number
+  remaining_hours?: number
+  comp_hours?: number
+  tvt_used_hours?: number
+  vacation_used_hours?: number
+  standard_hours_per_day?: number
 }
 
 export interface HolidayInfo {

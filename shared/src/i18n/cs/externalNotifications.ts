@@ -48,6 +48,7 @@ const cs: NotificationLocale = {
       title: 'Relace Synology byla zrušena',
       body: 'Váš účet nebo URL Synology se změnil. Byli jste odhlášeni ze Synology Photos.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
     date_proposal_confirmed: p => ({ title: 'Data potvrzena: ' + p.proposal, body: `Termíny pro "${p.proposal}" byly potvrzeny: ${p.confirmed_start} až ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Dostupnost: ' + p.proposal, body: 'Hlasovani "' + p.proposal + '" ve skupin\u011b "' + p.group + '" konci ' + p.deadline + '. Prosim, vyplnte svou dostupnost.' }),

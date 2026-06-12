@@ -48,6 +48,7 @@ const nl: NotificationLocale = {
       title: 'Synology-sessie gewist',
       body: 'Je Synology-account of URL is gewijzigd. Je bent uitgelogd bij Synology Photos.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Beschikbaarheidspoll: ' + p.proposal, body: `${p.actor} heeft een beschikbaarheidspoll "${p.proposal}" in groep "${p.group}" aangemaakt. Vul alstublieft je beschikbaarheid in.` }),
     date_proposal_confirmed: p => ({ title: 'Datums bevestigd: ' + p.proposal, body: `De datums voor "${p.proposal}" zijn bevestigd: ${p.confirmed_start} tot ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Beschikbaarheid invullen: ' + p.proposal + '', body: 'De peilingsvraag "' + p.proposal + '" in groep "' + p.group + '" sluit op ' + p.deadline + '. Vul je beschikbaarheid nog in voor die datum.' }),

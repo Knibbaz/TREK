@@ -155,6 +155,7 @@ export function generateDays(tripId: number | bigint | string, startDate: string
   // notes, accommodations) — mirrors the dateless-path trimming above (#1083).
   // Base must be max(targetDates.length, dated.length) to avoid colliding with
   // positives already assigned by the main loop or the overflow loop above.
+  const del = db.prepare('DELETE FROM days WHERE id = ?');
   const isEmptyDay = db.prepare(
     `SELECT NOT EXISTS (SELECT 1 FROM day_assignments da WHERE da.day_id = @id)
           AND NOT EXISTS (SELECT 1 FROM day_notes dn WHERE dn.day_id = @id)

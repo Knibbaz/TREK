@@ -75,8 +75,7 @@ export default function VacayPage(): React.ReactElement {
       <VacayPersons />
 
       {/* Legend */}
-      {(
-        <div className="rounded-xl border p-3 bg-surface-card border-edge">
+      <div className="rounded-xl border p-3 bg-surface-card border-edge">
           <span className="text-[11px] font-medium uppercase tracking-wider text-content-faint">{t('vacay.legend')}</span>
           <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1.5">
             {plan?.holidays_enabled && (plan?.holiday_calendars ?? []).length === 0 && (
@@ -89,7 +88,6 @@ export default function VacayPage(): React.ReactElement {
             {plan?.block_weekends && <LegendItem color="#e5e7eb" label={t('vacay.weekend')} />}
             <LegendDotItem color="#3b82f6" label={t('vacay.tripDates') || 'Geplande reis'} />
             <LegendDotItem color="#f97316" label={t('vacay.proposalDates') || 'Beschikbaarheidsvoorstel'} />
-          </div>
         </div>
       </div>
 

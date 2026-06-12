@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import Modal from '../shared/Modal'
-import { AlertTriangle, Calendar, Camera, X, Bell, Sparkles } from 'lucide-react'
+import { Calendar, Camera, X, Clipboard, UserPlus, Bell } from 'lucide-react'
 import { tripsApi, authApi } from '../../api/client'
+import CustomSelect from '../shared/CustomSelect'
 import { useAuthStore } from '../../store/authStore'
 import { useCanDo } from '../../store/permissionsStore'
 import { useToast } from '../shared/Toast'
@@ -10,16 +11,6 @@ import { CustomDatePicker } from '../shared/CustomDateTimePicker'
 import { normalizeImageFile } from '../../utils/convertHeic'
 import type { Trip } from '../../types'
 import type { TripCreateRequest } from '@trek/shared'
-
-interface UnsplashPhoto {
-  id: string
-  url: string
-  thumb: string
-  description: string | null
-  photographer: string | null
-  photographerUrl: string | null
-  link: string
-}
 
 interface TripFormModalProps {
   isOpen: boolean
@@ -39,7 +30,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const currentUser = useAuthStore(s => s.user)
   const tripRemindersEnabled = useAuthStore(s => s.tripRemindersEnabled)
   const setTripRemindersEnabled = useAuthStore(s => s.setTripRemindersEnabled)
-  const unsplashConfigured = useAuthStore(s => s.unsplashConfigured)
   const can = useCanDo()
   const canUploadCover = !isEditing || can('trip_cover_upload', trip)
   const canEditTrip = !isEditing || can('trip_edit', trip)
@@ -58,24 +48,10 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
   const [coverPreview, setCoverPreview] = useState(null)
   const [pendingCoverFile, setPendingCoverFile] = useState(null)
   const [uploadingCover, setUploadingCover] = useState(false)
-  const [overflowInfo, setOverflowInfo] = useState<{ daysToRemove: number; assignments: number; notes: number; accommodations: number } | null>(null)
-  const [shrinkConfirmed, setShrinkConfirmed] = useState(false)
-
-  // Unsplash cover suggestions (new trip only)
-  const [unsplashPhotos, setUnsplashPhotos] = useState<UnsplashPhoto[]>([])
-  const [unsplashLoading, setUnsplashLoading] = useState(false)
-  const [unsplashError, setUnsplashError] = useState(false)
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Reset Unsplash state when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setUnsplashPhotos([])
-      setUnsplashLoading(false)
-      setUnsplashError(false)
-      if (debounceRef.current) clearTimeout(debounceRef.current)
-    }
-  }, [isOpen])
+  const [allUsers, setAllUsers] = useState<{ id: number; username: string }[]>([])
+  const [selectedMembers, setSelectedMembers] = useState<number[]>([])
+  const [existingMembers, setExistingMembers] = useState<{ id: number; username: string }[]>([])
+  const [memberSelectValue, setMemberSelectValue] = useState('')
 
   useEffect(() => {
     if (trip) {
@@ -96,11 +72,18 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       setCoverPreview(null)
     }
     setPendingCoverFile(null)
+    setSelectedMembers([])
     setError('')
     if (isOpen) {
       authApi.getAppConfig().then((c: { trip_reminders_enabled?: boolean }) => {
         if (c?.trip_reminders_enabled !== undefined) setTripRemindersEnabled(c.trip_reminders_enabled)
       }).catch(() => {})
+    }
+    authApi.listUsers().then(d => setAllUsers(d.users || [])).catch(() => {})
+    if (trip) {
+      tripsApi.getMembers(trip.id).then(d => setExistingMembers(d.members || [])).catch(() => {})
+    } else {
+      setExistingMembers([])
     }
   }, [trip, isOpen])
 
@@ -110,63 +93,12 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
     }
   }, [tripRemindersEnabled])
 
-  // Overflow check: when editing and dates shrink, warn about lost content
-  useEffect(() => {
-    if (!isEditing || !trip?.id || !formData.start_date || !formData.end_date) {
-      setOverflowInfo(null)
-      setShrinkConfirmed(false)
-      return
-    }
-    const timer = setTimeout(() => {
-      tripsApi.checkOverflow(trip.id, formData.start_date, formData.end_date)
-        .then(info => {
-          setOverflowInfo(info.daysToRemove > 0 ? info : null)
-          setShrinkConfirmed(false)
-        })
-        .catch(() => setOverflowInfo(null))
-    }, 400)
-    return () => clearTimeout(timer)
-  }, [formData.start_date, formData.end_date, isEditing, trip?.id])
-
-  // Auto-search Unsplash when title changes (new trip only, no cover selected yet)
-  useEffect(() => {
-    if (isEditing || !isOpen || !unsplashConfigured) return
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-    const q = formData.title.trim()
-    if (!q || pendingCoverFile || coverPreview) {
-      setUnsplashPhotos([])
-      setUnsplashError(false)
-      return
-    }
-    setUnsplashLoading(true)
-    debounceRef.current = setTimeout(async () => {
-      try {
-        const data = await tripsApi.searchCoverImages(q)
-        setUnsplashPhotos(data.photos || [])
-        setUnsplashError(false)
-      } catch {
-        setUnsplashPhotos([])
-        setUnsplashError(true)
-      } finally {
-        setUnsplashLoading(false)
-      }
-    }, 700)
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current) }
-  }, [formData.title, isEditing, isOpen, pendingCoverFile, coverPreview])
-
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
     if (!formData.title.trim()) { setError(t('dashboard.titleRequired')); return }
     if (formData.start_date && formData.end_date && new Date(formData.end_date) < new Date(formData.start_date)) {
       setError(t('dashboard.endDateError')); return
-    }
-    if (overflowInfo && overflowInfo.daysToRemove > 0 && !shrinkConfirmed) {
-      const el = document.getElementById('shrink-confirm-checkbox')
-      el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-      el?.classList.add('outline', 'outline-2', 'outline-red-400')
-      setTimeout(() => el?.classList.remove('outline', 'outline-2', 'outline-red-400'), 1500)
-      return
     }
     setIsLoading(true)
     try {
@@ -193,16 +125,10 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
       // Upload pending cover for newly created trips
       if (pendingCoverFile && createdTrip?.id) {
         try {
-          if ((pendingCoverFile as any)._unsplashUrl) {
-            // Unsplash URL: save directly
-            await tripsApi.update(result.trip.id, { cover_image: (pendingCoverFile as any)._unsplashUrl })
-            onCoverUpdate?.(result.trip.id, (pendingCoverFile as any)._unsplashUrl)
-          } else {
-            const fd = new FormData()
-            fd.append('cover', pendingCoverFile)
-            const data = await tripsApi.uploadCover(result.trip.id, fd)
-            onCoverUpdate?.(result.trip.id, data.cover_image)
-          }
+          const fd = new FormData()
+          fd.append('cover', pendingCoverFile)
+          const data = await tripsApi.uploadCover(createdTrip.id, fd)
+          onCoverUpdate?.(createdTrip.id, data.cover_image)
         } catch {
           // Cover upload failed but trip was created — surface it without blocking the create
           toast.error(t('dashboard.coverUploadError'))
@@ -267,14 +193,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
     }
   }
 
-  const handlePickUnsplash = (photo: UnsplashPhoto) => {
-    setCoverPreview(photo.url)
-    setPendingCoverFile({ _unsplashUrl: photo.url, _unsplashPhotographer: photo.photographer, _unsplashPhotographerUrl: photo.photographerUrl } as any)
-    setUnsplashPhotos([])
-    // Required by Unsplash API guidelines: trigger download event when photo is used
-    tripsApi.triggerUnsplashDownload(photo.id).catch(() => {})
-  }
-
   // Paste support for cover image
   const handlePaste = (e: React.ClipboardEvent) => {
     if (!canUploadCover) return
@@ -303,16 +221,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         newEnd.setDate(newEnd.getDate() + duration)
         next.end_date = newEnd.toISOString().split('T')[0]
       }
-    }
-    // Keep day_count in sync with the active date range so that clearing dates
-    // shows the correct count (e.g. period was May1-May5 → day_count = 5).
-    const s = (field === 'start_date' ? value : next.start_date) as string
-    const e = (field === 'end_date' ? value : next.end_date) as string
-    if (s && e && e >= s) {
-      const [sy, sm, sd] = s.split('-').map(Number)
-      const [ey, em, ed] = e.split('-').map(Number)
-      const periodDays = Math.floor((Date.UTC(ey, em - 1, ed) - Date.UTC(sy, sm - 1, sd)) / 86400000) + 1
-      next.day_count = Math.min(Math.max(periodDays, 1), 365)
     }
     return next
   })
@@ -352,13 +260,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
           {coverPreview ? (
             <div style={{ position: 'relative', borderRadius: 10, overflow: 'hidden', height: 130 }}>
               <img src={coverPreview} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              {(pendingCoverFile as any)?._unsplashPhotographer && (
-                <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: '16px 8px 5px', background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)', fontSize: 9.5, color: 'rgba(255,255,255,0.85)' }}>
-                  <a href={`${(pendingCoverFile as any)._unsplashPhotographerUrl}?utm_source=trek&utm_medium=referral`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline' }} onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none' }}>{(pendingCoverFile as any)._unsplashPhotographer}</a>
-                  {' / '}
-                  <a href="https://unsplash.com?utm_source=trek&utm_medium=referral" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline' }} onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none' }}>Unsplash</a>
-                </div>
-              )}
               <div style={{ position: 'absolute', bottom: 8, right: 8, display: 'flex', gap: 6 }}>
                 <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingCover}
                   style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '5px 10px', borderRadius: 8, background: 'rgba(0,0,0,0.55)', border: 'none', color: 'white', fontSize: 11.5, fontWeight: 600, cursor: 'pointer', backdropFilter: 'blur(4px)' }}>
@@ -371,50 +272,15 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
               </div>
             </div>
           ) : (
-            <>
-              <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingCover}
-                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = 'rgba(99,102,241,0.04)' }}
-                onDragLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = 'none' }}
-                onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = 'none'; const file = e.dataTransfer.files?.[0]; if (file?.type.startsWith('image/')) handleCoverSelect(file) }}
-                style={{ width: '100%', padding: '18px', border: '2px dashed #e5e7eb', borderRadius: 10, background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, color: '#9ca3af', fontFamily: 'inherit', transition: 'all 0.15s' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#9ca3af' }}>
-                <Camera size={15} /> {uploadingCover ? t('common.uploading') : t('dashboard.addCoverImage')}
-              </button>
-
-              {/* Unsplash suggestions */}
-              {!isEditing && (unsplashLoading || unsplashPhotos.length > 0) && (
-                <div style={{ marginTop: 10 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 6, fontSize: 11.5, color: '#6b7280' }}>
-                    <Sparkles size={11} />
-                    <span>Suggestions from Unsplash</span>
-                    {unsplashLoading && (
-                      <div style={{ width: 10, height: 10, border: '1.5px solid #d1d5db', borderTopColor: '#6b7280', borderRadius: '50%', animation: 'spin 0.7s linear infinite', marginLeft: 2 }} />
-                    )}
-                  </div>
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5 }}>
-                    {unsplashPhotos.map(photo => (
-                      <div key={photo.id}>
-                        <button type="button" onClick={() => handlePickUnsplash(photo)}
-                          style={{ padding: 0, border: '2px solid transparent', borderRadius: 7, overflow: 'hidden', cursor: 'pointer', aspectRatio: '16/9', transition: 'border-color 0.15s', background: 'none', width: '100%', display: 'block' }}
-                          onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = '#6366f1' }}
-                          onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.borderColor = 'transparent' }}
-                        >
-                          <img src={photo.thumb} alt={photo.description || ''} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
-                        </button>
-                        {photo.photographer && (
-                          <p style={{ fontSize: 9.5, color: '#9ca3af', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            <a href={`${photo.photographerUrl}?utm_source=trek&utm_medium=referral`} target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline' }} onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none' }}>{photo.photographer}</a>
-                            {' / '}
-                            <a href="https://unsplash.com?utm_source=trek&utm_medium=referral" target="_blank" rel="noopener noreferrer" style={{ color: 'inherit', textDecoration: 'none' }} onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'underline' }} onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.textDecoration = 'none' }}>Unsplash</a>
-                          </p>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
+            <button type="button" onClick={() => fileRef.current?.click()} disabled={uploadingCover}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#6366f1'; e.currentTarget.style.background = 'rgba(99,102,241,0.04)' }}
+              onDragLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = 'none' }}
+              onDrop={e => { e.preventDefault(); e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.background = 'none'; const file = e.dataTransfer.files?.[0]; if (file?.type.startsWith('image/')) handleCoverSelect(file) }}
+              style={{ width: '100%', padding: '18px', border: '2px dashed #e5e7eb', borderRadius: 10, background: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, color: '#9ca3af', fontFamily: 'inherit', transition: 'all 0.15s' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#d1d5db'; e.currentTarget.style.color = '#6b7280' }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#9ca3af' }}>
+              <Camera size={15} /> {uploadingCover ? t('common.uploading') : t('dashboard.addCoverImage')}
+            </button>
           )}
         </div>}
 
@@ -448,40 +314,6 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
           </div>
         </div>
 
-        {/* Shrink warning — shown when editing causes days to be removed */}
-        {overflowInfo && overflowInfo.daysToRemove > 0 && (
-          <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
-            <div className="flex items-start gap-2">
-              <AlertTriangle size={15} className="shrink-0 mt-0.5" style={{ color: '#d97706' }} />
-              <div className="space-y-1">
-                <p className="text-sm font-medium" style={{ color: '#92400e' }}>
-                  {t('trips.shrinkWarning', { days: overflowInfo.daysToRemove })}
-                </p>
-                {(overflowInfo.assignments > 0 || overflowInfo.accommodations > 0 || overflowInfo.notes > 0) && (
-                  <p className="text-xs" style={{ color: '#b45309' }}>
-                    {[
-                      overflowInfo.assignments > 0 && `${overflowInfo.assignments} activit.`,
-                      overflowInfo.accommodations > 0 && `${overflowInfo.accommodations} hotel${overflowInfo.accommodations !== 1 ? 's' : ''}`,
-                      overflowInfo.notes > 0 && `${overflowInfo.notes} note${overflowInfo.notes !== 1 ? 's' : ''}`,
-                    ].filter(Boolean).join(' · ')}
-                  </p>
-                )}
-              </div>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                id="shrink-confirm-checkbox"
-                type="checkbox"
-                checked={shrinkConfirmed}
-                onChange={e => setShrinkConfirmed(e.target.checked)}
-                className="rounded"
-                style={{ accentColor: '#d97706' }}
-              />
-              <span className="text-xs font-medium" style={{ color: '#92400e' }}>{t('trips.shrinkConfirm')}</span>
-            </label>
-          </div>
-        )}
-
         {!formData.start_date && !formData.end_date && (
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1.5">
@@ -495,7 +327,7 @@ export default function TripFormModal({ isOpen, onClose, onSave, trip, onCoverUp
         )}
 
         {/* Reminder — only visible to owner (or when creating) */}
-        {(!isEditing || trip?.user_id === currentUser?.id || currentUser?.role === 'admin') && !(formData.end_date && formData.end_date < new Date().toISOString().slice(0, 10)) && (
+        {(!isEditing || trip?.user_id === currentUser?.id || currentUser?.role === 'admin') && (
         <div className={!tripRemindersEnabled ? 'opacity-50' : ''}>
           <label className="block text-sm font-medium text-slate-700 mb-1.5">
             <Bell className="inline w-4 h-4 mr-1" />{t('trips.reminder')}

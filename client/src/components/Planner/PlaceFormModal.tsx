@@ -80,13 +80,13 @@ const DEFAULT_FORM: PlaceFormData = {
 interface PlaceFormModalProps {
   isOpen: boolean
   onClose: () => void
-  onSave: (data: PlaceFormData, files?: File[]) => Promise<void> | void
+  onSave: (data: Omit<PlaceFormData, 'lat' | 'lng' | 'price' | 'price_type' | 'currency' | 'category_id'> & { lat: number | null; lng: number | null; price: number | null; price_type: string | null; currency: string | null; category_id: string | null; _pendingFiles?: File[] }) => Promise<void> | void
   onPhotoChange?: (placeId: number, imageUrl: string | null) => void
   place: Place | null
   prefillCoords?: { lat: number; lng: number; name?: string; address?: string } | null
   tripId: number
   categories: Category[]
-  onCategoryCreated: (category: Category) => void
+  onCategoryCreated?: (category: Partial<Category> & { name: string }) => Promise<Category | undefined> | void
   assignmentId: number | null
   dayAssignments?: Assignment[]
 }
@@ -268,9 +268,9 @@ export default function PlaceFormModal({
         name: place.name || '',
         description: place.description || '',
         address: place.address || '',
-        lat: place.lat || '',
-        lng: place.lng || '',
-        category_id: place.category_id || '',
+        lat: place.lat != null ? String(place.lat) : '',
+        lng: place.lng != null ? String(place.lng) : '',
+        category_id: place.category_id != null ? String(place.category_id) : '',
         place_time: place.place_time || '',
         end_time: place.end_time || '',
         notes: place.notes || '',
@@ -278,7 +278,7 @@ export default function PlaceFormModal({
         website: place.website || '',
         phone: place.phone || '',
         price: place.price != null ? String(place.price) : '',
-        price_type: place.price_type || 'total',
+        price_type: (place as { price_type?: string }).price_type || 'total',
         currency: place.currency || defaultCurrency,
       })
     } else if (prefillCoords) {
@@ -571,7 +571,7 @@ export default function PlaceFormModal({
     if (!newCategoryName.trim()) return
     try {
       const cat = await onCategoryCreated?.({ name: newCategoryName, color: '#6366f1', icon: 'MapPin' })
-      if (cat) setForm(prev => ({ ...prev, category_id: cat.id }))
+      if (cat) setForm(prev => ({ ...prev, category_id: String(cat.id) }))
       setNewCategoryName('')
       setShowNewCategory(false)
     } catch (err: unknown) {
@@ -649,11 +649,11 @@ export default function PlaceFormModal({
   }
 
   // Paste support for files/images
-  const handlePaste = (e) => {
+  const handlePaste = (e: React.ClipboardEvent) => {
     if (!canUploadFiles) return
     const items = e.clipboardData?.items
     if (!items) return
-    for (const item of Array.from(items)) {
+    for (const item of Array.from(items) as DataTransferItem[]) {
       if (item.type.startsWith('image/') || item.type === 'application/pdf') {
         e.preventDefault()
         const file = item.getAsFile()
@@ -1163,7 +1163,7 @@ export default function PlaceFormModal({
 
 interface TimeSectionProps {
   form: PlaceFormData
-  handleChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void
+  handleChange: (field: string, value: string) => void
   assignmentId: number | null
   dayAssignments: Assignment[]
   hasTimeError: boolean

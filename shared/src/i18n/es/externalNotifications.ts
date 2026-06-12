@@ -49,6 +49,7 @@ const es: NotificationLocale = {
       title: 'Sesión de Synology cerrada',
       body: 'Tu cuenta o URL de Synology ha cambiado. Has cerrado sesión en Synology Photos.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Encuesta de disponibilidad: ' + p.proposal, body: `${p.actor} creó una encuesta de disponibilidad "${p.proposal}" en el grupo "${p.group}". Por favor, indica tu disponibilidad.` }),
     date_proposal_confirmed: p => ({ title: 'Fechas confirmadas: ' + p.proposal, body: `Las fechas para "${p.proposal}" han sido confirmadas: ${p.confirmed_start} a ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Disponibilidad: ' + p.proposal, body: 'La encuesta "' + p.proposal + '" en el grupo "' + p.group + '" cierra el ' + p.deadline + '. Indica tu disponibilidad antes.' }),

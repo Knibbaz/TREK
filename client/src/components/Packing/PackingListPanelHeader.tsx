@@ -6,7 +6,7 @@ import type { PackingState } from './usePackingListPanel'
 export function PackingHeader(S: PackingState) {
   const handleExport = () => {
     const csv = S.items.map(item => {
-      const parts = [item.category || '', item.name, item.weight_grams || '', item.bag || '', item.checked ? 'checked' : 'unchecked']
+      const parts = [item.category || '', item.name, item.weight_grams || '', item.bag_id || '', item.checked ? 'checked' : 'unchecked']
       return parts.join(',')
     }).join('\n')
     const blob = new Blob([csv], { type: 'text/csv' })

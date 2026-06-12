@@ -66,7 +66,7 @@ export function registerTransportTools(server: McpServer, userId: number, scopes
       const meta: Record<string, string> = { ...(metadata ?? {}) };
       if (price != null) meta.price = String(price);
 
-      const { reservation } = createReservation(tripId, {
+      const { reservation } = await createReservation(tripId, {
         title,
         type,
         reservation_time,

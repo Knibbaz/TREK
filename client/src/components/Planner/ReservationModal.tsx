@@ -388,7 +388,7 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
 
         {/* Location / Address with autocomplete */}
         <div ref={locationRef} style={{ position: 'relative' }}>
-          <label style={labelStyle}>{t('reservations.locationAddress')}</label>
+          <label className={labelClass}>{t('reservations.locationAddress')}</label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, border: '1px solid var(--border-primary)', borderRadius: 10, padding: '8px 12px', background: 'var(--bg-input)' }}>
             <MapPin size={13} style={{ color: 'var(--text-faint)', flexShrink: 0 }} />
             <input
@@ -500,7 +500,6 @@ export function ReservationModal({ isOpen, onClose, onSave, reservation, days, p
             {isEndBeforeStart && (
               <div className="text-[#ef4444]" style={{ fontSize: 11, marginTop: -6 }}>{t('reservations.validation.endBeforeStart')}</div>
             )}
-          </div>
         </>
         )}
 

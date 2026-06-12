@@ -9,7 +9,7 @@ import {
 } from '../services/mollieConnectService';
 import {
   createPaymentRecord,
-  getPaymentByMollieId,
+  getPaymentRecordByMollieId,
   updatePaymentStatus,
   hasUserPurchasedTrip,
   fulfillPurchase,

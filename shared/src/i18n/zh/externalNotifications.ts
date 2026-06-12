@@ -48,6 +48,7 @@ const zh: NotificationLocale = {
       title: 'Synology 会话已清除',
       body: '您的 Synology 账户或 URL 已更改，您已退出 Synology Photos。',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
     date_proposal_confirmed: p => ({ title: '日期已确认: ' + p.proposal, body: `"${p.proposal}" 的日期已确认: ${p.confirmed_start} 至 ${p.confirmed_end}。` }),
     date_proposal_deadline: p => ({ title: 'Availability deadline: ' + p.proposal, body: 'Poll "' + p.proposal + '" in group "' + p.group + '" closes ' + p.deadline + '.' }),

@@ -56,7 +56,7 @@ export class ReservationsController {
   }
 
   @Post()
-  create(
+  async create(
     @CurrentUser() user: User,
     @Param('tripId') tripId: string,
     @Body() body: ReservationBody,
@@ -67,7 +67,7 @@ export class ReservationsController {
     if (!body.title) {
       throw new HttpException({ error: 'Title is required' }, 400);
     }
-    const { reservation, accommodationCreated } = this.reservations.create(tripId, body as never);
+    const { reservation, accommodationCreated } = await this.reservations.create(tripId, body as never);
     if (accommodationCreated) {
       this.reservations.broadcast(tripId, 'accommodation:created', {}, socketId);
     }
@@ -128,15 +128,15 @@ export class ReservationsController {
   ) {
     const trip = this.requireTrip(tripId, user);
     this.requireEdit(trip, user);
-    const { deleted, accommodationDeleted, deletedBudgetItemId } = this.reservations.remove(id, tripId);
+    const { deleted, accommodationDeleted, deletedBudgetItemIds } = this.reservations.remove(id, tripId);
     if (!deleted) {
       throw new HttpException({ error: 'Reservation not found' }, 404);
     }
     if (accommodationDeleted) {
       this.reservations.broadcast(tripId, 'accommodation:deleted', { accommodationId: deleted.accommodation_id }, socketId);
     }
-    if (deletedBudgetItemId) {
-      this.reservations.broadcast(tripId, 'budget:deleted', { itemId: deletedBudgetItemId }, socketId);
+    for (const itemId of deletedBudgetItemIds) {
+      this.reservations.broadcast(tripId, 'budget:deleted', { itemId }, socketId);
     }
     this.reservations.broadcast(tripId, 'reservation:deleted', { reservationId: Number(id) }, socketId);
     this.reservations.notifyBookingChange(tripId, user, deleted.title, deleted.type || '');

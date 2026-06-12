@@ -20,7 +20,7 @@ interface VacayMonthCardProps {
   companyHolidaysEnabled?: boolean
   entryMap: Record<string, VacayEntry[]>
   onCellClick: (date: string) => void
-  onCellRightClick: (date: string, x: number, y: number) => void
+  onCellRightClick?: (date: string, x: number, y: number) => void
   companyMode: boolean
   blockWeekends: boolean
   weekendDays?: number[]
@@ -123,7 +123,7 @@ export default function VacayMonthCard({
                   onContextMenu={e => {
                     if (!isBlocked) {
                       e.preventDefault()
-                      onCellRightClick(dateStr, e.clientX, e.clientY)
+                      onCellRightClick?.(dateStr, e.clientX, e.clientY)
                     }
                   }}
                   onMouseEnter={e => {

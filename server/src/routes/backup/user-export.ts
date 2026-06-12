@@ -80,7 +80,7 @@ router.post('/export', authenticate, async (req: Request, res: Response) => {
     }
 
     // Rate limit check
-    if (!checkExportRateLimit(userId)) {
+    if (!checkExportRateLimit(String(userId))) {
       return res.status(429).json({ error: 'You can only request one export per 24 hours.' });
     }
 
@@ -107,9 +107,9 @@ router.post('/export', authenticate, async (req: Request, res: Response) => {
       id: exportId,
       exportType: 'user_export',
       scope: { trips: true, uploads: true },
-      userId,
+      userId: String(userId),
       userRole: authReq.user.role,
-      initiatedBy: userId,
+      initiatedBy: String(userId),
     });
 
     // Generate download token

@@ -143,7 +143,7 @@ export class BookingImportService {
           };
         }
 
-        const { reservation, accommodationCreated } = createReservation(tripId, {
+        const { reservation, accommodationCreated } = await createReservation(tripId, {
           ...reservationData,
           place_id: placeId,
           create_accommodation: createAccommodation,

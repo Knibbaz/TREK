@@ -106,7 +106,7 @@ export function validateManifest(manifest: unknown): { valid: true; manifest: Tr
     return { valid: false, error: `Export from TREK ${trekVersion} is too old and not supported` };
   }
 
-  return { valid: true, manifest: m as TrekManifest };
+  return { valid: true, manifest: m as unknown as TrekManifest };
 }
 
 export function checkVersionCompatibility(manifestVersion: string, currentVersion: string): {

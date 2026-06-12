@@ -49,6 +49,7 @@ const hu: NotificationLocale = {
       title: 'Synology munkamenet törölve',
       body: 'A Synology fiókja vagy URL-je megváltozott. Kijelentkeztek a Synology Photos-ból.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Availability poll: ' + p.proposal, body: `${p.actor} created an availability poll "${p.proposal}" in group "${p.group}". Please fill in your availability.` }),
     date_proposal_confirmed: p => ({ title: 'Dátumok megerősítve: ' + p.proposal, body: `A "${p.proposal}" dátumai megerősítve: ${p.confirmed_start} - ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Elérhetőség határideje: ' + p.proposal, body: 'A(z) "' + p.proposal + '" szavazas a(z) "' + p.group + '" csoportban ' + p.deadline + '-en zarul.' }),

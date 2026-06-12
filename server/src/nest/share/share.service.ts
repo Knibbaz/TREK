@@ -23,7 +23,7 @@ export class ShareService {
   createOrUpdate(tripId: string, userId: number, permissions: Parameters<typeof svc.createOrUpdateShareLink>[2]) {
     return svc.createOrUpdateShareLink(tripId, userId, permissions);
   }
-  get(tripId: string) { return svc.getShareLink(tripId); }
+  get(tripId: string) { return svc.getShareLinks(tripId); }
   remove(tripId: string) { return svc.deleteShareLink(tripId); }
   getSharedTripData(token: string) { return svc.getSharedTripData(token); }
   getSharedPlacePhotoPath(token: string, placeId: string) { return svc.getSharedPlacePhotoPath(token, placeId); }

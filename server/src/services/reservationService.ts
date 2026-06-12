@@ -1,6 +1,5 @@
 import { db } from '../db/database';
 import { Reservation } from '../types';
-import fetch from 'node-fetch';
 
 export { verifyTripAccess } from './tripAccess';
 
@@ -217,7 +216,7 @@ interface CreateReservationData {
   needs_review?: boolean;
 }
 
-export async function createReservation(tripId: string | number, data: CreateReservationData): { reservation: any; accommodationCreated: boolean; flightCreated: boolean } {
+export async function createReservation(tripId: string | number, data: CreateReservationData): Promise<{ reservation: any; accommodationCreated: boolean; flightCreated: boolean }> {
   let { reservation_time, reservation_end_time, location } = data;
   
   const {
@@ -277,7 +276,7 @@ export async function createReservation(tripId: string | number, data: CreateRes
           const apiUrl = `https://api.aviationstack.com/v1/flights?access_key=${process.env.AVIATIONSTACK_KEY}&flight_iata=${flight_number}&limit=1`;
         
           const response = await fetch(apiUrl);
-          const data = await response.json();
+          const data = await response.json() as any;
 
           if (data.data && data.data.length > 0) {
             const flightInfo = data.data[0];

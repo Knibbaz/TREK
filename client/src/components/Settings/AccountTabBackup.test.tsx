@@ -2,18 +2,18 @@ import React from 'react'
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
-import { server } from '../../tests/helpers/msw/server'
+import { server } from '../../../tests/helpers/msw/server'
 import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
-import { resetAllStores } from '../../tests/helpers/store'
-import { buildUser, buildSettings } from '../../tests/helpers/factories'
+import { resetAllStores } from '../../../tests/helpers/store'
+import { buildUser, buildSettings } from '../../../tests/helpers/factories'
 import AccountTab from './AccountTab'
 
 describe('AccountTab — Backup Export & Import', () => {
   beforeEach(() => {
     resetAllStores()
     useAuthStore.setState({
-      user: buildUser({ id: 'user1', username: 'testuser' }),
+      user: buildUser({ id: 1, username: 'testuser' }),
       isAuthenticated: true,
       loadUser: vi.fn().mockResolvedValue(undefined),
     })

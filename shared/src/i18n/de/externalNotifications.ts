@@ -49,6 +49,7 @@ const de: NotificationLocale = {
       title: 'Synology-Sitzung beendet',
       body: 'Dein Synology-Konto oder die URL hat sich geändert. Du wurdest von Synology Photos abgemeldet.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Verfügbarkeitsumfrage: ' + p.proposal, body: `${p.actor} hat eine Verfügbarkeitsumfrage "${p.proposal}" in der Gruppe "${p.group}" erstellt. Bitte trage deine Verfügbarkeit ein.` }),
     date_proposal_confirmed: p => ({ title: 'Daten bestätigt: ' + p.proposal, body: `Die Daten für "${p.proposal}" wurden bestätigt: ${p.confirmed_start} bis ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Verfuegbarkeit: Frist laeuft ab - ' + p.proposal + '', body: 'Die Umfrage "' + p.proposal + '" in der Gruppe "' + p.group + '" endet am ' + p.deadline + '. Bitte trage deine Verfuegbarkeit noch ein.' }),

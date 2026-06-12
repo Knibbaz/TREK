@@ -107,6 +107,7 @@ function formatFileSize(bytes) {
 interface TripMember {
   id: number
   username: string
+  avatar?: string | null
   avatar_url?: string | null
 }
 
@@ -348,7 +349,7 @@ export default function PlaceInspector({
 
   const handleAddToBudget = async () => {
     if (!tripId || !placePrice) return
-    const priceType = place.price_type || 'total'
+    const priceType = (place as { price_type?: string }).price_type || 'total'
     const persons = tripMembers.length > 0 ? (budgetSelectedMembers.size || 1) : (parseInt(budgetPersons) || 1)
     const days = parseInt(budgetDays) || 1
     const total = priceType === 'per_person'
@@ -377,7 +378,7 @@ export default function PlaceInspector({
   if (!place) return null
 
   const category = categories?.find(c => c.id === place.category_id)
-  const placePrice = place.price ? parseFloat(place.price) : null
+  const placePrice = place.price != null ? Number(place.price) : null
   const isHotel = category?.icon === 'BedDouble'
   const bookingUrl = isHotel
     ? `https://www.booking.com/searchresults.html?ss=${encodeURIComponent(place.name)}${bookingAffiliateId ? `&aid=${bookingAffiliateId}` : ''}`
@@ -398,7 +399,7 @@ export default function PlaceInspector({
       for (const file of selectedFiles) {
         const fd = new FormData()
         fd.append('file', file)
-        fd.append('place_id', place.id)
+        fd.append('place_id', String(place.id))
         await onFileUpload(fd)
       }
     } catch (err: unknown) {
@@ -890,7 +891,7 @@ export default function PlaceInspector({
               </button>
 
               {showBudgetPopover && (() => {
-                const priceType = place.price_type || 'total'
+                const priceType = (place as { price_type?: string }).price_type || 'total'
                 const unitPrice = placePrice || 0
                 const persons = tripMembers.length > 0 ? (budgetSelectedMembers.size || 1) : (parseInt(budgetPersons) || 1)
                 const days = parseInt(budgetDays) || 1

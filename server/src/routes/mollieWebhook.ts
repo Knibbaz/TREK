@@ -1,7 +1,7 @@
 import express, { Request, Response } from 'express';
 import { getPaymentFromMollie } from '../services/mollieConnectService';
 import {
-  getPaymentByMollieId,
+  getPaymentRecordByMollieId,
   updatePaymentStatus,
   fulfillPurchase,
 } from '../services/paymentService';
@@ -20,7 +20,7 @@ router.post('/', async (req: Request, res: Response) => {
 
     // Fetch payment from Mollie to verify status
     const payment = await getPaymentFromMollie(id);
-    const record = getPaymentByMollieId(id);
+    const record = getPaymentRecordByMollieId(id);
     if (!record) {
       console.warn(`[Mollie Webhook] Payment ${id} not found in local DB`);
       return;

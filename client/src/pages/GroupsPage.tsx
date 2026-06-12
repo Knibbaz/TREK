@@ -521,7 +521,7 @@ export default function GroupsPage(): React.ReactElement {
 
   const handleCreateTripForGroup = async (data: Record<string, string | number | null>) => {
     if (!currentGroup) return
-    const result = await tripsApi.create(data)
+    const result = await tripsApi.create(data as Parameters<typeof tripsApi.create>[0])
     await addTrip(currentGroup.id, result.trip.id)
     setShowCreateTripForGroup(false)
     setShowAddTrip(false)
@@ -1261,7 +1261,7 @@ export default function GroupsPage(): React.ReactElement {
                             <div className="flex items-center -space-x-1">
                               {tripParticipants.slice(0, 6).map(p => (
                                 p.avatar
-                                  ? <img key={p.id} src={p.avatar} title={p.username} className="w-5 h-5 rounded-full ring-1 object-cover" style={{ ringColor: 'var(--bg-secondary)' }} />
+                                  ? <img key={p.id} src={p.avatar} title={p.username} className="w-5 h-5 rounded-full ring-1 object-cover" style={{ outline: '1px solid var(--bg-secondary)' }} />
                                   : <div key={p.id} title={p.username} className="w-5 h-5 rounded-full ring-1 flex items-center justify-center text-[9px] font-bold" style={{ background: 'var(--bg-card)', color: 'var(--text-muted)', outline: '1px solid var(--bg-secondary)' }}>{p.username[0]?.toUpperCase()}</div>
                               ))}
                               {tripParticipants.length > 6 && (

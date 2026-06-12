@@ -48,6 +48,7 @@ const ru: NotificationLocale = {
       title: 'Сессия Synology сброшена',
       body: 'Ваш аккаунт или URL Synology изменился. Вы вышли из Synology Photos.',
     }),
+    explore_update: (p) => ({ title: 'Trip update available', body: `A new version (v${p.version}) of a trip you saved from Explore is available.` }),
     date_proposal_created: p => ({ title: 'Опрос доступности: ' + p.proposal, body: `${p.actor} создал опрос доступности "${p.proposal}" в группе "${p.group}". Пожалуйста, укажите свою доступность.` }),
     date_proposal_confirmed: p => ({ title: 'Даты подтверждены: ' + p.proposal, body: `Даты для "${p.proposal}" подтверждены: ${p.confirmed_start} по ${p.confirmed_end}.` }),
     date_proposal_deadline: p => ({ title: 'Srok dostupnosti: ' + p.proposal, body: 'Opros "' + p.proposal + '" v gruppe "' + p.group + '" zakryvaetsya ' + p.deadline + '.' }),
