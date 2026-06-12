@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo, useCallback, createElement, memo 
 import DOM from 'react-dom'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { MapContainer, TileLayer, Marker, Polyline, CircleMarker, Circle, useMap, Tooltip } from 'react-leaflet'
+import { SizeInvalidator } from './SizeInvalidator'
 import MarkerClusterGroup from 'react-leaflet-cluster'
 import L from 'leaflet'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
@@ -581,6 +582,7 @@ export const MapView = memo(function MapView({
       zoomControl={false}
       className="w-full h-full bg-[#e5e7eb]"
     >
+      <SizeInvalidator />
       <TileLayer
         url={tileUrl}
         attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'

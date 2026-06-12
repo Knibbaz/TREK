@@ -1,5 +1,6 @@
 import { useEffect } from 'react'
 import { MapContainer, TileLayer, Marker, Tooltip, useMap } from 'react-leaflet'
+import { SizeInvalidator } from '../components/Map/SizeInvalidator'
 import L from 'leaflet'
 import { useTranslation, SUPPORTED_LANGUAGES } from '../i18n'
 import { useSettingsStore } from '../store/settingsStore'
@@ -170,6 +171,7 @@ export default function SharedTripPage() {
         {activeTab === 'plan' && (<>
         <div style={{ borderRadius: 16, overflow: 'hidden', height: 300, marginBottom: 20, boxShadow: '0 2px 12px rgba(0,0,0,0.08)' }}>
           <MapContainer center={center as [number, number]} zoom={11} zoomControl={false} style={{ width: '100%', height: '100%' }}>
+      <SizeInvalidator />
             <TileLayer url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png" referrerPolicy="strict-origin-when-cross-origin" />
             <FitBoundsToPlaces places={mapPlaces} />
             {mapPlaces.map((p: any) => (

@@ -102,5 +102,12 @@
   uit verzoek B: herbruikbare lijst van mooiste plekken per land die opduikt
   bij het plannen van een trip naar dat land.
 
-### I. Kaart laadt pas na page-reload  *(gevraagd 2026-06-13)*
-- Bug: pagina met kaart toont de kaart pas na een handmatige reload.
+### I. ~~Kaart laadt pas na page-reload~~  *(gevraagd én gefixt 2026-06-13)*
+- Oorzaak: Leaflet meet de container één keer bij mount; bij SPA-navigatie is
+  de layout dan nog niet gesetteld → 0-hoogte kaart tot reload.
+- Fix: `SizeInvalidator` (ResizeObserver → invalidateSize) in alle
+  MapContainers (MapView, SharedTripPage, GroupPolls-minimap).
+
+### J. ~~Afsluitstappen in CLAUDE.md~~  *(gevraagd én vastgelegd 2026-06-13)*
+- CLAUDE.md aangemaakt met architectuur-spelregels, werkwijze (NL commits,
+  niet pushen zonder verzoek, alleen origin) en de afsluitstappen-checklist.
