@@ -91,7 +91,7 @@ describe('MapsController (parity with the legacy /api/maps route)', () => {
       const autocomplete = vi.fn().mockResolvedValue({ suggestions: [], source: 'osm' });
       const bias = { low: { lat: 1, lng: 2 }, high: { lat: 3, lng: 4 } };
       await makeController({ autocompleteDisabled: () => false, autocomplete }).autocomplete(user, 'be', 'en', bias);
-      expect(autocomplete).toHaveBeenCalledWith(3, 'be', 'en', bias);
+      expect(autocomplete).toHaveBeenCalledWith(3, 'be', 'en', bias, undefined);
     });
   });
 

@@ -25,6 +25,15 @@ vi.mock('../../../src/config', () => ({
   JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 vi.mock('../../../src/services/apiKeyCrypto', () => ({
   decrypt_api_key: (v: string | null) => v,
@@ -94,14 +103,14 @@ describe('getPreferencesMatrix', () => {
     const { user } = createUser(testDb);
     const { event_types } = getPreferencesMatrix(user.id, 'user');
     expect(event_types).not.toContain('version_available');
-    expect(event_types.length).toBe(11);
+    expect(event_types.length).toBe(15);
   });
 
   it('NPREF-005 — user scope excludes version_available for everyone including admins', () => {
     const { user } = createAdmin(testDb);
     const { event_types } = getPreferencesMatrix(user.id, 'admin', 'user');
     expect(event_types).not.toContain('version_available');
-    expect(event_types.length).toBe(11);
+    expect(event_types.length).toBe(15);
   });
 
   it('NPREF-005b — admin scope returns only version_available', () => {

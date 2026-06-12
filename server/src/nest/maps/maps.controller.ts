@@ -95,6 +95,7 @@ export class MapsController {
     @Body('input') input: unknown,
     @Body('lang') lang?: string,
     @Body('locationBias') locationBias?: LocationBias,
+    @Body('types') types?: string[],
   ): Promise<MapsAutocompleteResult | { suggestions: never[]; source: string }> {
     if (this.maps.autocompleteDisabled()) {
       return { suggestions: [], source: 'disabled' };
@@ -114,7 +115,7 @@ export class MapsController {
       }
     }
     try {
-      return await this.maps.autocomplete(user.id, input, lang, locationBias);
+      return await this.maps.autocomplete(user.id, input, lang, locationBias, types);
     } catch (err: unknown) {
       console.error('Maps autocomplete error:', err);
       throw toHttpException(err, 'Autocomplete error', 500);

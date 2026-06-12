@@ -28,6 +28,15 @@ function thrown(fn: () => unknown): { status: number; body: unknown } {
   throw new Error('expected throw');
 }
 
+async function thrownAsync(fn: () => Promise<unknown>): Promise<{ status: number; body: unknown }> {
+  try { await fn(); } catch (err) {
+    expect(err).toBeInstanceOf(HttpException);
+    const e = err as HttpException;
+    return { status: e.getStatus(), body: e.getResponse() };
+  }
+  throw new Error('expected throw');
+}
+
 describe('ReservationsController (parity with the legacy /api/trips/:tripId/reservations route)', () => {
   it('404 when trip not accessible', () => {
     const svc = makeService({ verifyTripAccess: vi.fn().mockReturnValue(undefined) });
@@ -40,21 +49,21 @@ describe('ReservationsController (parity with the legacy /api/trips/:tripId/rese
   });
 
   describe('POST /', () => {
-    it('403 without permission', () => {
+    it('403 without permission', async () => {
       const svc = makeService({ canEdit: vi.fn().mockReturnValue(false) });
-      expect(thrown(() => new ReservationsController(svc).create(user, '5', { title: 'Hotel' }))).toEqual({ status: 403, body: { error: 'No permission' } });
+      expect(await thrownAsync(() => new ReservationsController(svc).create(user, '5', { title: 'Hotel' }))).toEqual({ status: 403, body: { error: 'No permission' } });
     });
 
-    it('400 without a title', () => {
-      expect(thrown(() => new ReservationsController(makeService()).create(user, '5', {}))).toEqual({ status: 400, body: { error: 'Title is required' } });
+    it('400 without a title', async () => {
+      expect(await thrownAsync(() => new ReservationsController(makeService()).create(user, '5', {}))).toEqual({ status: 400, body: { error: 'Title is required' } });
     });
 
-    it('creates, runs budget sync, broadcasts accommodation + reservation, notifies', () => {
+    it('creates, runs budget sync, broadcasts accommodation + reservation, notifies', async () => {
       const create = vi.fn().mockReturnValue({ reservation: { id: 9 }, accommodationCreated: true });
       const broadcast = vi.fn(); const syncBudgetOnCreate = vi.fn(); const notifyBookingChange = vi.fn();
       const svc = makeService({ create, broadcast, syncBudgetOnCreate, notifyBookingChange } as Partial<ReservationsService>);
       const body = { title: 'Hotel', type: 'lodging', create_budget_entry: { total_price: 200 } };
-      expect(new ReservationsController(svc).create(user, '5', body, 'sock')).toEqual({ reservation: { id: 9 } });
+      expect(await new ReservationsController(svc).create(user, '5', body, 'sock')).toEqual({ reservation: { id: 9 } });
       expect(broadcast).toHaveBeenCalledWith('5', 'accommodation:created', {}, 'sock');
       expect(syncBudgetOnCreate).toHaveBeenCalledWith('5', 9, 'Hotel', 'lodging', { total_price: 200 }, 'sock');
       expect(broadcast).toHaveBeenCalledWith('5', 'reservation:created', { reservation: { id: 9 } }, 'sock');
@@ -97,12 +106,12 @@ describe('ReservationsController (parity with the legacy /api/trips/:tripId/rese
 
   describe('DELETE /:id', () => {
     it('404 when nothing deleted', () => {
-      const svc = makeService({ remove: vi.fn().mockReturnValue({ deleted: undefined, accommodationDeleted: false, deletedBudgetItemId: null }) } as Partial<ReservationsService>);
+      const svc = makeService({ remove: vi.fn().mockReturnValue({ deleted: undefined, accommodationDeleted: false, deletedBudgetItemIds: [] }) } as Partial<ReservationsService>);
       expect(thrown(() => new ReservationsController(svc).remove(user, '5', '9'))).toEqual({ status: 404, body: { error: 'Reservation not found' } });
     });
 
     it('broadcasts the accommodation + budget cascade then reservation:deleted', () => {
-      const remove = vi.fn().mockReturnValue({ deleted: { id: 9, title: 'Hotel', type: 'lodging', accommodation_id: 3 }, accommodationDeleted: true, deletedBudgetItemId: 7 });
+      const remove = vi.fn().mockReturnValue({ deleted: { id: 9, title: 'Hotel', type: 'lodging', accommodation_id: 3 }, accommodationDeleted: true, deletedBudgetItemIds: [7] });
       const broadcast = vi.fn(); const notifyBookingChange = vi.fn();
       const svc = makeService({ remove, broadcast, notifyBookingChange } as Partial<ReservationsService>);
       expect(new ReservationsController(svc).remove(user, '5', '9', 'sock')).toEqual({ success: true });

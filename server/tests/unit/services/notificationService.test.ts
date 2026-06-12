@@ -29,6 +29,15 @@ vi.mock('../../../src/config', () => ({
     modifiedBy: { name: 'Bas', url: 'https://github.com/Knibbaz/TREK' },
     originalBy: { name: 'Maurice', url: 'https://github.com/mauriceboe/TREK' },
   },
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 vi.mock('../../../src/services/apiKeyCrypto', () => ({
   decrypt_api_key: (v: string | null) => v,

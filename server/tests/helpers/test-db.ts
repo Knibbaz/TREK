@@ -265,4 +265,16 @@ export const TEST_CONFIG = {
   SESSION_DURATION: '24h',
   SESSION_DURATION_MS: 86400000,
   SESSION_DURATION_SECONDS: 86400,
+  // ROUTD fork config consumed at module load by fork services
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: {
+    modifiedBy: { name: 'Bas', url: 'https://github.com/Knibbaz/TREK' },
+    originalBy: { name: 'Maurice', url: 'https://github.com/mauriceboe/TREK' },
+  },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 };

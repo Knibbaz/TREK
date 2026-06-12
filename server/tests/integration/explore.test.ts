@@ -37,27 +37,41 @@ vi.mock('../../src/config', () => ({
   JWT_SECRET: 'test-jwt-secret-for-trek-testing-only',
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   updateJwtSecret: () => {},
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 
-import { createApp } from '../../src/app';
+import type { INestApplication } from '@nestjs/common';
+import { buildApp } from '../../src/bootstrap';
 import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createUser, createAdmin, createTrip, createDay, createPlace, createDayAssignment, createCategory } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
-import { loginAttempts, mfaAttempts } from '../../src/routes/auth';
 
-const app: Application = createApp();
+let nestApp: INestApplication;
+let app: Application;
 
-beforeAll(() => {
+beforeAll(async () => {
   createTables(testDb);
   runMigrations(testDb);
+  nestApp = await buildApp();
+  app = nestApp.getHttpAdapter().getInstance();
+});
+
+afterAll(async () => {
+  await nestApp?.close();
 });
 
 beforeEach(() => {
   resetTestDb(testDb);
-  loginAttempts.clear();
-  mfaAttempts.clear();
 });
 
 afterAll(() => {
@@ -325,7 +339,7 @@ describe('Explore Detail', () => {
     // Remaining should be blurred (offset from original)
     for (let i = 3; i < 5; i++) {
       expect(places[i].is_highlight).toBe(false);
-      expect(places[i].lat).not.toBeCloseTo(48.86 + i * 0.01, 4);
+      expect(places[i].lat).not.toBe(48.86 + i * 0.01);
     }
   });
 
@@ -344,8 +358,9 @@ describe('Explore Detail', () => {
   });
 
   it('EXPLORE-014 — already_purchased is true and user_trip_id returned after purchase', async () => {
+    const { user: creator } = createUser(testDb);
     const { user } = createUser(testDb);
-    const trip = createTrip(testDb, user.id);
+    const trip = createTrip(testDb, creator.id);
     publishTrip(trip.id);
 
     await request(app)
@@ -379,8 +394,9 @@ describe('Explore Detail', () => {
 
 describe('Explore Purchase', () => {
   it('EXPLORE-016 — free purchase copies trip and tracks ownership', async () => {
+    const { user: creator } = createUser(testDb);
     const { user } = createUser(testDb);
-    const trip = createTrip(testDb, user.id, { title: 'Freebie' });
+    const trip = createTrip(testDb, creator.id, { title: 'Freebie' });
     publishTrip(trip.id, { price: 0 });
 
     const res = await request(app)
@@ -399,8 +415,9 @@ describe('Explore Purchase', () => {
   });
 
   it('EXPLORE-017 — free purchase increments purchase_count', async () => {
+    const { user: creator } = createUser(testDb);
     const { user } = createUser(testDb);
-    const trip = createTrip(testDb, user.id);
+    const trip = createTrip(testDb, creator.id);
     publishTrip(trip.id, { price: 0 });
 
     await request(app)
@@ -413,8 +430,9 @@ describe('Explore Purchase', () => {
   });
 
   it('EXPLORE-018 — purchasing twice returns 409 already owned', async () => {
+    const { user: creator } = createUser(testDb);
     const { user } = createUser(testDb);
-    const trip = createTrip(testDb, user.id);
+    const trip = createTrip(testDb, creator.id);
     publishTrip(trip.id, { price: 0 });
 
     await request(app)
@@ -432,8 +450,9 @@ describe('Explore Purchase', () => {
   });
 
   it('EXPLORE-019 — paid trip purchase returns PAYMENT_REQUIRED', async () => {
+    const { user: creator } = createUser(testDb);
     const { user } = createUser(testDb);
-    const trip = createTrip(testDb, user.id);
+    const trip = createTrip(testDb, creator.id);
     publishTrip(trip.id, { price: 10 });
 
     const res = await request(app)

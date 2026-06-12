@@ -84,6 +84,17 @@ function findDestructiveStatements(src: string): DestructiveHit[] {
  * Rows are preserved across the rebuild.
  */
 const ALLOWED_DESTRUCTIVE: Record<string, string> = {
+  // ── ROUTD fork migrations ─────────────────────────────────────────────────
+  'DROP TABLE vacay_entries':
+    'Fork migration: rebuild to add hours/type columns + widened UNIQUE. Rows copied to vacay_entries_new first.',
+  'DROP TABLE date_availability':
+    'Fork migration: pre-release date-proposal schema replaced by the group-scoped schema; old table only existed on dev installs and is rebuilt empty by design (guarded by a PRAGMA schema check).',
+  'DROP TABLE date_proposals':
+    'Fork migration: same pre-release schema replacement as date_availability (guarded by a PRAGMA schema check).',
+  'DROP TABLE group_members':
+    'Fork migration: rebuild to extend the role CHECK constraint. Rows copied to group_members_new first.',
+  'DROP TABLE group_invite_tokens':
+    'Fork migration: rebuild to add expiry/role columns. Rows copied to a _new table first.',
   // ── table rebuilds (data preserved) ──────────────────────────────────────
   'DROP TABLE budget_items':
     'Migration 12: rebuild to drop a stale NOT NULL DEFAULT on persons/days. Rows copied first.',

@@ -130,24 +130,11 @@ export function generateDays(tripId: number | bigint | string, startDate: string
     }
   }
 
-  // Overflow dated days (trip shrunk): clip spanning accommodations, then make dateless
-  const overflowDays = dated.slice(targetDates.length);
-  if (overflowDays.length > 0) {
-    const overflowIds = overflowDays.map(d => d.id);
-    if (targetDates.length > 0) {
-      // Accommodations whose end_day is in overflow but start_day is still valid:
-      // shorten them to the last kept day instead of losing them entirely.
-      const lastValidDayId = dated[targetDates.length - 1].id;
-      const validIds = dated.slice(0, targetDates.length).map(d => d.id);
-      db.prepare(
-        `UPDATE day_accommodations SET end_day_id = ?
-         WHERE end_day_id IN (${overflowIds.join(',')})
-           AND start_day_id IN (${validIds.join(',')})`
-      ).run(lastValidDayId);
-    }
-    // Convert overflow days to dateless (preserve assignments, notes, etc.)
-    const nullify = db.prepare('UPDATE days SET date = NULL WHERE id = ?');
-    for (const d of overflowDays) nullify.run(d.id);
+  // Overflow dated days (trip shrunk): delete them (issue #909).
+  // Cascade removes their assignments, notes, and accommodations.
+  const del = db.prepare('DELETE FROM days WHERE id = ?');
+  for (let i = targetDates.length; i < dated.length; i++) {
+    del.run(dated[i].id);
   }
 
   // Any remaining unused dateless days: drop the empty placeholders so day_count
@@ -155,7 +142,6 @@ export function generateDays(tripId: number | bigint | string, startDate: string
   // notes, accommodations) — mirrors the dateless-path trimming above (#1083).
   // Base must be max(targetDates.length, dated.length) to avoid colliding with
   // positives already assigned by the main loop or the overflow loop above.
-  const del = db.prepare('DELETE FROM days WHERE id = ?');
   const isEmptyDay = db.prepare(
     `SELECT NOT EXISTS (SELECT 1 FROM day_assignments da WHERE da.day_id = @id)
           AND NOT EXISTS (SELECT 1 FROM day_notes dn WHERE dn.day_id = @id)

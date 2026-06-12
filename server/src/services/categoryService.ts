@@ -23,7 +23,7 @@ export function listMyCategories(userId: number) {
 export function createCategory(userId: number | null, name: string, color?: string, icon?: string) {
   const result = db.prepare(
     'INSERT INTO categories (name, color, icon, user_id) VALUES (?, ?, ?, ?)'
-  ).run(name, color || '#6366f1', icon || '\uD83D\DCCD', userId);
+  ).run(name, color || '#6366f1', icon || '\uD83D\uDCCD', userId);
   return db.prepare('SELECT * FROM categories WHERE id = ?').get(result.lastInsertRowid);
 }
 

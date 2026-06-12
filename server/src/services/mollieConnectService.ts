@@ -7,7 +7,7 @@ import {
 } from '../config';
 
 // Check if in dev/localhost mode
-const isDevMode = process.env.NODE_ENV === 'development' || APP_URL.includes('localhost');
+const isDevMode = () => process.env.NODE_ENV === 'development' || (APP_URL || '').includes('localhost');
 
 // Lazily initialized Mollie client
 let _mollieClient: ReturnType<typeof createMollieClient> | null = null;
@@ -28,7 +28,7 @@ export async function createPlatformPayment(
   metadata: Record<string, string>
 ): Promise<Payment> {
   // Dev mode: return mock payment instead of calling Mollie
-  if (isDevMode) {
+  if (isDevMode()) {
     console.warn('[Mollie] Dev mode: returning mock payment (webhook URL unreachable from localhost)');
     const mockPayment = {
       id: `tr_DEV_${Date.now()}`,
@@ -72,7 +72,7 @@ export async function createPlatformPayment(
 
 export async function getPaymentFromMollie(molliePaymentId: string): Promise<Payment> {
   // Dev mode: return mock paid payment
-  if (isDevMode) {
+  if (isDevMode()) {
     console.warn('[Mollie] Dev mode: returning mock paid payment for', molliePaymentId);
     const mockPayment = {
       id: molliePaymentId,

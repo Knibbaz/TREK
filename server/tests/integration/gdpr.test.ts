@@ -30,6 +30,15 @@ vi.mock('../../src/config', () => ({
   ENCRYPTION_KEY: 'a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2a3b4c5d6a7b8c9d0e1f2',
   APP_URL: 'http://localhost:3001',
   updateJwtSecret: () => {},
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 
 vi.mock('../../src/services/backup-v2/exporter', () => ({
@@ -37,18 +46,26 @@ vi.mock('../../src/services/backup-v2/exporter', () => ({
   deleteExportFile: vi.fn(),
 }));
 
-import { createApp } from '../../src/app';
+import type { INestApplication } from '@nestjs/common';
+import { buildApp } from '../../src/bootstrap';
 import { createTables } from '../../src/db/schema';
 import { runMigrations } from '../../src/db/migrations';
 import { resetTestDb } from '../helpers/test-db';
 import { createAdmin, createUser } from '../helpers/factories';
 import { authCookie } from '../helpers/auth';
 
-const app: Application = createApp();
+let nestApp: INestApplication;
+let app: Application;
 
-beforeAll(() => {
+beforeAll(async () => {
   createTables(testDb);
   runMigrations(testDb);
+  nestApp = await buildApp();
+  app = nestApp.getHttpAdapter().getInstance();
+});
+
+afterAll(async () => {
+  await nestApp?.close();
 });
 
 beforeEach(() => {

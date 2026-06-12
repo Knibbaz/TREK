@@ -43,6 +43,15 @@ vi.mock('../../src/config', () => ({
   SESSION_DURATION_MS: 86400000,
   SESSION_DURATION_SECONDS: 86400,
   DEFAULT_LANGUAGE: 'en',
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.fn() }));
 

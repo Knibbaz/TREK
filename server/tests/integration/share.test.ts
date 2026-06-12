@@ -40,6 +40,15 @@ vi.mock('../../src/config', () => ({
   SESSION_DURATION_MS: 86400000,
   SESSION_DURATION_SECONDS: 86400,
   DEFAULT_LANGUAGE: 'en',
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.fn() }));
 
@@ -240,7 +249,8 @@ describe('Shared trip — day assignments and notes', () => {
     expect(dayAssignments[0].place.lat).toBe(41.89);
   });
 
-  it('SHARE-011 — shared trip with day notes includes notes in response', async () => {
+  // ROUTD fork: personal day notes are never exposed through public share links.
+  it('SHARE-011 — shared trip never includes personal day notes', async () => {
     const { user } = createUser(testDb);
     const trip = createTrip(testDb, user.id, { title: 'Notes Trip' });
     const day = createDay(testDb, trip.id, { date: '2025-07-01' });
@@ -254,10 +264,7 @@ describe('Shared trip — day assignments and notes', () => {
 
     const res = await request(app).get(`/api/shared/${token}`);
     expect(res.status).toBe(200);
-    const dayNotes = res.body.dayNotes[day.id];
-    expect(Array.isArray(dayNotes)).toBe(true);
-    expect(dayNotes).toHaveLength(1);
-    expect(dayNotes[0].text).toBe('Meet at the station');
+    expect(res.body.dayNotes[day.id]).toBeUndefined();
   });
 
   it('SHARE-012 — share_collab=true includes collab messages in response', async () => {

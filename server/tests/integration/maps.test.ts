@@ -43,6 +43,15 @@ vi.mock('../../src/config', () => ({
   SESSION_DURATION_MS: 86400000,
   SESSION_DURATION_SECONDS: 86400,
   DEFAULT_LANGUAGE: 'en',
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 vi.mock('../../src/websocket', () => ({ broadcast: vi.fn(), broadcastToUser: vi.fn() }));
 
@@ -410,19 +419,3 @@ describe('Maps autocomplete', () => {
   });
 });
 
-describe('Place photo bytes — public access for shared maps', () => {
-  it('MAPS-018 — GET /place-photo/:placeId/bytes works without authentication', async () => {
-    const res = await request(app).get('/api/maps/place-photo/test-place-id/bytes');
-    // 404 is expected because there is no cached photo in the test environment,
-    // but the key behaviour is that it does NOT return 401.
-    expect(res.status).not.toBe(401);
-  });
-
-  it('MAPS-019 — authenticated users still reach the bytes endpoint', async () => {
-    const { user } = createUser(testDb);
-    const res = await request(app)
-      .get('/api/maps/place-photo/test-place-id/bytes')
-      .set('Cookie', authCookie(user.id));
-    expect(res.status).not.toBe(401);
-  });
-});

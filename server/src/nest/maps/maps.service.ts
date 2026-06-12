@@ -60,8 +60,8 @@ export class MapsService {
     return searchPlaces(userId, query, lang) as Promise<MapsSearchResult>;
   }
 
-  autocomplete(userId: number, input: string, lang?: string, locationBias?: LocationBias): Promise<MapsAutocompleteResult> {
-    return autocompletePlaces(userId, input, lang, locationBias) as Promise<MapsAutocompleteResult>;
+  autocomplete(userId: number, input: string, lang?: string, locationBias?: LocationBias, types?: string[]): Promise<MapsAutocompleteResult> {
+    return autocompletePlaces(userId, input, lang, locationBias, types) as Promise<MapsAutocompleteResult>;
   }
 
   details(userId: number, placeId: string, lang?: string): Promise<MapsPlaceDetailsResult> {

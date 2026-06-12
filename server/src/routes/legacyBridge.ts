@@ -1,3 +1,4 @@
+import express from 'express';
 import type { Express, Request, Response, NextFunction } from 'express';
 import groupsRoutes from './groups';
 import dateProposalsRoutes, { mineRouter as dateProposalsMineRouter } from './dateProposals';
@@ -41,25 +42,38 @@ export function applyLegacyFeatureRoutes(app: Express): void {
   app.use('/shared', allowFraming);
   app.use('/api/shared', allowFraming);
 
-  app.use('/api/groups/:groupId/date-proposals', dateProposalsRoutes);
-  app.use('/api/date-proposals', dateProposalsMineRouter);
-  app.use('/api/availability', availabilityRoutes);
-  app.use('/api/guest/availability', guestAvailabilityRoutes);
-  app.use('/api/visits', visitorInsightsRoutes);
-  app.use('/api/addons/groups', groupsRoutes);
-  app.use('/api/addons/explore', exploreRoutes);
-  app.use('/api/addons/explore/payments', explorePaymentsRoutes);
-  app.use('/api/addons/explore/creator-hub/lib', creatorHubLibRoutes);
-  app.use('/api/public/lib', publicLibRouter);
-  app.use('/api/addons/explore/creator-hub/affiliates', creatorHubAffiliatesRoutes);
-  app.use('/api/public/go', publicAffiliateRouter);
-  app.use('/api/addons/explore/creator-hub/tips', creatorHubTipsRoutes);
-  app.use('/api/mollie', mollieConnectRoutes);
-  app.use('/webhooks/mollie', mollieWebhookRoutes);
-  app.use('/api/addons/worldmap', worldmapRoutes);
-  app.use('/api/admin/backup-v2', adminImportRouter);
-  app.use('/api/admin/backup-v2', schedulesRouter);
-  app.use('/api/user', userExportRouter);
-  app.use('/api/user', userGdprRouter);
-  app.use('/api/admin/gdpr', adminGdprRouter);
+  // bootstrap runs with `bodyParser: false` (Nest parses after init), so the
+  // pre-init fork routers need their own parsers. They are wrapped in
+  // differently-named functions: Nest scans the Express stack for middleware
+  // literally named 'jsonParser'/'urlencodedParser' and skips registering its
+  // own global parser when it finds one — which would leave every Nest route
+  // without a parsed body. express.json sets req._body, so Nest's parser
+  // still skips requests these wrappers already parsed.
+  const jsonMw = express.json({ limit: '100kb' });
+  const urlencodedMw = express.urlencoded({ extended: true });
+  const legacyJson: express.RequestHandler = (req, res, next) => jsonMw(req, res, next);
+  const legacyUrlencoded: express.RequestHandler = (req, res, next) => urlencodedMw(req, res, next);
+  const use = (path: string, ...handlers: express.RequestHandler[]) => app.use(path, legacyJson, legacyUrlencoded, ...handlers);
+
+  use('/api/groups/:groupId/date-proposals', dateProposalsRoutes);
+  use('/api/date-proposals', dateProposalsMineRouter);
+  use('/api/availability', availabilityRoutes);
+  use('/api/guest/availability', guestAvailabilityRoutes);
+  use('/api/visits', visitorInsightsRoutes);
+  use('/api/addons/groups', groupsRoutes);
+  use('/api/addons/explore', exploreRoutes);
+  use('/api/addons/explore/payments', explorePaymentsRoutes);
+  use('/api/addons/explore/creator-hub/lib', creatorHubLibRoutes);
+  use('/api/public/lib', publicLibRouter);
+  use('/api/addons/explore/creator-hub/affiliates', creatorHubAffiliatesRoutes);
+  use('/api/public/go', publicAffiliateRouter);
+  use('/api/addons/explore/creator-hub/tips', creatorHubTipsRoutes);
+  use('/api/mollie', mollieConnectRoutes);
+  use('/webhooks/mollie', mollieWebhookRoutes);
+  use('/api/addons/worldmap', worldmapRoutes);
+  use('/api/admin/backup-v2', adminImportRouter);
+  use('/api/admin/backup-v2', schedulesRouter);
+  use('/api/user', userExportRouter);
+  use('/api/user', userGdprRouter);
+  use('/api/admin/gdpr', adminGdprRouter);
 }

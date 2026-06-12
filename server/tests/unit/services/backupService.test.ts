@@ -55,6 +55,15 @@ vi.mock('../../../src/config', () => ({
   JWT_SECRET: 'test-secret',
   ENCRYPTION_KEY: 'a'.repeat(64),
   updateJwtSecret: () => {},
+  // ROUTD fork config keys (module-load reads in fork services)
+  APP_URL: 'http://localhost:3001',
+  PROJECT_METADATA: { modifiedBy: { name: 'Bas', url: '' }, originalBy: { name: 'Maurice', url: '' } },
+  GOOGLE_PLACES_API_KEY: '',
+  UNSPLASH_API_KEY: '',
+  MOLLIE_CLIENT_ID: '',
+  MOLLIE_CLIENT_SECRET: '',
+  MOLLIE_API_KEY: '',
+  PLATFORM_FEE_PERCENT: 10,
 }));
 vi.mock('fs', () => ({ default: fsMock, ...fsMock }));
 vi.mock('archiver', () => ({ default: archiverMock }));

@@ -195,15 +195,6 @@ export async function restoreFromZip(zipPath: string): Promise<RestoreResult> {
   const extractDir = path.join(dataDir, `restore-${Date.now()}`);
   let reinitFailed: unknown = null;
   try {
-    // Validate file exists and has content
-    if (!fs.existsSync(zipPath)) {
-      return { success: false, error: 'Backup file not found', status: 400 };
-    }
-    const stats = fs.statSync(zipPath);
-    if (stats.size < 1000) {
-      return { success: false, error: 'Backup file is too small or truncated', status: 400 };
-    }
-
     // Check the declared uncompressed size from the central directory and bail
     // if it exceeds the cap, before extracting anything.
     const directory = await unzipper.Open.file(zipPath);
