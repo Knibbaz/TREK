@@ -18,6 +18,13 @@ import schedulesRouter from './backup/schedules';
 import userExportRouter from './backup/user-export';
 import userGdprRouter from './user-gdpr';
 import adminGdprRouter from './admin-gdpr';
+import shareExtrasRoutes from './forkExtras/shareExtras';
+import placesExtrasRoutes from './forkExtras/placesExtras';
+import tripsExtrasRoutes from './forkExtras/tripsExtras';
+import adminExtrasRoutes from './forkExtras/adminExtras';
+import atlasExtrasRoutes from './forkExtras/atlasExtras';
+import vacayExtrasRoutes from './forkExtras/vacayExtras';
+import categoriesExtrasRoutes from './forkExtras/categoriesExtras';
 
 /**
  * Mounts the ROUTD-fork feature routers (Express) on the underlying Express
@@ -76,4 +83,15 @@ export function applyLegacyFeatureRoutes(app: Express): void {
   use('/api/user', userExportRouter);
   use('/api/user', userGdprRouter);
   use('/api/admin/gdpr', adminGdprRouter);
+
+  // Fork-only endpoints extracted from the pre-NestJS route files. Each router
+  // only matches its own added paths; everything else next()s into the Nest
+  // controllers (same prefix, registered after init).
+  use('/api', shareExtrasRoutes);
+  use('/api/trips/:tripId/places', placesExtrasRoutes);
+  use('/api/trips', tripsExtrasRoutes);
+  use('/api/admin', adminExtrasRoutes);
+  use('/api/addons/atlas', atlasExtrasRoutes);
+  use('/api/addons/vacay', vacayExtrasRoutes);
+  use('/api/categories', categoriesExtrasRoutes);
 }
