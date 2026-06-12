@@ -82,3 +82,71 @@
 
 Tip: zet een terugkerende check op upstream-merges — vooral #961 dekt een
 open punt uit je eigen roadmap volledig af.
+
+
+---
+
+# Kritische toets tegen eigen plannen (FEATURES.md + specs) — 2026-06-13
+
+Per PR beoordeeld of de implementatie écht past bij de eigen
+roadmap-acceptatiecriteria en de fork-architectuur.
+
+## #961 Privé-paklijsten — past goed, met twee kanttekeningen
+- **Dekt P2.3.2 volledig**: gedeeld/persoonlijk (eigen vinkstatus, zichtbaar
+  voor anderen) /privé (alleen eigenaar) is precies het roadmap-criterium, en
+  templates blijven werken.
+- **Dekt P2.3.1 NIET**: "wie neemt de tent mee"-eigenaarschap op groepsniveau
+  blijft open. De fork-toewijzing per packing-categorie (packing_tagged-
+  notificatie) blijft daarvoor de basis — niet laten sneuvelen bij de merge.
+- **Kanttekening 1**: fork CSV-export (PackingHeader) moet de nieuwe
+  categorie-typen meenemen (kolom 'visibility' toevoegen bij overname).
+- **Kanttekening 2**: raakt 89 files in het packing-domein dat upstream net
+  refactorde — pas overnemen als upstream hem merged, anders dubbel werk.
+
+## #1099 Trip overview — geen botsing, fork-panel blijkt wees
+- Fork's `TripOverviewPanel.tsx` is een **lijst**-overzicht per dag en wordt
+  sinds de port **nergens meer geïmporteerd** (wees-component). PR #1099 is
+  een **kaart**-overzicht (hele-trip-route). Complementair, geen overlap.
+- Actie bij overname: fork-panel verwijderen óf juist weer aanhaken als
+  lijst-variant naast de kaartknop. Besluit nodig (zie DECISIONS.md).
+
+## #1142 Mobile route tools — pure bugfix, geen risico
+- Fork draait exact deze upstream-planner; bug zit dus ook in ROUTD.
+  Cherry-pick is veilig (geen fork-aanpassingen in die regio).
+
+## #1156 Bag colors — veilig
+- `BAG_COLORS` leeft in `packingService.ts` + client-constants; beide
+  bestanden zijn in de fork ongewijzigd upstream. Clean cherry-pick.
+
+## #879 iCal-sync — pas op met token-model
+- Fork heeft al `exportICS` (handmatige download) en een eigen
+  share-token-systeem (`share_tokens`, collab-invites, journey-tokens).
+  De PR introduceert een eigen calendar-token. Bij overname: aansluiten op het
+  bestaande share-token-patroon i.p.v. een vierde tokensoort toevoegen.
+- Past bij de doelgroep (vriendengroepen plannen in agenda's) — geen
+  roadmap-item maar wél in lijn met P1 "samenwerken zonder gedoe".
+
+## #1151 Catalaans — alleen met na-bewerking
+- Na overname moet het parity-script de ±760 fork-keys aanvullen, anders
+  faalt de eigen i18n-parity-test direct.
+
+## #1035 LDAP — herwaardering: relevanter dan eerst gedacht
+- De agency-spec (B2B, `Possible customers.md`) mikt op touroperators die
+  soms on-premise/AD draaien. Voor white-label-verkoop (open verzoek A in
+  DECISIONS.md) kan LDAP een verkoopargument zijn. Nog steeds niet nú
+  overnemen, maar van "negeren" naar "bewaren voor B2B-fase".
+
+## #912 Helm chart — idem herwaardering
+- De fork sleept een eigen chart mee (`charts/trek`, name=routd). Als
+  white-label-klanten op k8s hosten wordt dit relevant. Parkeren, niet
+  negeren.
+
+## #974 Maps search bias — overbodig voor de fork
+- Fork heeft locationBias + types al in autocomplete (lokaal geport); de
+  search-variant voegt weinig toe en de PR is draft met rebase-ruis.
+
+## #578 Vacay sharing — botst frontaal met fork
+- Fork herbouwde `vacay_entries` (uren/type/UNIQUE) en heeft eigen
+  sharing-semantiek (share_vacay_in_groups-setting). Deze PR herstructureert
+  hetzelfde domein vanaf de oude basis. **Niet overnemen**; hooguit het
+  read-only-concept als idee meenemen in een eigen implementatie.
