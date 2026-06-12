@@ -335,6 +335,7 @@ const EVENT_TEXTS: Record<string, Record<NotifEventType, EventTextFn>> = {
     collab_message: p => ({ title: `Pesan baru di "${p.trip}"`, body: `${p.actor}: ${p.preview}` }),
     packing_tagged: p => ({ title: `Pengepakan: ${p.category}`, body: `${p.actor} menugaskan Anda ke kategori "${p.category}" di "${p.trip}".` }),
     version_available: p => ({ title: 'Versi ROUTD baru tersedia', body: `ROUTD ${p.version} sekarang tersedia. Kunjungi panel admin untuk memperbarui.` }),
+    date_proposal_threshold_reached: p => ({ title: `Ambang tercapai: ${p.proposal}`, body: `${p.respondents} dari ${p.members} anggota grup "${p.group}" telah mengisi ketersediaan untuk "${p.proposal}".` }),
   },
 };
 

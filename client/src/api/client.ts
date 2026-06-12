@@ -606,7 +606,7 @@ export const collabApi = {
 
 export const dateProposalsApi = {
   list: (groupId: number | string) => apiClient.get(`/groups/${groupId}/date-proposals`).then(r => r.data),
-  create: (groupId: number | string, data: { title?: string; period_start: string; period_end: string; deadline?: string | null; reminder_days?: number }) =>
+  create: (groupId: number | string, data: { title?: string; period_start: string; period_end: string; deadline?: string | null; reminder_days?: number; response_threshold?: number }) =>
     apiClient.post(`/groups/${groupId}/date-proposals`, data).then(r => r.data),
   delete: (groupId: number | string, proposalId: number) =>
     apiClient.delete(`/groups/${groupId}/date-proposals/${proposalId}`).then(r => r.data),
@@ -788,7 +788,7 @@ export const groupsApi = {
   rsvpTrip: (id: number, tripId: number) =>
     apiClient.post(`/addons/groups/${id}/trips/${tripId}/rsvp`).then(r => r.data as { participating: boolean; participants: Array<{ id: number; username: string; avatar?: string | null }> }),
   getStats: (id: number) =>
-    apiClient.get(`/addons/groups/${id}/stats`).then(r => r.data as { trip_count: number; country_count: number; total_days: number }),
+    apiClient.get(`/addons/groups/${id}/stats`).then(r => r.data as { trip_count: number; country_count: number; total_days: number; milestones: string[] }),
   getAtlas: (id: number) =>
     apiClient.get(`/addons/groups/${id}/atlas`).then(r => r.data as { countries: Array<{ code: string; place_count: number }> }),
   getActivity: (id: number, options?: { limit?: number; before?: number }) =>
