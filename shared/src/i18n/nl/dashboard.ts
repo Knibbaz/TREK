@@ -179,5 +179,6 @@ const dashboard: TranslationStrings = {
   'dashboard.publishExplore': 'Publiceren in Explore',
   'dashboard.price': 'Prijs',
   'dashboard.publish': 'Publiceren',
+  'dashboard.place': 'Plek',
 };
 export default dashboard;

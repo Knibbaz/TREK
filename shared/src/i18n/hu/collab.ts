@@ -75,5 +75,6 @@ const collab: TranslationStrings = {
   'collab.polls.delete': 'Törlés',
   'collab.polls.closedSection': 'Lezárva',
   'collab.tabs.availability': 'Dates',
+  'collab.notes.expand': 'Expand',
 };
 export default collab;

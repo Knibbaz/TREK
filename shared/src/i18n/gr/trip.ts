@@ -29,5 +29,6 @@ const trip: TranslationStrings = {
   'trip.confirm.deletePlaces': 'Διαγραφή {count} μερών;',
   'trip.toast.placesDeleted': '{count} μέρη διαγράφηκαν',
   'trip.toast.loadError': 'Failed to load trip',
+  'trip.toast.tripUpdated': 'Trip updated',
 };
 export default trip;

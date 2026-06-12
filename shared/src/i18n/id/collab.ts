@@ -73,5 +73,6 @@ const collab: TranslationStrings = {
   'collab.polls.delete': 'Hapus',
   'collab.polls.closedSection': 'Ditutup',
   'collab.tabs.availability': 'Dates',
+  'collab.notes.expand': 'Expand',
 };
 export default collab;

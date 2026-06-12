@@ -70,5 +70,8 @@ const dateAvail: TranslationStrings = {
   'dateAvail.guestLinkCopied': 'Gastlink gekopieerd!',
   'dateAvail.noGuestLinks': 'Nog geen gastlinks aangemaakt.',
   'dateAvail.unnamedGuest': 'Gast',
+  'dateAvail.overlapHeatmap': 'Overlap-heatmap',
+  'dateAvail.pingMembers': 'Leden pingen',
+  'dateAvail.pingSuccess': 'Herinnering verstuurd!',
 };
 export default dateAvail;

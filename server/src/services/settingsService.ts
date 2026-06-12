@@ -22,6 +22,7 @@ export const DEFAULTABLE_USER_SETTING_KEYS = [
   'home_country',
   'route_walking_threshold',
   'route_driving_threshold',
+  'default_currency',
 ] as const;
 
 type DefaultableKey = typeof DEFAULTABLE_USER_SETTING_KEYS[number];

@@ -28,5 +28,6 @@ const trip: TranslationStrings = {
   'trip.toast.placesDeleted': '{count} hely törölve',
   'trip.loadingPhotos': 'Helyek fotóinak betöltése...',
   'trip.toast.loadError': 'Failed to load trip',
+  'trip.toast.tripUpdated': 'Trip updated',
 };
 export default trip;

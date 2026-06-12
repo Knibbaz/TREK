@@ -117,5 +117,7 @@ const vacay: TranslationStrings = {
   'vacay.tvtUsed': 'used',
   'vacay.tvtUsedLabel': 'TvT used',
   'vacay.vacationUsed': 'Vacation used',
+  'vacay.proposalDates': 'Availability proposal',
+  'vacay.tripDates': 'Planned trip',
 };
 export default vacay;

@@ -28,5 +28,6 @@ const trip: TranslationStrings = {
   'trip.confirm.deletePlaces': '¿Eliminar {count} lugares?',
   'trip.toast.placesDeleted': '{count} lugares eliminados',
   'trip.toast.loadError': 'Failed to load trip',
+  'trip.toast.tripUpdated': 'Trip updated',
 };
 export default trip;

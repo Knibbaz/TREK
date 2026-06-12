@@ -114,6 +114,7 @@ const budget: TranslationStrings = {
   "costs.settleAll": "Összes elszámolása",
   'budget.deleteCategoryTitle': 'Delete category',
   'budget.deleteCategoryMessage': 'This will permanently delete the category "{cat}" and all its items. This cannot be undone.',
+  'budget.addCategory': 'Add category',
 };
 
 export default budget;

@@ -60,5 +60,14 @@ const common: TranslationStrings = {
   'common.notNow': 'Niet nu',
   'common.viewAll': 'View all',
   'common.create': 'Create',
+  'common.enterName': 'Vul je naam in',
+  'common.errorOccurred': 'Er ging iets mis',
+  'common.invalidOrExpiredLink': 'Ongeldige of verlopen link',
+  'common.nameRequired': 'Vul je naam in',
+  'common.previous': 'Vorige',
+  'common.publishing': 'Publiceren…',
+  'common.skip': 'Overslaan',
+  'common.tryAgain': 'Probeer opnieuw',
+  'common.yourName': 'Je naam',
 };
 export default common;

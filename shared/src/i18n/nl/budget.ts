@@ -114,6 +114,7 @@ const budget: TranslationStrings = {
   "costs.settleAll": "Alles afrekenen",
   'budget.deleteCategoryTitle': 'Categorie verwijderen',
   'budget.deleteCategoryMessage': 'Dit verwijdert de categorie "{cat}" en alle bijbehorende items definitief. Dit kan niet ongedaan worden gemaakt.',
+  'budget.addCategory': 'Categorie toevoegen',
 };
 
 export default budget;

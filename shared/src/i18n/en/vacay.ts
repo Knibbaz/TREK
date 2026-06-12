@@ -112,5 +112,7 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': 'Right-click for hours',
   'vacay.save': 'Save',
   'vacay.cancel': 'Cancel',
+  'vacay.proposalDates': 'Availability proposal',
+  'vacay.tripDates': 'Planned trip',
 };
 export default vacay;

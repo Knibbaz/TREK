@@ -60,5 +60,6 @@ const dayplan: TranslationStrings = {
   'dayplan.routeCalculating': 'Route berekenen…',
   'dayplan.routeReady': 'Route klaar',
   'dayplan.noRoute': 'Nog geen route berekend',
+  'dayplan.toast.routeError': 'Routeberekening mislukt',
 };
 export default dayplan;

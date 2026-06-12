@@ -114,5 +114,7 @@ const vacay: TranslationStrings = {
   'vacay.rightClickHint': 'Rechtermuisknop voor uren',
   'vacay.save': 'Opslaan',
   'vacay.cancel': 'Annuleren',
+  'vacay.proposalDates': 'Beschikbaarheidsvoorstel',
+  'vacay.tripDates': 'Geplande reis',
 };
 export default vacay;

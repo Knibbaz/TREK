@@ -61,5 +61,14 @@ const common: TranslationStrings = {
   'common.submitting': 'Submitting...',
   'common.viewAll': 'View all',
   'common.create': 'Create',
+  'common.enterName': 'Enter your name',
+  'common.errorOccurred': 'Something went wrong',
+  'common.invalidOrExpiredLink': 'Invalid or expired link',
+  'common.nameRequired': 'Please enter your name',
+  'common.previous': 'Previous',
+  'common.publishing': 'Publishing…',
+  'common.skip': 'Skip',
+  'common.tryAgain': 'Try again',
+  'common.yourName': 'Your name',
 };
 export default common;
