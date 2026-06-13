@@ -19,7 +19,8 @@
     "test:integration": "vitest run tests/integration",
     "test:ws": "vitest run tests/websocket",
     "test:e2e": "vitest run tests/e2e",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "test:bdd": "vitest run tests/bdd"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.28.0",

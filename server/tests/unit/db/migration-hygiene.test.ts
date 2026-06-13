@@ -85,6 +85,8 @@ function findDestructiveStatements(src: string): DestructiveHit[] {
  */
 const ALLOWED_DESTRUCTIVE: Record<string, string> = {
   // ── ROUTD fork migrations ─────────────────────────────────────────────────
+  'DELETE FROM addons':
+    'Fork migration: retires the World Map addon registration (replaced by the personal per-country bucket list). Bounded single-row cleanup, not data loss.',
   'DROP TABLE vacay_entries':
     'Fork migration: rebuild to add hours/type columns + widened UNIQUE. Rows copied to vacay_entries_new first.',
   'DROP TABLE date_availability':
