@@ -23,6 +23,10 @@ interface AuthState {
   user: User | null
   isAuthenticated: boolean
   isLoading: boolean
+  /** False until the first server-side auth validation of this boot resolves.
+   * Gates protected routes so a persisted (but possibly expired) session can't
+   * flash content before the silent boot-validation confirms or clears it. */
+  authValidated: boolean
   error: string | null
   demoMode: boolean
   devMode: boolean
@@ -73,6 +77,7 @@ export const useAuthStore = create<AuthState>()(
   user: null,
   isAuthenticated: false,
   isLoading: true,
+  authValidated: false,
   error: null,
   demoMode: localStorage.getItem('demo_mode') === 'true',
   devMode: false,
@@ -100,6 +105,7 @@ export const useAuthStore = create<AuthState>()(
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
+        authValidated: true,
         error: null,
       })
       connect()
@@ -124,6 +130,7 @@ export const useAuthStore = create<AuthState>()(
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
+        authValidated: true,
         error: null,
       })
       connect()
@@ -148,6 +155,7 @@ export const useAuthStore = create<AuthState>()(
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
+        authValidated: true,
         error: null,
       })
       connect()
@@ -191,6 +199,7 @@ export const useAuthStore = create<AuthState>()(
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
+        authValidated: true,
       })
       connect()
     } catch (err: unknown) {
@@ -203,9 +212,12 @@ export const useAuthStore = create<AuthState>()(
           user: null,
           isAuthenticated: false,
           isLoading: false,
+          authValidated: true,
         })
       } else {
-        set({ isLoading: false })
+        // Network failure (offline PWA): keep the persisted session, but mark
+        // this boot validated so the shell can render rather than hang.
+        set({ isLoading: false, authValidated: true })
       }
     }
   },
@@ -283,6 +295,7 @@ export const useAuthStore = create<AuthState>()(
         user: data.user,
         isAuthenticated: true,
         isLoading: false,
+        authValidated: true,
         demoMode: true,
         error: null,
       })

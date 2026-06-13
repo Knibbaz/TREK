@@ -5,7 +5,7 @@ declare global { interface Window { __dragData: DragDataPayload | null } }
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react'
 import { ChevronDown, ChevronRight, ChevronUp, Navigation, RotateCcw, ExternalLink, Clock, Pencil, GripVertical, Ticket, Plus, FileText, Trash2, Car, Lock, Hotel, Footprints, Route as RouteIcon } from 'lucide-react'
 import { assignmentsApi, reservationsApi } from '../../api/client'
-import { calculateRoute, calculateRouteWithLegs, optimizeRoute } from '../Map/RouteCalculator'
+import { calculateRoute, calculateRouteWithLegs, optimizeRoute, generateGoogleMapsUrl } from '../Map/RouteCalculator'
 import PlaceAvatar from '../shared/PlaceAvatar'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import { useContextMenu, ContextMenu } from '../shared/ContextMenu'
@@ -1318,6 +1318,29 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                           </span>
                         ))
                       })()}
+                      {/* Booking.com hotel suggestion on a day with no accommodation
+                          yet (ROUTD): searches near the day's last destination, with
+                          the instance affiliate id when configured. */}
+                      {canEditDays && (() => {
+                        const hasAccs = accommodations.some(a => isDayInAccommodationRange(day, a.start_day_id, a.end_day_id, days))
+                        if (hasAccs) return null
+                        const dayPlaces = getDayAssignments(day.id).map(a => a.place).filter(p => p?.lat && p?.lng)
+                        if (dayPlaces.length === 0) return null
+                        const last = dayPlaces[dayPlaces.length - 1]
+                        const aid = useSettingsStore.getState().settings.booking_affiliate_id
+                        const openBooking = (e: React.MouseEvent) => {
+                          e.stopPropagation()
+                          const params = new URLSearchParams({ ss: last.name, latitude: String(last.lat), longitude: String(last.lng) })
+                          if (aid) params.set('aid', String(aid))
+                          window.open(`https://www.booking.com/searchresults.html?${params.toString()}`, '_blank', 'noopener')
+                        }
+                        return (
+                          <span onClick={openBooking} className="bg-surface-hover" title={t('dayplan.findHotelNear', { place: last.name })} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, flexShrink: 0, cursor: 'pointer', borderRadius: 7, padding: '2px 7px 2px 6px' }}>
+                            <Hotel size={11} strokeWidth={1.8} className="text-content-faint" style={{ flexShrink: 0 }} />
+                            <span className="text-content-muted" style={{ fontSize: 10.5, fontWeight: 400, whiteSpace: 'nowrap' }}>{t('dayplan.findHotel')}</span>
+                          </span>
+                        )
+                      })()}
                     </div>
                   </>
                   )}
@@ -2119,6 +2142,21 @@ const DayPlanSidebar = React.memo(function DayPlanSidebar(props: DayPlanSidebarP
                         }}>
                           <RotateCcw size={12} strokeWidth={2} />
                           {t('dayplan.optimize')}
+                        </button>
+                        {/* Open this day's route in Google Maps (ROUTD): answers the
+                            most-asked influencer question — "is it linked to Google Maps?" */}
+                        <button
+                          onClick={() => {
+                            const wps = getDayAssignments(day.id).map(a => a.place).filter(p => p?.lat && p?.lng).map(p => ({ lat: p.lat!, lng: p.lng! }))
+                            const url = generateGoogleMapsUrl(wps)
+                            if (url) window.open(url, '_blank', 'noopener')
+                          }}
+                          className="bg-surface-hover text-content-secondary"
+                          aria-label={t('dayplan.openInGoogleMaps')}
+                          title={t('dayplan.openInGoogleMaps')}
+                          style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '6px 10px', borderRadius: 8, border: 'none', cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0 }}
+                        >
+                          <Navigation size={13} strokeWidth={2} />
                         </button>
                         <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: '1px solid var(--border-faint)', flexShrink: 0 }}>
                           {(['driving', 'walking'] as const).map(p => {

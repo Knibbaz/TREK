@@ -115,3 +115,18 @@
 ### J. ~~Afsluitstappen in CLAUDE.md~~  *(gevraagd én vastgelegd 2026-06-13)*
 - CLAUDE.md aangemaakt met architectuur-spelregels, werkwijze (NL commits,
   niet pushen zonder verzoek, alleen origin) en de afsluitstappen-checklist.
+
+
+### K. Features uit influencer-/reisbureau-gesprekken  *(geanalyseerd + deels gebouwd 2026-06-13)*
+Analyse staat in het plan-bestand. Gebouwd (A–E):
+- **A** — "Open in Google Maps" voor de dagroute (DayPlanSidebar route-tools).
+  Lost het meest gehoorde influencer-bezwaar op ("te koppelen aan Google Maps?").
+- **B** — Booking.com-hotelsuggestie op dagen zonder accommodatie (bij de laatste
+  bestemming, met `booking_affiliate_id` als affiliate-id gezet is).
+- **C** — Auth-flash fix: `authValidated`-bootflag gate't protected routes tot de
+  eerste validatie klaar is; geen flits van content meer bij verlopen token.
+- **D** — Login-sterren memoized (sprongen niet meer bij typen) + subtiele
+  `:focus-within`-versnelling van de twinkle.
+- **E** — Kaart-declutter: `maxClusterRadius` 30→48, `disableClusteringAtZoom`
+  11→16 voor dichte trips (Tenerife 100+).
+Niet gebouwd: **F** SEO-landingssite + **G** agency-offerte-preview (buiten scope).

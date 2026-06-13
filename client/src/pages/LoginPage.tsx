@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useMemo } from 'react'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../i18n'
 import { Plane, Eye, EyeOff, Mail, Lock, MapPin, Calendar, Package, User, Globe, Zap, Users, Wallet, Map, CheckSquare, BookMarked, FolderOpen, Route, Shield, KeyRound, ChevronDown, Fingerprint } from 'lucide-react'
 import { useLogin } from './login/useLogin'
@@ -19,6 +19,18 @@ export default function LoginPage(): React.ReactElement {
     noRedirect, showRegisterOption, oidcOnly,
     handleDemoLogin, handleSubmit, handlePasskeyLogin,
   } = useLogin()
+
+  // The decorative starfield used Math.random() inline, so every keystroke
+  // re-rolled each star's position + animation-delay → the dots visibly jumped
+  // while typing. Compute them once so the field stays calm; the CSS twinkle
+  // keeps them gently moving on its own.
+  const stars = useMemo(() => Array.from({ length: 40 }, () => ({
+    w: Math.random() > 0.7 ? 2 : 1,
+    opacity: 0.15 + Math.random() * 0.25,
+    top: Math.random() * 70,
+    left: Math.random() * 100,
+    delay: Math.random() * 4,
+  })), [])
 
   const oidcButtonShown = !!(appConfig?.oidc_configured && appConfig?.oidc_login && !oidcOnly)
   const passkeyAvailable = !!(appConfig?.passkey_login && appConfig?.passkey_configured && !oidcOnly
@@ -182,7 +194,7 @@ export default function LoginPage(): React.ReactElement {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', fontFamily: "var(--font-system)", position: 'relative' }}>
+    <div className="login-root" style={{ minHeight: '100vh', display: 'flex', fontFamily: "var(--font-system)", position: 'relative' }}>
 
       {/* Language dropdown */}
       <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10 }}>
@@ -252,17 +264,17 @@ export default function LoginPage(): React.ReactElement {
 
         {/* Stars */}
         <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
-          {Array.from({ length: 40 }, (_, i) => (
+          {stars.map((s, i) => (
             <div key={i} className="login-star" style={{
               position: 'absolute',
-              width: Math.random() > 0.7 ? 2 : 1,
-              height: Math.random() > 0.7 ? 2 : 1,
+              width: s.w,
+              height: s.w,
               borderRadius: '50%',
               background: 'white',
-              opacity: 0.15 + Math.random() * 0.25,
-              top: `${Math.random() * 70}%`,
-              left: `${Math.random() * 100}%`,
-              animationDelay: `${Math.random() * 4}s`,
+              opacity: s.opacity,
+              top: `${s.top}%`,
+              left: `${s.left}%`,
+              animationDelay: `${s.delay}s`,
             }} />
           ))}
         </div>
@@ -713,6 +725,8 @@ export default function LoginPage(): React.ReactElement {
           50% { opacity: 0.5; }
         }
         .login-star { animation: twinkle 3s ease-in-out infinite; }
+        /* Calm by default; twinkle a touch livelier while the user is typing. */
+        .login-root:focus-within .login-star { animation-duration: 1.6s; }
 
         @keyframes plane1Move {
           0%   { left: -8%; top: 30%; transform: rotate(-8deg); }

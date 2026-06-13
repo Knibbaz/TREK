@@ -605,8 +605,12 @@ export const MapView = memo(function MapView({
         chunkedLoading
         chunkInterval={30}
         chunkDelay={0}
-        maxClusterRadius={30}
-        disableClusteringAtZoom={11}
+        // Dense trips (e.g. 100+ pins on one island) were a wall of overlapping
+        // markers: a wider cluster radius groups nearby pins, and only breaking
+        // clusters apart at a closer zoom keeps the map calm until you zoom into
+        // a neighbourhood. spiderfy fans out co-located pins on click.
+        maxClusterRadius={48}
+        disableClusteringAtZoom={16}
         spiderfyOnMaxZoom
         showCoverageOnHover={false}
         zoomToBoundsOnClick

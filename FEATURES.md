@@ -20,7 +20,7 @@
 | P0.1 | Public Map Parity (markers, thumbnails, routes, labels, badges, clustering) | ✅ |
 | P0.2 | Enhanced tooltips publieke kaart | ✅ |
 | P0.3 | Clickable markers + detail card | ✅ |
-| P0.4 | Routevisualisatie & reistijden | ✅ ⬆️ verbeterd: echte OSRM-wegroutes per profiel + multi-leg flights |
+| P0.4 | Routevisualisatie & reistijden | ✅ ⬆️ verbeterd: echte OSRM-wegroutes per profiel + multi-leg flights; "Open in Google Maps" voor de dagroute |
 | P0.5 | Order badges op markers | ✅ |
 | P0.6 | Clustering bij lage zoom | ✅ |
 | P0.7 | Basis performance | ✅ |

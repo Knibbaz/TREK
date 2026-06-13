@@ -45,6 +45,9 @@ function seedAuth(overrides: Record<string, unknown> = {}) {
   useAuthStore.setState({
     isLoading: false,
     isAuthenticated: false,
+    // Default to a validated boot so ProtectedRoute renders; the loading-spinner
+    // test overrides this with isLoading: true.
+    authValidated: true,
     user: null,
     appRequireMfa: false,
     loadUser: vi.fn().mockResolvedValue(undefined),

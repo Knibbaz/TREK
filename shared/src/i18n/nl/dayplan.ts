@@ -61,5 +61,8 @@ const dayplan: TranslationStrings = {
   'dayplan.routeReady': 'Route klaar',
   'dayplan.noRoute': 'Nog geen route berekend',
   'dayplan.toast.routeError': 'Routeberekening mislukt',
+  'dayplan.openInGoogleMaps': 'Openen in Google Maps',
+  'dayplan.findHotel': 'Hotel zoeken',
+  'dayplan.findHotelNear': 'Zoek een hotel bij {place} op Booking.com',
 };
 export default dayplan;

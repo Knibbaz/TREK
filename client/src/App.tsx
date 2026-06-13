@@ -52,12 +52,15 @@ function ProtectedRoute({ children, adminRequired = false, addonId }: ProtectedR
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const user = useAuthStore((s) => s.user)
   const isLoading = useAuthStore((s) => s.isLoading)
+  const authValidated = useAuthStore((s) => s.authValidated)
   const appRequireMfa = useAuthStore((s) => s.appRequireMfa)
   const addonStore = useAddonStore()
   const { t } = useTranslation()
   const location = useLocation()
 
-  if (isLoading) {
+  // Hold the spinner until this boot's first auth validation resolves — a
+  // persisted (possibly expired) session must not flash protected content.
+  if (isLoading || !authValidated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="flex flex-col items-center gap-3">
@@ -99,9 +102,9 @@ function ProtectedRoute({ children, adminRequired = false, addonId }: ProtectedR
 }
 
 function RootRedirect() {
-  const { isAuthenticated, isLoading } = useAuthStore()
+  const { isAuthenticated, isLoading, authValidated } = useAuthStore()
 
-  if (isLoading) {
+  if (isLoading || !authValidated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-10 h-10 border-4 border-slate-200 border-t-slate-900 rounded-full animate-spin"></div>
@@ -148,7 +151,9 @@ export default function App() {
   useEffect(() => {
     if (!location.pathname.startsWith('/shared/') && !location.pathname.startsWith('/public/') && !location.pathname.startsWith('/invite/') && !location.pathname.startsWith('/login')) {
       // If the persist snapshot already has an authenticated user, validate
-      // silently so the PWA shell renders immediately without a spinner.
+      // silently (no global spinner / no unmount). ProtectedRoute still gates on
+      // `authValidated` until this first validation resolves, so an expired
+      // persisted session can't flash content before redirecting to login.
       const alreadyAuthenticated = useAuthStore.getState().isAuthenticated
       if (alreadyAuthenticated) {
         useAuthStore.setState({ isLoading: false })
