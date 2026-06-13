@@ -22,14 +22,18 @@ export default function LoginPage(): React.ReactElement {
 
   // The decorative starfield used Math.random() inline, so every keystroke
   // re-rolled each star's position + animation-delay → the dots visibly jumped
-  // while typing. Compute them once so the field stays calm; the CSS twinkle
-  // keeps them gently moving on its own.
+  // while typing. Compute each star's position + drift once so the field stays
+  // calm; CSS handles the gentle drift/twinkle, and a --star-speed var on the
+  // root speeds it up a touch while the user is typing (focus-within).
   const stars = useMemo(() => Array.from({ length: 40 }, () => ({
     w: Math.random() > 0.7 ? 2 : 1,
     opacity: 0.15 + Math.random() * 0.25,
     top: Math.random() * 70,
     left: Math.random() * 100,
     delay: Math.random() * 4,
+    dur: 9 + Math.random() * 9,                 // 9–18s drift cycle
+    dx: (Math.random() * 2 - 1) * 14,           // ±14px horizontal drift
+    dy: (Math.random() * 2 - 1) * 10,           // ±10px vertical drift
   })), [])
 
   const oidcButtonShown = !!(appConfig?.oidc_configured && appConfig?.oidc_login && !oidcOnly)
@@ -275,7 +279,10 @@ export default function LoginPage(): React.ReactElement {
               top: `${s.top}%`,
               left: `${s.left}%`,
               animationDelay: `${s.delay}s`,
-            }} />
+              ['--dur' as string]: `${s.dur}s`,
+              ['--dx' as string]: `${s.dx}px`,
+              ['--dy' as string]: `${s.dy}px`,
+            } as React.CSSProperties} />
           ))}
         </div>
 
@@ -724,9 +731,21 @@ export default function LoginPage(): React.ReactElement {
           0%, 100% { opacity: 0.15; }
           50% { opacity: 0.5; }
         }
-        .login-star { animation: twinkle 3s ease-in-out infinite; }
-        /* Calm by default; twinkle a touch livelier while the user is typing. */
-        .login-root:focus-within .login-star { animation-duration: 1.6s; }
+        @keyframes starDrift {
+          from { transform: translate(0, 0); }
+          to   { transform: translate(var(--dx, 0), var(--dy, 0)); }
+        }
+        /* Gentle drift + twinkle. --star-speed (set on the root) scales the
+           durations so motion stays calm by default and gets a touch livelier
+           while the user is typing (focus-within), without the dots ever
+           jumping to a new spot. */
+        .login-root { --star-speed: 1; }
+        .login-root:focus-within { --star-speed: 0.5; }
+        .login-star {
+          animation:
+            twinkle calc(3s * var(--star-speed, 1)) ease-in-out infinite,
+            starDrift calc(var(--dur, 12s) * var(--star-speed, 1)) ease-in-out infinite alternate;
+        }
 
         @keyframes plane1Move {
           0%   { left: -8%; top: 30%; transform: rotate(-8deg); }
