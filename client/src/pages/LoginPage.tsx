@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react'
 import { SUPPORTED_LANGUAGES, useTranslation } from '../i18n'
-import { Plane, Eye, EyeOff, Mail, Lock, MapPin, Calendar, Package, User, Globe, Zap, Users, Wallet, Map, CheckSquare, BookMarked, FolderOpen, Route, Shield, KeyRound, ChevronDown, Fingerprint } from 'lucide-react'
+import { Plane, Eye, EyeOff, Mail, Lock, User, Globe, Shield, KeyRound, ChevronDown, Fingerprint } from 'lucide-react'
 import { useLogin } from './login/useLogin'
 import { useBranding } from '../context/BrandingContext'
 
@@ -384,37 +384,20 @@ export default function LoginPage(): React.ReactElement {
           <h2 style={{ margin: '0 0 12px', fontSize: 36, fontWeight: 700, color: 'white', lineHeight: 1.15, letterSpacing: '-0.02em', fontFamily: "'MuseoModerno', sans-serif", textTransform: 'lowercase' }}>
             {t('login.tagline')}
           </h2>
-          <p style={{ margin: '0 0 44px', fontSize: 15, color: 'rgba(255,255,255,0.5)', lineHeight: 1.7 }}>
+          <p style={{ margin: 0, fontSize: 15, color: 'rgba(255,255,255,0.55)', lineHeight: 1.7 }}>
             {t('login.description')}
           </p>
-
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8 }}>
-            {[
-              { Icon: Map, label: t('login.features.maps'), desc: t('login.features.mapsDesc') },
-              { Icon: Zap, label: t('login.features.realtime'), desc: t('login.features.realtimeDesc') },
-              { Icon: Wallet, label: t('login.features.budget'), desc: t('login.features.budgetDesc') },
-              { Icon: Users, label: t('login.features.collab'), desc: t('login.features.collabDesc') },
-              { Icon: CheckSquare, label: t('login.features.packing'), desc: t('login.features.packingDesc') },
-              { Icon: BookMarked, label: t('login.features.bookings'), desc: t('login.features.bookingsDesc') },
-              { Icon: FolderOpen, label: t('login.features.files'), desc: t('login.features.filesDesc') },
-              { Icon: Route, label: t('login.features.routes'), desc: t('login.features.routesDesc') },
-            ].map(({ Icon, label, desc }) => (
-              <div key={label} style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 14, padding: '14px 12px', border: '1px solid rgba(255,255,255,0.06)', textAlign: 'left', transition: 'background 200ms cubic-bezier(0.23,1,0.32,1), border-color 200ms cubic-bezier(0.23,1,0.32,1)' }}
-                onMouseEnter={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.12)' }}
-                onMouseLeave={(e: React.MouseEvent<HTMLDivElement>) => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.06)' }}>
-                <Icon size={17} style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 7 }} />
-                <div style={{ fontSize: 12.5, color: 'white', fontWeight: 600, marginBottom: 2 }}>{label}</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', lineHeight: 1.4 }}>{desc}</div>
-              </div>
-            ))}
-          </div>
 
         </div>
       </div>
 
       {/* Right — form */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: 'linear-gradient(180deg, #fbfaf8 0%, #f3f4f6 100%)' }}>
-        <div style={{ width: '100%', maxWidth: 400 }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: 'linear-gradient(155deg, #fdf6ef 0%, #f4f5f8 55%, #eef1f6 100%)', position: 'relative', overflow: 'hidden' }}>
+        {/* Soft travel-toned glows behind the card so the right side isn't flat
+            white — warm sunrise peach + a cool sky tint, heavily blurred. */}
+        <div aria-hidden style={{ position: 'absolute', top: '-12%', right: '-8%', width: 420, height: 420, borderRadius: '50%', background: 'radial-gradient(circle, rgba(245,158,11,0.16) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
+        <div aria-hidden style={{ position: 'absolute', bottom: '-14%', left: '-10%', width: 380, height: 380, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.14) 0%, transparent 70%)', filter: 'blur(60px)', pointerEvents: 'none' }} />
+        <div style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }}>
 
           {/* Mobile logo */}
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 36 }}
