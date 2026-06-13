@@ -47,7 +47,6 @@ import gdpr from './gdpr';
 import groups from './groups';
 import placeVote from './placeVote';
 import visitorPoll from './visitorPoll';
-import worldmap from './worldmap';
 
 const locale = {
   ...common,
@@ -99,6 +98,5 @@ const locale = {
   ...groups,
   ...placeVote,
   ...visitorPoll,
-  ...worldmap,
 };
 export default locale;

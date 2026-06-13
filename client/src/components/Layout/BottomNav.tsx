@@ -4,7 +4,7 @@ import { useAddonStore } from '../../store/addonStore'
 import { useAuthStore } from '../../store/authStore'
 import { useSettingsStore } from '../../store/settingsStore'
 import { useTranslation } from '../../i18n'
-import { LayoutGrid, CalendarDays, Globe, Globe2, Compass, Plus, Users, Sparkles, CreditCard } from 'lucide-react'
+import { LayoutGrid, CalendarDays, Globe, Compass, Plus, Users, Sparkles, CreditCard } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
 const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey?: string; label?: string; to?: string; creatorOnly?: boolean }> = {
@@ -12,7 +12,6 @@ const ADDON_NAV: Record<string, { icon: LucideIcon; labelKey?: string; label?: s
   atlas:   { icon: Globe,        labelKey: 'admin.addons.catalog.atlas.name' },
   journey: { icon: Compass,      labelKey: 'admin.addons.catalog.journey.name' },
   groups:  { icon: Users,        label: 'Groups', to: '/groups' },
-  worldmap: { icon: Globe2,      label: 'World Map', to: '/worldmap' },
   creator_hub: { icon: Sparkles, label: 'Creator Hub', to: '/creator-hub', creatorOnly: true },
   explore_payments: { icon: CreditCard, label: 'Payments & Payouts', to: '/explore', creatorOnly: true },
 }

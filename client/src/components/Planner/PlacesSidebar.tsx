@@ -4,6 +4,7 @@ import FileImportModal from './FileImportModal'
 import ConfirmDialog from '../shared/ConfirmDialog'
 import { usePlacesSidebar, type PlacesSidebarProps } from './usePlacesSidebar'
 import { PlacesDropOverlay, PlacesHeader } from './PlacesSidebarHeader'
+import { BucketListSuggestions } from './BucketListSuggestions'
 import { PlacesSelectionBar } from './PlacesSidebarSelectionBar'
 import { PlacesList } from './PlacesSidebarList'
 import { MobileDayPickerSheet } from './PlacesSidebarMobileDayPicker'
@@ -28,6 +29,9 @@ const PlacesSidebar = React.memo(function PlacesSidebar(props: PlacesSidebarProp
       {sidebarDragOver && <PlacesDropOverlay {...S} />}
       {/* Kopfbereich */}
       <PlacesHeader {...S} />
+
+      {/* Bucket-list suggestions for the trip's country (ROUTD) */}
+      {!selectMode && <BucketListSuggestions tripId={S.tripId} placeCount={S.places.length} onAdd={S.onAddBucketItem} />}
 
       {/* Anzahl / Auswahl-Leiste */}
       {selectMode ? (

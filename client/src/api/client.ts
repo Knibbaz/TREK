@@ -1142,15 +1142,6 @@ export const mollieApi = {
   getStatus: () => apiClient.get('/mollie/status').then(r => r.data),
 }
 
-export const worldmapApi = {
-  getCountries: () => apiClient.get('/addons/worldmap/countries').then(r => r.data),
-  getEntries: (country?: string) =>
-    apiClient.get('/addons/worldmap/entries', { params: country ? { country } : undefined }).then(r => r.data),
-  addEntry: (data: { country_code: string; name: string; description?: string; category?: string; lat?: number; lng?: number }) =>
-    apiClient.post('/addons/worldmap/entries', data).then(r => r.data),
-  deleteEntry: (id: number) => apiClient.delete(`/addons/worldmap/entries/${id}`).then(r => r.data),
-}
-
 export const atlasApi = {
   listResidency: () => apiClient.get('/addons/atlas/residency').then(r => r.data),
   createResidency: (data: Record<string, unknown>) => apiClient.post('/addons/atlas/residency', data).then(r => r.data),

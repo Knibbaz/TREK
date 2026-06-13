@@ -45,7 +45,6 @@ import groups from './groups';
 import dateAvail from './dateAvail';
 import placeVote from './placeVote';
 import explore from './explore';
-import worldmap from './worldmap';
 import creatorHub from './creatorHub';
 import visitorPoll from './visitorPoll';
 
@@ -97,7 +96,6 @@ const locale = {
   ...dateAvail,
   ...placeVote,
   ...explore,
-  ...worldmap,
   ...creatorHub,
   ...visitorPoll,
 };

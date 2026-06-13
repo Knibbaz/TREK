@@ -15,6 +15,9 @@ const mapMock = vi.hoisted(() => ({
   on: vi.fn(),
   off: vi.fn(),
   panBy: vi.fn(),
+  getContainer: vi.fn(() => document.createElement('div')),
+  invalidateSize: vi.fn(),
+  whenReady: vi.fn(),
 }))
 
 vi.mock('react-leaflet', () => ({

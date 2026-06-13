@@ -73,5 +73,6 @@ const atlas: TranslationStrings = {
   'atlas.legend.bucket': 'Bucketlist',
   'atlas.removeFromBucket': 'Verwijderen van bucket list',
   'atlas.removeFromBucketHint': 'Dit land staat al op je bucket list',
+  'bucketList.suggestionsTitle': 'Uit je bucket list',
 };
 export default atlas;

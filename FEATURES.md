@@ -121,6 +121,9 @@ De roadmap-statuskolom (mei) is verouderd — veel is sindsdien gebouwd:
 
 ---
 
+> **World Map verwijderd** (2026-06-13): de collaboratieve wereldkaart is eruit;
+> de personal per-land bucket-list in Atlas vervangt het concept.
+
 ## Groep als clubhuis (Groep als clubhuis.md + Group-check.md)
 
 | Feature | Status | Inschatting (uit Group-check) |
@@ -146,6 +149,7 @@ De roadmap-statuskolom (mei) is verouderd — veel is sindsdien gebouwd:
 | # | Feature | Status |
 |---|---------|--------|
 | P2.1.1–3 | POI discovery op kaart (puntjes, zoeken, map-to-day) | ✅ ⬆️ upstream #1147 (POI-pill + instance-wide Mapbox) |
+| Bucket-list per land | Mooie plekken bewaren per land (Atlas), opduikend bij trip-planning | ✅ bucket_list (Atlas) + trip-suggesties op basis van het land van je places |
 | P2.1.4 | Zoeken langs route | ❌ |
 | P2.1.5 | PWA GPS-suggesties | ❌ |
 | P2.2.1 | Drag & drop hele dagen + dag invoegen | ✅ ⬆️ upstream #1148 |

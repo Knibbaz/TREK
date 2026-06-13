@@ -72,11 +72,14 @@
 
 ### B. Styling-consistentie + World Map + bucket-list  *(gevraagd 2026-06-13)*
 - Groups, Explore, Creator Hub, Payments & Payouts visueel gelijktrekken met
-  de huidige (upstream glass/Tailwind-token) stijl van de app.
-- **World Map verwijderen** (addon + routes + nav).
-- Nieuwe feature: **bucket-list per land** — mooie plekken bewaren per land
-  (in Atlas of als lijst), en die lijst automatisch tonen wanneer je een trip
-  naar dat land/locatie aanmaakt. → ook opnemen in FEATURES.md.
+  de huidige (upstream glass/Tailwind-token) stijl van de app. → **NOG OPEN**
+- ~~**World Map verwijderen**~~ — DONE: page/route/nav/addon/i18n weg +
+  migratie verwijdert de addon uit bestaande DB's; world_map_entries-tabel
+  blijft als orphan (non-destructief).
+- ~~**Bucket-list per land**~~ — DONE: bleek al te bestaan in Atlas
+  (\`bucket_list\`-tabel, CRUD, UI). Toegevoegd: trip-suggesties — server leidt
+  het land van een trip af uit de places (reverse-geocode), toont matchende
+  bucket-list-items in PlacesSidebar met "+ als place toevoegen".
 
 ### C. Upstream-PR's kritisch toetsen aan eigen plannen  *(gevraagd 2026-06-13)*
 - UPSTREAM_PRS.md naast FEATURES.md en de eigen specs leggen: past de
@@ -97,10 +100,9 @@
 - "Beslissing"-badge in het tripoverzicht na het sluiten van een poll.
 - Optioneel: automatisch een place aanmaken van de winnende poll-optie.
 
-### H. Template-bibliotheek / bucket-list per land  *(gevraagd 2026-06-13)*
-- Agency-spec 4.1 (template-bibliotheek) gecombineerd met de bucket-list-wens
-  uit verzoek B: herbruikbare lijst van mooiste plekken per land die opduikt
-  bij het plannen van een trip naar dat land.
+### H. ~~Template-bibliotheek / bucket-list per land~~  *(gevraagd én afgerond 2026-06-13)*
+- Bucket-list-deel gebouwd (zie B). De bredere agency-template-bibliotheek
+  (4.1) blijft B2B-toekomstwerk.
 
 ### I. ~~Kaart laadt pas na page-reload~~  *(gevraagd én gefixt 2026-06-13)*
 - Oorzaak: Leaflet meet de container één keer bij mount; bij SPA-navigatie is

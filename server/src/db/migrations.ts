@@ -3562,6 +3562,16 @@ function runMigrations(db: Database.Database): void {
       `);
       console.log('[migrations] Created visitor_insights table');
     },
+    // Migration: retire the collaborative World Map addon (replaced by the
+    // personal per-country bucket list in Atlas). Removes the addon registration
+    // so it disappears from nav/admin; the orphan world_map_entries table is
+    // left in place (non-destructive) and simply no longer served.
+    () => {
+      try { db.prepare("DELETE FROM addons WHERE id = 'worldmap'").run(); } catch (err: any) {
+        console.warn('[migrations] Could not remove worldmap addon:', err?.message);
+      }
+      console.log('[migrations] Retired worldmap addon');
+    },
 () => {
       type Row = { id: number; region_code: string; region_name: string; country_code: string };
       const rows = db.prepare(

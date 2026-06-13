@@ -40,7 +40,6 @@ import trips from './trips';
 import undo from './undo';
 import vacay from './vacay';
 import visitorPoll from './visitorPoll';
-import worldmap from './worldmap';
 import account from './account';
 import creatorHub from './creatorHub';
 import dateAvail from './dateAvail';
@@ -92,7 +91,6 @@ const locale = {
   ...system_notice,
   ...transport,
   ...visitorPoll,
-  ...worldmap,
   ...account,
   ...creatorHub,
   ...dateAvail,

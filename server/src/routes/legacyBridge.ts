@@ -12,7 +12,6 @@ import creatorHubAffiliatesRoutes, { publicAffiliateRouter } from './creator-hub
 import creatorHubTipsRoutes from './creator-hub/tips';
 import mollieConnectRoutes from './mollieConnect';
 import mollieWebhookRoutes from './mollieWebhook';
-import worldmapRoutes from './worldmap';
 import adminImportRouter from './backup/admin-import';
 import schedulesRouter from './backup/schedules';
 import userExportRouter from './backup/user-export';
@@ -77,7 +76,6 @@ export function applyLegacyFeatureRoutes(app: Express): void {
   use('/api/addons/explore/creator-hub/tips', creatorHubTipsRoutes);
   use('/api/mollie', mollieConnectRoutes);
   use('/webhooks/mollie', mollieWebhookRoutes);
-  use('/api/addons/worldmap', worldmapRoutes);
   use('/api/admin/backup-v2', adminImportRouter);
   use('/api/admin/backup-v2', schedulesRouter);
   use('/api/user', userExportRouter);

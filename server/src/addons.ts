@@ -8,7 +8,6 @@ export const ADDON_IDS = {
   COLLAB: 'collab',
   JOURNEY: 'journey',
   GROUPS: 'groups',
-  WORLDMAP: 'worldmap',
 } as const;
 
 export type AddonId = typeof ADDON_IDS[keyof typeof ADDON_IDS];

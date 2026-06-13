@@ -72,5 +72,6 @@ const atlas: TranslationStrings = {
   'atlas.legend.volunteered': 'Volunteered',
   'atlas.legend.visited': 'Visited',
   'atlas.legend.bucket': 'Bucket list',
+  'bucketList.suggestionsTitle': 'From your bucket list',
 };
 export default atlas;

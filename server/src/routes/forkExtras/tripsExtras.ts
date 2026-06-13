@@ -132,5 +132,41 @@ router.get('/:id/groups', authenticate, (req: Request, res: Response) => {
   res.json({ groups });
 });
 
+// ── Bucket-list suggestions for a trip (ROUTD) ────────────────────────────────
+// Surfaces the user's per-country bucket list when they plan a trip: derive the
+// trip's country from its existing places (most-common country), then return the
+// bucket-list items for that country that aren't yet on the trip as a place.
+router.get('/:id/bucket-list-suggestions', authenticate, async (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  const tripId = req.params.id;
+  if (!canAccessTrip(tripId, authReq.user.id)) return res.status(404).json({ error: 'Trip not found' });
+
+  const places = db.prepare(
+    'SELECT name, lat, lng FROM places WHERE trip_id = ? AND lat IS NOT NULL AND lng IS NOT NULL'
+  ).all(tripId) as Array<{ name: string; lat: number; lng: number }>;
+  if (places.length === 0) return res.json({ country_code: null, items: [] });
+
+  // Tally countries across up to 8 places to find the trip's dominant country.
+  const { reverseGeocodeCountry } = require('../../services/atlasService');
+  const tally = new Map<string, number>();
+  for (const p of places.slice(0, 8)) {
+    try {
+      const code = await reverseGeocodeCountry(p.lat, p.lng);
+      if (code) tally.set(code, (tally.get(code) || 0) + 1);
+    } catch { /* ignore geocode failures */ }
+  }
+  if (tally.size === 0) return res.json({ country_code: null, items: [] });
+  const country = [...tally.entries()].sort((a, b) => b[1] - a[1])[0][0];
+
+  const items = db.prepare(
+    'SELECT id, name, lat, lng, country_code, notes FROM bucket_list WHERE user_id = ? AND UPPER(country_code) = ? ORDER BY created_at DESC'
+  ).all(authReq.user.id, country.toUpperCase()) as Array<{ id: number; name: string; lat: number | null; lng: number | null; country_code: string; notes: string | null }>;
+
+  // Hide items already added to this trip (same name, case-insensitive).
+  const existing = new Set(places.map(p => p.name.trim().toLowerCase()));
+  const filtered = items.filter(it => !existing.has(it.name.trim().toLowerCase()));
+
+  res.json({ country_code: country, items: filtered });
+});
 
 export default router;

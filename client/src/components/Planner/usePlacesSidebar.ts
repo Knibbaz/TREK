@@ -30,6 +30,7 @@ export interface PlacesSidebarProps {
   pushUndo?: (label: string, undoFn: () => Promise<void> | void) => void
   initialScrollTop?: number
   onScrollTopChange?: (top: number) => void
+  onAddBucketItem?: (item: { lat: number; lng: number; name: string }) => void
 }
 
 /**

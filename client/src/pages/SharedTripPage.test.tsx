@@ -22,6 +22,8 @@ vi.mock('react-leaflet', () => ({
     getZoom: vi.fn(() => 10),
     on: vi.fn(),
     off: vi.fn(),
+    getContainer: vi.fn(() => document.createElement('div')),
+    invalidateSize: vi.fn(),
   }),
 }));
 

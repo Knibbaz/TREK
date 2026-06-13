@@ -26,7 +26,6 @@ import ExplorePage from './pages/ExplorePage'
 import { CreatorStorefrontPage } from './pages/CreatorStorefrontPage'
 import CreatorHubPage from './pages/CreatorHubPage'
 import { LinkInBioPage } from './pages/LinkInBioPage'
-import WorldMapPage from './pages/WorldMapPage'
 import SharedTripPage from './pages/SharedTripPage'
 import TripInvitePage from './pages/TripInvitePage'
 import InAppNotificationsPage from './pages/InAppNotificationsPage.tsx'
@@ -388,14 +387,6 @@ export default function App() {
           element={
             <ProtectedRoute addonId="creator_hub">
               <CreatorHubPage />
-            </ProtectedRoute>
-          }
-        />
-        <Route
-          path="/worldmap"
-          element={
-            <ProtectedRoute addonId="worldmap">
-              <WorldMapPage />
             </ProtectedRoute>
           }
         />
