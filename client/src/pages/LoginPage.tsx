@@ -261,13 +261,28 @@ export default function LoginPage(): React.ReactElement {
         )}
       </div>
 
-      {/* Left — branding */}
+      {/* Left — branding hero (travel photo + glass content) */}
       <div style={{ display: 'none', width: '55%', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', padding: '60px 48px', position: 'relative', overflow: 'hidden' }}
         className="lg-panel">
         <style>{`@media(min-width:1024px){.lg-panel{display:flex!important}}`}</style>
 
+        {/* Travel photo hero — an Unsplash destination behind a dusk overlay so
+            text/glass stay legible. The panel's own gradient shows through if the
+            image fails to load, so this never breaks the login. */}
+        <div aria-hidden style={{ position: 'absolute', inset: 0, zIndex: 0 }}>
+          <img
+            src="https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1600&q=80"
+            alt=""
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none' }}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+          {/* Dusk overlay: darker at the bottom for legibility, lets the sky read
+              up top where the stars/planes drift. */}
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(160deg, rgba(10,15,30,0.62) 0%, rgba(10,15,30,0.35) 38%, rgba(8,12,24,0.78) 100%)' }} />
+        </div>
+
         {/* Stars */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', zIndex: 1 }}>
           {stars.map((s, i) => (
             <div key={i} className="login-star" style={{
               position: 'absolute',
@@ -287,11 +302,11 @@ export default function LoginPage(): React.ReactElement {
         </div>
 
         {/* Animated glow orbs */}
-        <div className="login-orb1" style={{ position: 'absolute', width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', filter: 'blur(80px)' }} />
-        <div className="login-orb2" style={{ position: 'absolute', width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)', filter: 'blur(60px)' }} />
+        <div className="login-orb1" style={{ position: 'absolute', zIndex: 1, width: 500, height: 500, borderRadius: '50%', background: 'radial-gradient(circle, rgba(99,102,241,0.1) 0%, transparent 70%)', filter: 'blur(80px)' }} />
+        <div className="login-orb2" style={{ position: 'absolute', zIndex: 1, width: 350, height: 350, borderRadius: '50%', background: 'radial-gradient(circle, rgba(14,165,233,0.08) 0%, transparent 70%)', filter: 'blur(60px)' }} />
 
         {/* Animated planes — realistic silhouettes at different sizes/speeds */}
-        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', pointerEvents: 'none', zIndex: 1 }}>
           {/* Plane 1 — large, slow, foreground */}
           <svg className="login-plane1" viewBox="0 0 480 120" style={{ position: 'absolute', width: 48, opacity: 0.12 }}>
             <g fill="white" transform="translate(240,60) rotate(-12)">
@@ -398,7 +413,7 @@ export default function LoginPage(): React.ReactElement {
       </div>
 
       {/* Right — form */}
-      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: '#f9fafb' }}>
+      <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '32px 24px', background: 'linear-gradient(180deg, #fbfaf8 0%, #f3f4f6 100%)' }}>
         <div style={{ width: '100%', maxWidth: 400 }}>
 
           {/* Mobile logo */}
@@ -409,7 +424,7 @@ export default function LoginPage(): React.ReactElement {
             <p style={{ margin: 0, fontSize: 16, color: '#9ca3af', fontFamily: "'MuseoModerno', sans-serif", textTransform: 'lowercase', whiteSpace: 'nowrap' }}>{t('login.tagline')}</p>
           </div>
 
-          <div style={{ background: 'white', borderRadius: 20, border: '1px solid #e5e7eb', padding: '36px 32px', boxShadow: '0 2px 16px rgba(0,0,0,0.06)' }}>
+          <div style={{ background: 'white', borderRadius: 20, border: '1px solid rgba(0,0,0,0.06)', padding: '36px 32px', boxShadow: '0 1px 2px rgba(40,30,20,0.04), 0 18px 48px -20px rgba(30,25,20,0.28)' }}>
             {oidcOnly ? (
               <>
                 <h2 style={{ margin: '0 0 4px', fontSize: 22, fontWeight: 800, color: '#111827' }}>{t('login.title')}</h2>
