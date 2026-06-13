@@ -13,6 +13,7 @@ import CustomSelect from '../components/shared/CustomSelect'
 import PlaceAvatar from '../components/shared/PlaceAvatar'
 import MobileTopBar from '../components/Layout/MobileTopBar'
 import { useDashboard } from './dashboard/useDashboard'
+import { tripsApi } from '../api/client'
 import {
   type DashboardTrip, type HeroBundle, type TravelStats, type UpcomingReservation,
   MS_PER_DAY, daysUntil, getTripStatus,
@@ -556,6 +557,25 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
     return [home, ...DEFAULT_ZONES]
   })
   const [adding, setAdding] = useState(false)
+  const [tripZones, setTripZones] = useState<{ timezone: string; title: string }[]>([])
+
+  // Auto-surface the timezones of trips you've planned elsewhere (ROUTD): pull
+  // each upcoming/active trip's timezone and merge any that differ from home.
+  useEffect(() => {
+    tripsApi.tripTimezones()
+      .then(r => {
+        const zs = (r.timezones || []).filter(z => z.timezone && z.timezone !== home)
+        setTripZones(zs)
+        if (zs.length) {
+          setZones(prev => {
+            const merged = [...prev]
+            for (const z of zs) if (!merged.includes(z.timezone)) merged.push(z.timezone)
+            return merged
+          })
+        }
+      })
+      .catch(() => {})
+  }, [home])
 
   // A minute's resolution is plenty for clocks and keeps re-renders cheap.
   useEffect(() => {
@@ -602,7 +622,10 @@ function TimezoneTool({ locale }: { locale: string }): React.ReactElement {
             <div className="tz-dot">{shortZone(tz)[0]?.toUpperCase()}</div>
             <div>
               <div className="tz-city">{shortZone(tz)}</div>
-              <div className="tz-sub">{offsetLabel(tz)}</div>
+              <div className="tz-sub">
+                {offsetLabel(tz)}
+                {tripZones.find(z => z.timezone === tz) && <span> · {tripZones.find(z => z.timezone === tz)!.title}</span>}
+              </div>
             </div>
             <div className="tz-time mono">{timeIn(tz)}</div>
             <button className="tz-del" aria-label={t('dashboard.aria.removeTimezone', { city: shortZone(tz) })} onClick={() => removeZone(tz)}><X size={13} /></button>

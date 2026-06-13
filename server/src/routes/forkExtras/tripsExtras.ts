@@ -132,6 +132,40 @@ router.get('/:id/groups', authenticate, (req: Request, res: Response) => {
   res.json({ groups });
 });
 
+// ── Timezones of the user's planned/active trips (ROUTD) ──────────────────────
+// Powers the dashboard world-clock: returns the distinct timezone of each
+// upcoming or ongoing trip, derived from its first geocoded place. Lets the
+// dashboard auto-show clocks for places you're actually travelling to.
+router.get('/timezones', authenticate, (req: Request, res: Response) => {
+  const authReq = req as AuthRequest;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const tzlookup = require('tz-lookup') as (lat: number, lng: number) => string;
+
+  const trips = db.prepare(`
+    SELECT id, title, start_date, end_date FROM trips
+    WHERE user_id = ? AND is_archived = 0
+      AND (end_date IS NULL OR date(end_date) >= date('now'))
+    ORDER BY date(start_date) ASC
+    LIMIT 25
+  `).all(authReq.user.id) as Array<{ id: number; title: string; start_date: string | null; end_date: string | null }>;
+
+  const out: Array<{ trip_id: number; title: string; timezone: string }> = [];
+  const seen = new Set<string>();
+  for (const trip of trips) {
+    const place = db.prepare(
+      'SELECT lat, lng FROM places WHERE trip_id = ? AND lat IS NOT NULL AND lng IS NOT NULL LIMIT 1'
+    ).get(trip.id) as { lat: number; lng: number } | undefined;
+    if (!place) continue;
+    try {
+      const tz = tzlookup(place.lat, place.lng);
+      if (!tz || seen.has(tz)) continue;
+      seen.add(tz);
+      out.push({ trip_id: trip.id, title: trip.title, timezone: tz });
+    } catch { /* invalid coords → skip */ }
+  }
+  res.json({ timezones: out });
+});
+
 // ── Bucket-list suggestions for a trip (ROUTD) ────────────────────────────────
 // Surfaces the user's per-country bucket list when they plan a trip: derive the
 // trip's country from its existing places (most-common country), then return the

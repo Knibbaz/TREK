@@ -92,9 +92,11 @@
 ### E. ~~Missende vertalingen en/nl~~  *(gevraagd én afgerond 2026-06-13)*
 - Zie keuze #13 hierboven.
 
-### F. Dashboard-tijdzones koppelen aan geplande trips  *(gevraagd 2026-06-13)*
-- De klokjes/tijdzones op het dashboard moeten de tijdzones tonen van trips
-  die naar een andere tijdzone gepland zijn dan waar je nu zit.
+### F. ~~Dashboard-tijdzones koppelen aan geplande trips~~  *(gevraagd én gebouwd 2026-06-13)*
+- Endpoint `GET /api/trips/timezones`: leidt per upcoming/active trip de tijdzone
+  af uit de eerste geocodeerde place (tz-lookup). De dashboard-wereldklok toont
+  die tijdzones automatisch (gemerged met je eigen + thuiszone), met de
+  trip-naam als sublabel.
 
 ### G. P1.1.4 afmaken: poll-beslissing  *(gevraagd 2026-06-13)*
 - "Beslissing"-badge in het tripoverzicht na het sluiten van een poll.

@@ -351,6 +351,7 @@ export const tripsApi = {
   update: (id: number | string, data: TripUpdateRequest) => apiClient.put(`/trips/${id}`, data).then(r => r.data),
   delete: (id: number | string) => apiClient.delete(`/trips/${id}`).then(r => r.data),
   uploadCover: (id: number | string, formData: FormData) => apiClient.post(`/trips/${id}/cover`, formData, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data),
+  tripTimezones: () => apiClient.get('/trips/timezones').then(r => r.data) as Promise<{ timezones: { trip_id: number; title: string; timezone: string }[] }>,
   searchCoverImages: (q: string) => apiClient.get(`/trips/cover-search?q=${encodeURIComponent(q)}`).then(r => r.data) as Promise<{ photos: { id: string; url: string; thumb: string; description: string | null; photographer: string | null; photographerUrl: string | null; link: string }[] }>,
   triggerUnsplashDownload: (photoId: string) => apiClient.post('/trips/unsplash-download', { photoId }).then(r => r.data),
   archive: (id: number | string) => apiClient.put(`/trips/${id}`, { is_archived: true }).then(r => r.data),
