@@ -44,6 +44,13 @@ export function applyGlobalMiddleware(
     corsOrigin = true;
   }
 
+  // Origins allowed to embed this app in an <iframe>. CSP frame-ancestors is
+  // the cross-origin-capable control; X-Frame-Options can only say SAMEORIGIN,
+  // so it gets turned off whenever an external embedder is configured.
+  const frameAncestors = process.env.FRAME_ANCESTORS
+    ? process.env.FRAME_ANCESTORS.split(/[,\s]+/).map(o => o.trim()).filter(Boolean)
+    : ["'self'"];
+
   const shouldForceHttps = process.env.FORCE_HTTPS?.toLowerCase() === 'true';
   // HSTS is worth enabling any time we're serving production traffic,
   // not only when FORCE_HTTPS is set. Self-hosters behind Traefik /
@@ -105,7 +112,7 @@ export function applyGlobalMiddleware(
         fontSrc: ["'self'", "https://fonts.gstatic.com", "data:"],
         objectSrc: ["'none'"],
         frameSrc: ["'none'"],
-        frameAncestors: ["'self'"],
+        frameAncestors,
         // Restrict <form> submission targets (form-action has no default-src
         // fallback, so it must be set explicitly).
         formAction: ["'self'"],
@@ -113,6 +120,12 @@ export function applyGlobalMiddleware(
       }
     },
     crossOriginEmbedderPolicy: false,
+    // X-Frame-Options only understands SAMEORIGIN; once an external embedder is
+    // whitelisted, frame-ancestors must be the sole authority or browsers that
+    // honour XFO first would still block the cross-origin frame.
+    xFrameOptions: frameAncestors.length === 1 && frameAncestors[0] === "'self'"
+      ? undefined
+      : false,
     hsts: hstsActive ? { maxAge: 31536000, includeSubDomains: hstsIncludeSubdomains } : false,
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
   }));
